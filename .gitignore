@@ -1,0 +1,55 @@
+# Android / Gradle
+.gradle/
+build/
+*/build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Local SDK and machine-specific config
+local.properties
+
+# Android Studio / IntelliJ
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+.idea/deploymentTargetSelector.xml
+*.iml
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Java / Kotlin
+*.class
+out/
+
+# Generated APK / AAB
+*.apk
+*.aab
+*.ap_
+
+# Signing / secrets
+*.jks
+*.keystore
+google-services.json
+keystore.properties
+
+# Firebase local emulator / export artifacts
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+*.overall_export_metadata
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo

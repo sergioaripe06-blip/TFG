@@ -1,0 +1,53 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.FlatShare" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">@color/primary_green</item>
+        <item name="colorOnPrimary">@color/on_primary_green</item>
+        <item name="colorSecondary">@color/surface_dark_alt</item>
+        <item name="android:colorBackground">@color/bg_deep_green</item>
+        <item name="colorSurface">@color/surface_dark</item>
+        <item name="colorOnSurface">@color/text_light</item>
+        <item name="android:textColorPrimary">@color/text_light</item>
+        <item name="android:textColorSecondary">@color/text_muted</item>
+        <item name="colorControlNormal">@color/text_light</item>
+        <item name="android:statusBarColor">@color/bg_deep_green</item>
+        <item name="android:navigationBarColor">@color/bg_deep_green</item>
+    </style>
+
+    <style name="Widget.FlatShare.BottomNav.ActiveIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
+        <item name="android:width">96dp</item>
+        <item name="android:height">36dp</item>
+        <item name="android:color">@color/primary_green</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.FlatShare.Pill</item>
+    </style>
+
+    <style name="ShapeAppearance.FlatShare.Pill" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">18dp</item>
+    </style>
+
+    <style name="ThemeOverlay.FlatShare.Dialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="materialAlertDialogBodyTextStyle">@style/TextAppearance.FlatShare.DialogBody</item>
+        <item name="materialAlertDialogTitleTextStyle">@style/TextAppearance.FlatShare.DialogTitle</item>
+        <item name="android:colorBackground">@color/surface_dark</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.FlatShare.DialogButton.Positive</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.FlatShare.DialogButton.Negative</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Widget.FlatShare.DialogButton.Negative</item>
+    </style>
+
+    <style name="TextAppearance.FlatShare.DialogTitle" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:textColor">@color/text_light</item>
+    </style>
+
+    <style name="TextAppearance.FlatShare.DialogBody" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textColor">@color/text_light</item>
+    </style>
+
+    <style name="Widget.FlatShare.DialogButton.Positive" parent="Widget.Material3.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/primary_green</item>
+    </style>
+
+    <style name="Widget.FlatShare.DialogButton.Negative" parent="Widget.Material3.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/text_muted</item>
+    </style>
+</resources>
+

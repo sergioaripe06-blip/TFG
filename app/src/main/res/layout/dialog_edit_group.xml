@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingTop="8dp"
+    android:paddingBottom="4dp">
+
+    <EditText
+        android:id="@+id/editGroupNameEt"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_input_dark_round"
+        android:hint="Nombre del grupo"
+        android:inputType="textPersonName"
+        android:maxLines="1"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp"
+        android:textColor="@color/text_light"
+        android:textColorHint="@color/text_muted" />
+
+    <EditText
+        android:id="@+id/editGroupDescEt"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_input_dark_round"
+        android:gravity="top|start"
+        android:hint="Descripcion"
+        android:inputType="textMultiLine"
+        android:minLines="3"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp"
+        android:textColor="@color/text_light"
+        android:textColorHint="@color/text_muted" />
+
+</LinearLayout>

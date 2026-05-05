@@ -1,0 +1,123 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function authUid() {
+      return request.auth.uid;
+    }
+
+    function authEmail() {
+      return request.auth.token.email;
+    }
+
+    function groupDoc(groupId) {
+      return get(/databases/$(database)/documents/groups/$(groupId));
+    }
+
+    function groupExists(groupId) {
+      return exists(/databases/$(database)/documents/groups/$(groupId));
+    }
+
+    function isGroupOwner(groupId) {
+      return groupExists(groupId) && groupDoc(groupId).data.ownerId == authUid();
+    }
+
+    function isGroupMember(groupId) {
+      return groupExists(groupId) && groupDoc(groupId).data.members.hasAny([authUid()]);
+    }
+
+    function isSelfJoinUpdate() {
+      return signedIn()
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['members', 'memberEmails'])
+        && request.resource.data.members.size() == resource.data.members.size() + 1
+        && request.resource.data.members.hasAll(resource.data.members)
+        && request.resource.data.members.hasAny([authUid()])
+        && request.resource.data.memberEmails.size() == resource.data.memberEmails.size() + 1
+        && request.resource.data.memberEmails.hasAll(resource.data.memberEmails)
+        && request.resource.data.memberEmails.hasAny([authEmail()]);
+    }
+
+    match /users/{userId} {
+      allow read, write: if signedIn() && authUid() == userId;
+    }
+
+    match /usernames/{username} {
+      allow read: if true;
+      allow create, update: if signedIn()
+        && request.resource.data.uid == authUid()
+        && request.resource.data.email == authEmail();
+      allow delete: if false;
+    }
+
+    match /group_codes/{code} {
+      allow read: if signedIn();
+      allow create, update: if signedIn()
+        && request.resource.data.ownerId == authUid();
+      allow delete: if false;
+    }
+
+    match /groups/{groupId} {
+      allow create: if signedIn()
+        && request.resource.data.ownerId == authUid()
+        && request.resource.data.members.hasAny([authUid()])
+        && request.resource.data.memberEmails.hasAny([authEmail()]);
+
+      allow read: if signedIn() && isGroupMember(groupId);
+
+      allow update: if signedIn() && (
+        isGroupOwner(groupId) ||
+        isSelfJoinUpdate()
+      );
+
+      allow delete: if signedIn() && isGroupOwner(groupId);
+    }
+
+    match /expenses/{expenseId} {
+      allow create: if signedIn()
+        && request.resource.data.payerId == authUid()
+        && isGroupMember(request.resource.data.groupId);
+
+      allow read, update, delete: if signedIn()
+        && isGroupMember(resource.data.groupId);
+    }
+
+    match /payments/{paymentId} {
+      allow create: if signedIn()
+        && request.resource.data.fromEmail == authEmail()
+        && isGroupMember(request.resource.data.groupId);
+
+      allow read, update, delete: if signedIn()
+        && isGroupMember(resource.data.groupId);
+    }
+
+    match /reminders/{reminderId} {
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == authUid()
+        && isGroupMember(request.resource.data.groupId);
+
+      allow read, update, delete: if signedIn()
+        && isGroupMember(resource.data.groupId);
+    }
+
+    match /invitations/{invitationId} {
+      allow create: if signedIn()
+        && request.resource.data.inviterUid == authUid()
+        && isGroupMember(request.resource.data.groupId);
+
+      allow read: if signedIn()
+        && (
+          resource.data.inviterUid == authUid() ||
+          resource.data.invitedEmail == authEmail()
+        );
+
+      allow update, delete: if signedIn()
+        && (
+          resource.data.inviterUid == authUid() ||
+          resource.data.invitedEmail == authEmail()
+        );
+    }
+  }
+}

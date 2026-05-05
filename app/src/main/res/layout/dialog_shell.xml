@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_auth_panel"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:id="@+id/dialogTitleTv"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="Titulo"
+        android:textColor="@color/text_light"
+        android:textSize="22sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/dialogSubtitleTv"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:text="Subtitulo"
+        android:textColor="@color/text_muted"
+        android:textSize="13sp" />
+
+    <FrameLayout
+        android:id="@+id/dialogContentContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="18dp" />
+
+    <LinearLayout
+        android:id="@+id/dialogButtonsRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="18dp"
+        android:gravity="end"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/dialogCancelBtn"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:background="@drawable/bg_tab_default"
+            android:minWidth="0dp"
+            android:paddingHorizontal="18dp"
+            android:text="Cancelar"
+            android:textAllCaps="false"
+            android:textColor="@color/text_light" />
+
+        <Button
+            android:id="@+id/dialogConfirmBtn"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:layout_marginStart="10dp"
+            android:background="@drawable/bg_button_pill_primary"
+            android:minWidth="0dp"
+            android:paddingHorizontal="18dp"
+            android:text="Aceptar"
+            android:textAllCaps="false"
+            android:textColor="@color/on_primary_green" />
+    </LinearLayout>
+
+</LinearLayout>
