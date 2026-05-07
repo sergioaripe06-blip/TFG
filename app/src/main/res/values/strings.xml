@@ -1,4 +1,28 @@
 <resources>
     <string name="app_name">FlatShare</string>
+    <string name="nav_settings">Ajustes</string>
+    <string name="nav_calendar">Calendario</string>
+    <string name="settings_title">Settings</string>
+    <string name="settings_profile_section">Ver perfil</string>
+    <string name="settings_options_section">Opciones</string>
+    <string name="label_email">Email</string>
+    <string name="label_uid">UID</string>
+    <string name="label_current_group">Grupo actual</string>
+    <string name="theme_dark">Modo oscuro</string>
+    <string name="theme_light">Modo claro</string>
+    <string name="language_es">Espa&#241;ol</string>
+    <string name="language_en">English</string>
+    <string name="logout">Cerrar sesi&#243;n</string>
+    <string name="no_email">Sin email</string>
+    <string name="no_uid">Sin UID</string>
+    <string name="no_group_selected">Ninguno seleccionado</string>
+    <string name="settings_account_info">Account Info</string>
+    <string name="settings_team_members">Team Members</string>
+    <string name="settings_configuration">Configuration</string>
+    <string name="settings_team_members_message">Vista de miembros disponible en la siguiente iteraci&#243;n.</string>
+    <string name="settings_language">Idioma</string>
+    <string name="settings_notifications">Notificaciones</string>
+    <string name="save">Guardar</string>
+    <string name="calendar_title">Calendario de pagos</string>
+    <string name="due_date_hint">Fecha limite (YYYY-MM-DD)</string>
 </resources>
-

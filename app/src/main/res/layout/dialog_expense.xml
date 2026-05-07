@@ -30,16 +30,93 @@
         android:textColor="@color/text_light"
         android:textColorHint="@color/text_muted" />
 
+    <Spinner
+        android:id="@+id/categorySpinner"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_input_dark_round"
+        android:paddingHorizontal="12dp"
+        android:popupBackground="@color/surface_dark_alt" />
+
     <EditText
-        android:id="@+id/customSplitEt"
+        android:id="@+id/dueDateEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:background="@drawable/bg_input_dark_round"
-        android:hint="Reparto: email1:20,email2:30"
+        android:hint="@string/due_date_hint"
+        android:clickable="true"
+        android:focusable="false"
+        android:inputType="none"
         android:paddingHorizontal="16dp"
         android:paddingVertical="12dp"
         android:textColor="@color/text_light"
         android:textColorHint="@color/text_muted" />
+
+    <Spinner
+        android:id="@+id/expensePrioritySpinner"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_input_dark_round"
+        android:paddingHorizontal="12dp"
+        android:popupBackground="@color/surface_dark_alt" />
+
+    <Button
+        android:id="@+id/attachTicketBtn"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_tab_default"
+        android:text="Adjuntar ticket (OCR)"
+        android:textAllCaps="false"
+        android:textColor="@color/text_light" />
+
+    <TextView
+        android:id="@+id/ticketStatusTv"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="Sin ticket adjunto"
+        android:textColor="@color/text_muted"
+        android:textSize="12sp" />
+
+    <Spinner
+        android:id="@+id/splitModeSpinner"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_input_dark_round"
+        android:paddingHorizontal="12dp"
+        android:popupBackground="@color/surface_dark_alt" />
+
+    <LinearLayout
+        android:id="@+id/splitRowsContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:orientation="vertical" />
+
+    <Button
+        android:id="@+id/addSplitRowBtn"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_tab_default"
+        android:text="Anadir linea"
+        android:textAllCaps="false"
+        android:textColor="@color/text_light" />
+
+    <Button
+        android:id="@+id/removeSplitRowBtn"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_tab_default"
+        android:text="Eliminar linea"
+        android:textAllCaps="false"
+        android:textColor="@color/text_light"
+        android:visibility="gone" />
 
 </LinearLayout>

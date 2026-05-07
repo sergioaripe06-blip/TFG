@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingTop="8dp"
+    android:paddingBottom="4dp">
+
+    <EditText
+        android:id="@+id/groupNameEt"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="10dp"
+        android:background="@drawable/bg_input_dark_round"
+        android:hint="Nombre del piso"
+        android:inputType="textCapWords"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp"
+        android:textColor="@color/text_light"
+        android:textColorHint="@color/text_muted" />
+
+    <EditText
+        android:id="@+id/streetEt"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="10dp"
+        android:background="@drawable/bg_input_dark_round"
+        android:hint="Calle"
+        android:inputType="textCapWords"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp"
+        android:textColor="@color/text_light"
+        android:textColorHint="@color/text_muted" />
+
+    <EditText
+        android:id="@+id/portalEt"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="10dp"
+        android:background="@drawable/bg_input_dark_round"
+        android:hint="Portal / N&#250;mero"
+        android:inputType="text"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp"
+        android:textColor="@color/text_light"
+        android:textColorHint="@color/text_muted" />
+
+    <EditText
+        android:id="@+id/postalCodeEt"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="10dp"
+        android:background="@drawable/bg_input_dark_round"
+        android:hint="C&#243;digo postal"
+        android:inputType="number"
+        android:maxLength="10"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp"
+        android:textColor="@color/text_light"
+        android:textColorHint="@color/text_muted" />
+
+    <EditText
+        android:id="@+id/cityEt"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="10dp"
+        android:background="@drawable/bg_input_dark_round"
+        android:hint="Ciudad"
+        android:inputType="textCapWords"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp"
+        android:textColor="@color/text_light"
+        android:textColorHint="@color/text_muted" />
+
+    <EditText
+        android:id="@+id/provinceEt"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_input_dark_round"
+        android:hint="Provincia"
+        android:inputType="textCapWords"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp"
+        android:textColor="@color/text_light"
+        android:textColorHint="@color/text_muted" />
+
+</LinearLayout>

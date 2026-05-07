@@ -7,61 +7,51 @@
     android:paddingBottom="4dp">
 
     <EditText
-        android:id="@+id/paymentAmountEt"
+        android:id="@+id/filterCategoryEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@drawable/bg_input_dark_round"
-        android:hint="Importe"
-        android:inputType="numberDecimal"
+        android:hint="Categoría"
         android:paddingHorizontal="16dp"
         android:paddingVertical="12dp"
         android:textColor="@color/text_light"
         android:textColorHint="@color/text_muted" />
 
     <EditText
-        android:id="@+id/paymentToEt"
+        android:id="@+id/filterPersonEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:background="@drawable/bg_input_dark_round"
-        android:hint="Email destino"
+        android:hint="Persona (email)"
         android:inputType="textEmailAddress"
         android:paddingHorizontal="16dp"
         android:paddingVertical="12dp"
         android:textColor="@color/text_light"
         android:textColorHint="@color/text_muted" />
 
-    <Spinner
-        android:id="@+id/paymentCategorySpinner"
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:layout_marginTop="10dp"
-        android:background="@drawable/bg_input_dark_round"
-        android:paddingHorizontal="12dp"
-        android:popupBackground="@color/surface_dark_alt" />
-
     <EditText
-        android:id="@+id/paymentDueDateEt"
+        android:id="@+id/filterFromDateEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:background="@drawable/bg_input_dark_round"
-        android:hint="@string/due_date_hint"
-        android:clickable="true"
-        android:focusable="false"
-        android:inputType="none"
+        android:hint="Desde (YYYY-MM-DD)"
         android:paddingHorizontal="16dp"
         android:paddingVertical="12dp"
         android:textColor="@color/text_light"
         android:textColorHint="@color/text_muted" />
 
-    <Spinner
-        android:id="@+id/paymentPrioritySpinner"
+    <EditText
+        android:id="@+id/filterToDateEt"
         android:layout_width="match_parent"
-        android:layout_height="50dp"
+        android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:background="@drawable/bg_input_dark_round"
-        android:paddingHorizontal="12dp"
-        android:popupBackground="@color/surface_dark_alt" />
+        android:hint="Hasta (YYYY-MM-DD)"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp"
+        android:textColor="@color/text_light"
+        android:textColorHint="@color/text_muted" />
 
 </LinearLayout>

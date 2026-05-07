@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_screen_gradient"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingBottom="24dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="150dp"
+            android:background="@drawable/bg_group_row"
+            android:gravity="top"
+            android:orientation="horizontal"
+            android:paddingHorizontal="14dp"
+            android:paddingTop="20dp">
+
+            <View
+                android:layout_width="34dp"
+                android:layout_height="34dp" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="Mi cuenta"
+                android:textColor="@color/text_light"
+                android:textSize="21sp"
+                android:textStyle="bold" />
+
+            <ImageButton
+                android:id="@+id/openSettingsBtn"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:background="@drawable/bg_tab_default"
+                android:contentDescription="Abrir ajustes"
+                android:padding="7dp"
+                android:src="@android:drawable/ic_menu_manage"
+                android:tint="@color/text_light" />
+        </LinearLayout>
+
+        <FrameLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="-42dp">
+
+            <com.google.android.material.imageview.ShapeableImageView
+                android:id="@+id/profilePhotoIv"
+                android:layout_width="104dp"
+                android:layout_height="104dp"
+                android:background="@color/surface_chip"
+                android:contentDescription="Foto de perfil"
+                android:padding="2dp"
+                android:scaleType="centerCrop"
+                android:src="@android:drawable/ic_menu_camera"
+                app:shapeAppearanceOverlay="@style/ShapeAppearance.FlatShare.CircleImage"
+                app:strokeColor="@color/divider_soft"
+                app:strokeWidth="2dp" />
+
+            <TextView
+                android:id="@+id/profileInitialsTv"
+                android:layout_width="104dp"
+                android:layout_height="104dp"
+                android:gravity="center"
+                android:text="U"
+                android:textColor="@color/text_light"
+                android:textSize="30sp"
+                android:textStyle="bold" />
+
+            <ImageButton
+                android:id="@+id/changePhotoBtn"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:layout_gravity="bottom|end"
+                android:background="@drawable/bg_tab_selected"
+                android:contentDescription="Cambiar foto"
+                android:padding="7dp"
+                android:src="@android:drawable/ic_menu_edit"
+                android:tint="@color/on_primary_green" />
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="14dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Nombre completo"
+                android:textColor="@color/text_muted"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/profileFullNameTv"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/bg_input_dark_round"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="14dp"
+                android:textColor="@color/text_light"
+                android:textSize="14sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Teléfono"
+                android:textColor="@color/text_muted"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/profilePhoneTv"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/bg_input_dark_round"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="14dp"
+                android:textColor="@color/text_light"
+                android:textSize="14sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Email"
+                android:textColor="@color/text_muted"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/profileEmailTv"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/bg_input_dark_round"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="14dp"
+                android:textColor="@color/text_light"
+                android:textSize="14sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Fecha de nacimiento"
+                android:textColor="@color/text_muted"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/profileBirthDateTv"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/bg_input_dark_round"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="14dp"
+                android:textColor="@color/text_light"
+                android:textSize="14sp" />
+
+            <Button
+                android:id="@+id/logoutBtn"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginTop="20dp"
+                android:background="@drawable/bg_button_pill_secondary"
+                android:text="@string/logout"
+                android:textAllCaps="false"
+                android:textColor="@color/text_light" />
+
+            <Button
+                android:id="@+id/editProfileBtn"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_tab_default"
+                android:text="Editar perfil"
+                android:textAllCaps="false"
+                android:textColor="@color/text_light" />
+        </LinearLayout>
+    </LinearLayout>
+
+</ScrollView>

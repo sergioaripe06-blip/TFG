@@ -1,0 +1,28 @@
+<resources>
+    <string name="app_name">FlatShare</string>
+    <string name="nav_settings">Settings</string>
+    <string name="nav_calendar">Calendar</string>
+    <string name="settings_title">Settings</string>
+    <string name="settings_profile_section">View profile</string>
+    <string name="settings_options_section">Options</string>
+    <string name="label_email">Email</string>
+    <string name="label_uid">UID</string>
+    <string name="label_current_group">Current group</string>
+    <string name="theme_dark">Dark mode</string>
+    <string name="theme_light">Light mode</string>
+    <string name="language_es">Spanish</string>
+    <string name="language_en">English</string>
+    <string name="logout">Log out</string>
+    <string name="no_email">No email</string>
+    <string name="no_uid">No UID</string>
+    <string name="no_group_selected">None selected</string>
+    <string name="settings_account_info">Account Info</string>
+    <string name="settings_team_members">Team Members</string>
+    <string name="settings_configuration">Configuration</string>
+    <string name="settings_team_members_message">Members view will be available in the next iteration.</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_notifications">Notifications</string>
+    <string name="save">Save</string>
+    <string name="calendar_title">Payment calendar</string>
+    <string name="due_date_hint">Due date (YYYY-MM-DD)</string>
+</resources>

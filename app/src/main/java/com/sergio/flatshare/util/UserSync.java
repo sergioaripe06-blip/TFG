@@ -19,7 +19,7 @@ public class UserSync {
         FirebaseFirestore.getInstance().collection("users").document(user.getUid()).set(data, SetOptions.merge());
     }
 
-    public static void saveCurrentUserProfile(String fullName, String username, String phone, String city) {
+    public static void saveCurrentUserProfile(String fullName, String username, String phone, String birthDate) {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user == null || user.getEmail() == null) return;
         String normalizedUsername = username == null ? "" : username.trim().toLowerCase();
@@ -30,7 +30,7 @@ public class UserSync {
         data.put("fullName", fullName == null ? "" : fullName.trim());
         data.put("username", normalizedUsername);
         data.put("phone", phone == null ? "" : phone.trim());
-        data.put("city", city == null ? "" : city.trim());
+        data.put("birthDate", birthDate == null ? "" : birthDate.trim());
         data.put("profileCompleted", true);
         FirebaseFirestore.getInstance().collection("users").document(user.getUid()).set(data, SetOptions.merge());
 

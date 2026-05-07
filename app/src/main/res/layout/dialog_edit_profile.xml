@@ -7,61 +7,40 @@
     android:paddingBottom="4dp">
 
     <EditText
-        android:id="@+id/paymentAmountEt"
+        android:id="@+id/editFullNameEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@drawable/bg_input_dark_round"
-        android:hint="Importe"
-        android:inputType="numberDecimal"
+        android:hint="Nombre completo"
         android:paddingHorizontal="16dp"
         android:paddingVertical="12dp"
         android:textColor="@color/text_light"
         android:textColorHint="@color/text_muted" />
 
     <EditText
-        android:id="@+id/paymentToEt"
+        android:id="@+id/editPhoneEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:background="@drawable/bg_input_dark_round"
-        android:hint="Email destino"
-        android:inputType="textEmailAddress"
+        android:hint="Teléfono"
+        android:inputType="phone"
         android:paddingHorizontal="16dp"
         android:paddingVertical="12dp"
         android:textColor="@color/text_light"
         android:textColorHint="@color/text_muted" />
-
-    <Spinner
-        android:id="@+id/paymentCategorySpinner"
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:layout_marginTop="10dp"
-        android:background="@drawable/bg_input_dark_round"
-        android:paddingHorizontal="12dp"
-        android:popupBackground="@color/surface_dark_alt" />
 
     <EditText
-        android:id="@+id/paymentDueDateEt"
+        android:id="@+id/editBirthDateEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:background="@drawable/bg_input_dark_round"
-        android:hint="@string/due_date_hint"
-        android:clickable="true"
-        android:focusable="false"
-        android:inputType="none"
+        android:hint="Fecha de nacimiento (YYYY-MM-DD)"
+        android:inputType="date"
         android:paddingHorizontal="16dp"
         android:paddingVertical="12dp"
         android:textColor="@color/text_light"
         android:textColorHint="@color/text_muted" />
-
-    <Spinner
-        android:id="@+id/paymentPrioritySpinner"
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:layout_marginTop="10dp"
-        android:background="@drawable/bg_input_dark_round"
-        android:paddingHorizontal="12dp"
-        android:popupBackground="@color/surface_dark_alt" />
 
 </LinearLayout>

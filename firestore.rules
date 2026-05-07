@@ -29,6 +29,10 @@ service cloud.firestore {
       return groupExists(groupId) && groupDoc(groupId).data.members.hasAny([authUid()]);
     }
 
+    function isResourceGroupMember() {
+      return signedIn() && resource.data.members.hasAny([authUid()]);
+    }
+
     function isSelfJoinUpdate() {
       return signedIn()
         && request.resource.data.diff(resource.data).changedKeys().hasOnly(['members', 'memberEmails'])
@@ -65,7 +69,8 @@ service cloud.firestore {
         && request.resource.data.members.hasAny([authUid()])
         && request.resource.data.memberEmails.hasAny([authEmail()]);
 
-      allow read: if signedIn() && isGroupMember(groupId);
+      // For list/queries use resource.data directly; cross-document get() here can deny valid queries.
+      allow read: if isResourceGroupMember();
 
       allow update: if signedIn() && (
         isGroupOwner(groupId) ||
@@ -87,6 +92,14 @@ service cloud.firestore {
     match /payments/{paymentId} {
       allow create: if signedIn()
         && request.resource.data.fromEmail == authEmail()
+        && isGroupMember(request.resource.data.groupId);
+
+      allow read, update, delete: if signedIn()
+        && isGroupMember(resource.data.groupId);
+    }
+
+    match /payment_deadlines/{deadlineId} {
+      allow create: if signedIn()
         && isGroupMember(request.resource.data.groupId);
 
       allow read, update, delete: if signedIn()

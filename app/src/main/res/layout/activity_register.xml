@@ -146,7 +146,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:hint="Ciudad"
+                    android:hint="Fecha de nacimiento (YYYY-MM-DD)"
                     app:boxBackgroundColor="@color/surface_chip"
                     app:boxBackgroundMode="filled"
                     app:boxCornerRadiusBottomEnd="16dp"
@@ -156,10 +156,10 @@
                     app:hintTextColor="@color/text_muted">
 
                     <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/cityEt"
+                        android:id="@+id/birthDateEt"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:inputType="textCapWords"
+                        android:inputType="date"
                         android:textColor="@color/text_light"
                         android:textColorHint="@color/text_muted" />
                 </com.google.android.material.textfield.TextInputLayout>

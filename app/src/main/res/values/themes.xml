@@ -25,6 +25,11 @@
         <item name="cornerSize">18dp</item>
     </style>
 
+    <style name="ShapeAppearance.FlatShare.CircleImage" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
     <style name="ThemeOverlay.FlatShare.Dialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
         <item name="materialAlertDialogBodyTextStyle">@style/TextAppearance.FlatShare.DialogBody</item>
         <item name="materialAlertDialogTitleTextStyle">@style/TextAppearance.FlatShare.DialogTitle</item>

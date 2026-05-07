@@ -1,29 +1,40 @@
 package com.sergio.flatshare.ui;
 
 import android.app.AlertDialog;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.text.InputType;
+import android.util.SparseBooleanArray;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
+import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.ListView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.EncodeHintType;
+import com.google.zxing.MultiFormatWriter;
+import com.google.zxing.WriterException;
+import com.google.zxing.common.BitMatrix;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.journeyapps.barcodescanner.ScanContract;
+import com.journeyapps.barcodescanner.ScanOptions;
 import com.sergio.flatshare.R;
 import com.sergio.flatshare.util.DialogUtils;
 import com.sergio.flatshare.util.SessionStore;
@@ -33,25 +44,45 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Hashtable;
 
 public class GroupsFragment extends Fragment {
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
-    private final List<String> display = new ArrayList<>();
-    private final List<String> ids = new ArrayList<>();
-    private ArrayAdapter<String> adapter;
+    private final List<GroupItem> groups = new ArrayList<>();
+    private GroupsAdapter adapter;
     private View detailsCard;
+    private TextView emptyGroupsTv;
     private TextView detailNameTv;
     private TextView detailDescTv;
     private TextView detailMembersTv;
+    private TextView totalGroupsTv;
+    private TextView totalMembersTv;
+    private final SparseBooleanArray animatedPositions = new SparseBooleanArray();
     private String selectedGroupId;
+    private final ActivityResultLauncher<ScanOptions> qrScannerLauncher =
+            registerForActivityResult(new ScanContract(), result -> {
+                if (!isAdded()) return;
+                if (result == null || result.getContents() == null) return;
+                String raw = result.getContents().trim();
+                String code = extractGroupCode(raw);
+                if (code.isEmpty()) {
+                    Toast.makeText(requireContext(), "QR no valido para unirse a piso", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                joinGroupByCode(code);
+            });
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_groups, container, false);
         ListView listView = view.findViewById(R.id.groupsLv);
-        FloatingActionButton fab = view.findViewById(R.id.addGroupFab);
+        Button addGroupBtn = view.findViewById(R.id.addGroupBtn);
+        Button joinGroupBtn = view.findViewById(R.id.joinGroupBtn);
         detailsCard = view.findViewById(R.id.groupDetailsCard);
+        emptyGroupsTv = view.findViewById(R.id.emptyGroupsTv);
+        totalGroupsTv = view.findViewById(R.id.totalGroupsTv);
+        totalMembersTv = view.findViewById(R.id.totalMembersTv);
         detailNameTv = view.findViewById(R.id.detailGroupNameTv);
         detailDescTv = view.findViewById(R.id.detailGroupDescTv);
         detailMembersTv = view.findViewById(R.id.detailGroupMembersTv);
@@ -59,11 +90,11 @@ public class GroupsFragment extends Fragment {
         Button inviteBtn = view.findViewById(R.id.inviteGroupBtn);
         Button closeBtn = view.findViewById(R.id.closeDetailsBtn);
 
-        adapter = new ArrayAdapter<>(requireContext(), R.layout.item_group_row, R.id.groupNameTv, display);
+        adapter = new GroupsAdapter();
         listView.setAdapter(adapter);
 
         listView.setOnItemClickListener((parent, v, position, id) -> {
-            selectedGroupId = ids.get(position);
+            selectedGroupId = groups.get(position).id;
             SessionStore.setCurrentGroup(requireContext(), selectedGroupId);
             loadGroupDetails(selectedGroupId);
             if (requireActivity() instanceof MainActivity) {
@@ -78,7 +109,8 @@ public class GroupsFragment extends Fragment {
             detailsCard.setVisibility(View.GONE);
         });
 
-        fab.setOnClickListener(v -> showActionDialog());
+        addGroupBtn.setOnClickListener(v -> createGroupDialog());
+        joinGroupBtn.setOnClickListener(v -> joinGroupDialog());
         loadGroups();
         checkInvitations();
         return view;
@@ -113,59 +145,114 @@ public class GroupsFragment extends Fragment {
     }
 
     private void createGroupDialog() {
-        showSingleInputDialog(
+        View form = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_create_group, null, false);
+        EditText groupNameEt = form.findViewById(R.id.groupNameEt);
+        EditText streetEt = form.findViewById(R.id.streetEt);
+        EditText portalEt = form.findViewById(R.id.portalEt);
+        EditText postalCodeEt = form.findViewById(R.id.postalCodeEt);
+        EditText cityEt = form.findViewById(R.id.cityEt);
+        EditText provinceEt = form.findViewById(R.id.provinceEt);
+
+        DialogUtils.Shell shell = DialogUtils.buildShell(
+                requireContext(),
                 "Nuevo piso",
-                "Crea un espacio compartido con el mismo estilo de la app.",
-                "Nombre del piso",
-                InputType.TYPE_CLASS_TEXT,
-                "Crear",
-                value -> {
-                    String name = value.trim();
-                    if (name.isEmpty()) return false;
-
-                    String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
-                    String email = FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
-                    Map<String, Object> group = new HashMap<>();
-                    group.put("name", name);
-                    group.put("description", "Piso compartido");
-                    group.put("ownerId", uid);
-                    group.put("members", java.util.Collections.singletonList(uid));
-                    group.put("memberEmails", java.util.Collections.singletonList(email));
-                    group.put("createdAt", FieldValue.serverTimestamp());
-
-                    db.collection("groups").add(group).addOnSuccessListener(doc -> {
-                        String shareCode = doc.getId().toUpperCase(Locale.ROOT);
-                        Map<String, Object> codeData = new HashMap<>();
-                        codeData.put("groupId", doc.getId());
-                        codeData.put("ownerId", uid);
-                        codeData.put("name", name);
-                        doc.update("shareCode", shareCode);
-                        db.collection("group_codes").document(shareCode).set(codeData);
-                        SessionStore.setCurrentGroup(requireContext(), doc.getId());
-                        loadGroups();
-                        if (requireActivity() instanceof MainActivity) {
-                            ((MainActivity) requireActivity()).openCurrentGroupWorkspace();
-                        }
-                    });
-                    return true;
-                }
+                "Completa la ubicación para crear el piso.",
+                form,
+                "Cancelar",
+                "Crear"
         );
+
+        AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+        shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+        shell.confirmBtn.setOnClickListener(v -> {
+            String name = groupNameEt.getText().toString().trim();
+            String street = streetEt.getText().toString().trim();
+            String portal = portalEt.getText().toString().trim();
+            String postalCode = postalCodeEt.getText().toString().trim();
+            String city = cityEt.getText().toString().trim();
+            String province = provinceEt.getText().toString().trim();
+
+            if (name.isEmpty() || street.isEmpty() || portal.isEmpty()
+                    || postalCode.isEmpty() || city.isEmpty() || province.isEmpty()) {
+                Toast.makeText(requireContext(), "Completa todos los datos de ubicación", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+            String email = FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
+            Map<String, Object> location = new HashMap<>();
+            location.put("street", street);
+            location.put("portal", portal);
+            location.put("postalCode", postalCode);
+            location.put("city", city);
+            location.put("province", province);
+
+            Map<String, Object> group = new HashMap<>();
+            group.put("name", name);
+            group.put("description", street + ", " + portal + " - " + postalCode + " " + city + " (" + province + ")");
+            group.put("location", location);
+            group.put("ownerId", uid);
+            Map<String, Object> roles = new HashMap<>();
+            roles.put(uid, "admin");
+            group.put("roles", roles);
+            group.put("members", java.util.Collections.singletonList(uid));
+            group.put("memberEmails", java.util.Collections.singletonList(email));
+            group.put("createdAt", FieldValue.serverTimestamp());
+
+            db.collection("groups").add(group).addOnSuccessListener(doc -> {
+                String shareCode = doc.getId().toUpperCase(Locale.ROOT);
+                Map<String, Object> codeData = new HashMap<>();
+                codeData.put("groupId", doc.getId());
+                codeData.put("ownerId", uid);
+                codeData.put("name", name);
+                doc.update("shareCode", shareCode);
+                db.collection("group_codes").document(shareCode).set(codeData);
+                loadGroups();
+                dialog.dismiss();
+                Toast.makeText(requireContext(), "Piso creado. Tocalo en la lista para entrar.", Toast.LENGTH_SHORT).show();
+            }).addOnFailureListener(e ->
+                    Toast.makeText(requireContext(), "Error creando piso: " + e.getMessage(), Toast.LENGTH_LONG).show()
+            );
+        });
     }
 
     private void joinGroupDialog() {
-        showSingleInputDialog(
+        View content = DialogUtils.createVerticalActions(requireContext());
+        Button codeBtn = DialogUtils.createActionButton(requireContext(), "Escribir codigo", true);
+        Button qrBtn = DialogUtils.createActionButton(requireContext(), "Escanear QR", false);
+        ((LinearLayout) content).addView(codeBtn);
+        ((LinearLayout) content).addView(qrBtn);
+
+        DialogUtils.Shell shell = DialogUtils.buildShell(
+                requireContext(),
                 "Unirse a un piso",
-                "Escribe el codigo para entrar en un piso compartido.",
-                "Codigo del piso",
-                InputType.TYPE_CLASS_TEXT,
-                "Unirse",
-                value -> {
-                    String code = value.trim().toUpperCase(Locale.ROOT);
-                    if (code.isEmpty()) return false;
-                    joinGroupByCode(code);
-                    return true;
-                }
+                "Puedes escribir el codigo o escanear un QR.",
+                content,
+                "Cerrar",
+                null
         );
+        AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+        shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+        codeBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            showSingleInputDialog(
+                    "Unirse a un piso",
+                    "Escribe el codigo para entrar en un piso compartido.",
+                    "Codigo del piso",
+                    InputType.TYPE_CLASS_TEXT,
+                    "Unirse",
+                    value -> {
+                        String code = value.trim().toUpperCase(Locale.ROOT);
+                        if (code.isEmpty()) return false;
+                        joinGroupByCode(code);
+                        return true;
+                    }
+            );
+        });
+        qrBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            openQrScanner();
+        });
     }
 
     private void inviteDialog(String groupId) {
@@ -259,7 +346,8 @@ public class GroupsFragment extends Fragment {
     private void addUserToGroup(String groupId, String uid, String email) {
         db.collection("groups").document(groupId).update(
                 "members", FieldValue.arrayUnion(uid),
-                "memberEmails", FieldValue.arrayUnion(email)
+                "memberEmails", FieldValue.arrayUnion(email),
+                "roles." + uid, "member"
         ).addOnSuccessListener(v -> {
             selectedGroupId = groupId;
             SessionStore.setCurrentGroup(requireContext(), groupId);
@@ -281,11 +369,12 @@ public class GroupsFragment extends Fragment {
             if (code == null || code.trim().isEmpty()) {
                 code = doc.getId().toUpperCase(Locale.ROOT);
             }
-            View content = DialogUtils.createMessageView(requireContext(), code);
+            String payload = "flatshare://join?code=" + code;
+            View content = buildQrContent(payload, code);
             DialogUtils.Shell shell = DialogUtils.buildShell(
                     requireContext(),
                     "Codigo del piso",
-                    "Comparte este codigo para invitar a otra persona.",
+                    "Comparte este codigo o QR para invitar a otra persona.",
                     content,
                     null,
                     "Cerrar"
@@ -293,6 +382,73 @@ public class GroupsFragment extends Fragment {
             AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
             shell.confirmBtn.setOnClickListener(v -> dialog.dismiss());
         });
+    }
+
+    private void openQrScanner() {
+        ScanOptions options = new ScanOptions();
+        options.setPrompt("Escanea el QR del piso");
+        options.setBeepEnabled(true);
+        options.setOrientationLocked(true);
+        options.setDesiredBarcodeFormats(ScanOptions.QR_CODE);
+        qrScannerLauncher.launch(options);
+    }
+
+    private String extractGroupCode(String raw) {
+        if (raw == null) return "";
+        String normalized = raw.trim();
+        String key = "code=";
+        int idx = normalized.toLowerCase(Locale.ROOT).indexOf(key);
+        if (idx >= 0) {
+            String value = normalized.substring(idx + key.length()).trim();
+            int amp = value.indexOf('&');
+            if (amp >= 0) value = value.substring(0, amp);
+            return value.toUpperCase(Locale.ROOT);
+        }
+        return normalized.toUpperCase(Locale.ROOT);
+    }
+
+    private View buildQrContent(String payload, String code) {
+        LinearLayout layout = new LinearLayout(requireContext());
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(0, 8, 0, 0);
+
+        ImageView qrImage = new ImageView(requireContext());
+        LinearLayout.LayoutParams imgParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(220)
+        );
+        qrImage.setLayoutParams(imgParams);
+        qrImage.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        qrImage.setImageBitmap(generateQrBitmap(payload, 900));
+        layout.addView(qrImage);
+
+        TextView codeTv = DialogUtils.createMessageView(requireContext(), "Codigo: " + code);
+        codeTv.setPadding(0, dp(10), 0, 0);
+        layout.addView(codeTv);
+        return layout;
+    }
+
+    private Bitmap generateQrBitmap(String text, int size) {
+        try {
+            Hashtable<EncodeHintType, Object> hints = new Hashtable<>();
+            hints.put(EncodeHintType.MARGIN, 1);
+            BitMatrix matrix = new MultiFormatWriter().encode(text, BarcodeFormat.QR_CODE, size, size, hints);
+            Bitmap bitmap = Bitmap.createBitmap(matrix.getWidth(), matrix.getHeight(), Bitmap.Config.RGB_565);
+            for (int x = 0; x < matrix.getWidth(); x++) {
+                for (int y = 0; y < matrix.getHeight(); y++) {
+                    bitmap.setPixel(x, y, matrix.get(x, y) ? Color.BLACK : Color.WHITE);
+                }
+            }
+            return bitmap;
+        } catch (WriterException e) {
+            Bitmap fallback = Bitmap.createBitmap(size, size, Bitmap.Config.RGB_565);
+            fallback.eraseColor(Color.WHITE);
+            return fallback;
+        }
+    }
+
+    private int dp(int value) {
+        return (int) (value * requireContext().getResources().getDisplayMetrics().density);
     }
 
     private void checkInvitations() {
@@ -338,7 +494,8 @@ public class GroupsFragment extends Fragment {
         String email = FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
         db.collection("groups").document(groupId).update(
                 "members", FieldValue.arrayUnion(uid),
-                "memberEmails", FieldValue.arrayUnion(email)
+                "memberEmails", FieldValue.arrayUnion(email),
+                "roles." + uid, "member"
         ).addOnSuccessListener(v -> {
             db.collection("invitations").document(invitationId).update("status", "accepted");
             SessionStore.setCurrentGroup(requireContext(), groupId);
@@ -352,17 +509,33 @@ public class GroupsFragment extends Fragment {
     private void loadGroups() {
         String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
         db.collection("groups").whereArrayContains("members", uid).get().addOnSuccessListener(res -> {
-            display.clear();
-            ids.clear();
-            res.forEach(doc -> {
+            groups.clear();
+            animatedPositions.clear();
+            int membersTotal = 0;
+            for (DocumentSnapshot doc : res.getDocuments()) {
                 String name = doc.getString("name");
+                String description = doc.getString("description");
                 Object membersField = doc.get("members");
                 List<?> members = membersField instanceof List ? (List<?>) membersField : null;
                 int count = members == null ? 0 : members.size();
-                display.add(name + " (" + count + " miembros)");
-                ids.add(doc.getId());
-            });
+                membersTotal += count;
+                groups.add(new GroupItem(
+                        doc.getId(),
+                        name == null ? "Piso" : name,
+                        count,
+                        description == null || description.trim().isEmpty() ? "Sin direccion cargada" : description
+                ));
+            }
             adapter.notifyDataSetChanged();
+            totalGroupsTv.setText(String.valueOf(groups.size()));
+            totalMembersTv.setText(String.valueOf(membersTotal));
+            if (emptyGroupsTv != null) {
+                emptyGroupsTv.setVisibility(groups.isEmpty() ? View.VISIBLE : View.GONE);
+            }
+        }).addOnFailureListener(e -> {
+            if (!isAdded()) return;
+            Toast.makeText(requireContext(), "Error cargando pisos: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            if (emptyGroupsTv != null) emptyGroupsTv.setVisibility(View.VISIBLE);
         });
     }
 
@@ -433,5 +606,68 @@ public class GroupsFragment extends Fragment {
 
     private interface SingleInputAction {
         boolean onConfirm(String value);
+    }
+
+    private static class GroupItem {
+        final String id;
+        final String name;
+        final int members;
+        final String description;
+
+        GroupItem(String id, String name, int members, String description) {
+            this.id = id;
+            this.name = name;
+            this.members = members;
+            this.description = description;
+        }
+    }
+
+    private class GroupsAdapter extends BaseAdapter {
+        @Override
+        public int getCount() {
+            return groups.size();
+        }
+
+        @Override
+        public Object getItem(int position) {
+            return groups.get(position);
+        }
+
+        @Override
+        public long getItemId(int position) {
+            return position;
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            View view = convertView;
+            if (view == null) {
+                view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_group_row, parent, false);
+            }
+            GroupItem item = groups.get(position);
+            TextView groupNameTv = view.findViewById(R.id.groupNameTv);
+            TextView groupMetaTv = view.findViewById(R.id.groupMetaTv);
+            TextView groupMembersBadgeTv = view.findViewById(R.id.groupMembersBadgeTv);
+
+            groupNameTv.setText(item.name);
+            groupMetaTv.setText(item.description);
+            groupMembersBadgeTv.setText(item.members + " miembros");
+
+            if (!animatedPositions.get(position, false)) {
+                view.setAlpha(0f);
+                view.setTranslationY(24f);
+                view.animate()
+                        .alpha(1f)
+                        .translationY(0f)
+                        .setDuration(260)
+                        .setStartDelay(Math.min(position * 30L, 180L))
+                        .start();
+                animatedPositions.put(position, true);
+            } else {
+                view.setAlpha(1f);
+                view.setTranslationY(0f);
+            }
+            return view;
+        }
     }
 }

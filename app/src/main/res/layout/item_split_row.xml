@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="8dp"
+    android:orientation="horizontal">
+
+    <Spinner
+        android:id="@+id/memberSpinner"
+        android:layout_width="0dp"
+        android:layout_height="50dp"
+        android:layout_weight="1"
+        android:background="@drawable/bg_input_dark_round"
+        android:paddingHorizontal="10dp"
+        android:popupBackground="@color/surface_dark_alt" />
+
+    <EditText
+        android:id="@+id/memberAmountEt"
+        android:layout_width="120dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/bg_input_dark_round"
+        android:hint="0.00"
+        android:inputType="numberDecimal"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="10dp"
+        android:textColor="@color/text_light"
+        android:textColorHint="@color/text_muted" />
+
+</LinearLayout>

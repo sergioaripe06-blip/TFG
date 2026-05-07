@@ -34,7 +34,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
-                android:text="Entra desde la pestaña de pisos para ver gastos, saldos y fotos."
+                android:text="Entra desde la pestaña de pisos para ver gastos y saldos."
                 android:textColor="@color/text_muted"
                 android:textSize="13sp" />
 
@@ -65,28 +65,6 @@
                     android:text="Saldos"
                     android:textAllCaps="false"
                     android:textColor="@color/text_muted" />
-
-                <Button
-                    android:id="@+id/balancesTabBtn"
-                    android:layout_width="0dp"
-                    android:layout_height="36dp"
-                    android:layout_marginStart="8dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/bg_tab_default"
-                    android:text="Balances"
-                    android:textAllCaps="false"
-                    android:textColor="@color/text_muted" />
-
-                <Button
-                    android:id="@+id/fotosTabBtn"
-                    android:layout_width="0dp"
-                    android:layout_height="36dp"
-                    android:layout_marginStart="8dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/bg_tab_default"
-                    android:text="Fotos"
-                    android:textAllCaps="false"
-                    android:textColor="@color/text_muted" />
             </LinearLayout>
         </LinearLayout>
 
@@ -114,49 +92,6 @@
             android:listSelector="@android:color/transparent"
             android:paddingBottom="110dp"
             android:visibility="gone" />
-
-        <ListView
-            android:id="@+id/balancesLv"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:layout_marginTop="14dp"
-            android:clipToPadding="false"
-            android:divider="@android:color/transparent"
-            android:dividerHeight="0dp"
-            android:listSelector="@android:color/transparent"
-            android:paddingBottom="110dp"
-            android:visibility="gone" />
-
-        <LinearLayout
-            android:id="@+id/photosEmptyState"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:layout_marginTop="14dp"
-            android:background="@drawable/bg_group_row"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:padding="24dp"
-            android:visibility="gone">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Empieza a compartir"
-                android:textColor="@color/text_light"
-                android:textSize="18sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:gravity="center"
-                android:text="Sube una foto del piso o de un gasto para completar el espacio."
-                android:textColor="@color/text_muted"
-                android:textSize="13sp" />
-        </LinearLayout>
     </LinearLayout>
 
     <LinearLayout
