@@ -103,7 +103,7 @@ public class GroupsFragment extends Fragment {
         });
 
         editBtn.setOnClickListener(v -> editSelectedGroup());
-        inviteBtn.setOnClickListener(v -> showShareCodeDialog(selectedGroupId));
+        inviteBtn.setOnClickListener(v -> showInviteOptionsDialog(selectedGroupId));
         closeBtn.setOnClickListener(v -> {
             selectedGroupId = null;
             detailsCard.setVisibility(View.GONE);
@@ -359,28 +359,77 @@ public class GroupsFragment extends Fragment {
         });
     }
 
-    private void showShareCodeDialog(String groupId) {
+    private void showInviteOptionsDialog(String groupId) {
         if (groupId == null) {
             Toast.makeText(requireContext(), "Selecciona un grupo primero", Toast.LENGTH_SHORT).show();
             return;
         }
+        View content = DialogUtils.createVerticalActions(requireContext());
+        Button codeBtn = DialogUtils.createActionButton(requireContext(), "Invitar por código", true);
+        Button qrBtn = DialogUtils.createActionButton(requireContext(), "Invitar por QR", false);
+        ((LinearLayout) content).addView(codeBtn);
+        ((LinearLayout) content).addView(qrBtn);
+
+        DialogUtils.Shell shell = DialogUtils.buildShell(
+                requireContext(),
+                "Invitar al piso",
+                "Elige cómo quieres compartir el acceso.",
+                content,
+                "Cerrar",
+                null
+        );
+        AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+        shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+        codeBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            showShareCodeOnlyDialog(groupId);
+        });
+        qrBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            showShareQrOnlyDialog(groupId);
+        });
+    }
+
+    private void showShareCodeOnlyDialog(String groupId) {
+        if (groupId == null) return;
+        db.collection("groups").document(groupId).get().addOnSuccessListener(doc -> {
+            String code = doc.getString("shareCode");
+            if (code == null || code.trim().isEmpty()) {
+                code = doc.getId().toUpperCase(Locale.ROOT);
+            }
+            View content = DialogUtils.createMessageView(requireContext(), code);
+            DialogUtils.Shell shell = DialogUtils.buildShell(
+                    requireContext(),
+                    "Código del piso",
+                    "Comparte este código para unirse al piso.",
+                    content,
+                    null,
+                    "Cerrar"
+            );
+            AlertDialog codeDialog = DialogUtils.show(requireContext(), shell.root);
+            shell.confirmBtn.setOnClickListener(v -> codeDialog.dismiss());
+        });
+    }
+
+    private void showShareQrOnlyDialog(String groupId) {
+        if (groupId == null) return;
         db.collection("groups").document(groupId).get().addOnSuccessListener(doc -> {
             String code = doc.getString("shareCode");
             if (code == null || code.trim().isEmpty()) {
                 code = doc.getId().toUpperCase(Locale.ROOT);
             }
             String payload = "flatshare://join?code=" + code;
-            View content = buildQrContent(payload, code);
+            View content = buildQrContent(payload);
             DialogUtils.Shell shell = DialogUtils.buildShell(
                     requireContext(),
-                    "Codigo del piso",
-                    "Comparte este codigo o QR para invitar a otra persona.",
+                    "QR del piso",
+                    "Comparte este QR para invitar a otra persona.",
                     content,
                     null,
                     "Cerrar"
             );
-            AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
-            shell.confirmBtn.setOnClickListener(v -> dialog.dismiss());
+            AlertDialog qrDialog = DialogUtils.show(requireContext(), shell.root);
+            shell.confirmBtn.setOnClickListener(v -> qrDialog.dismiss());
         });
     }
 
@@ -407,7 +456,7 @@ public class GroupsFragment extends Fragment {
         return normalized.toUpperCase(Locale.ROOT);
     }
 
-    private View buildQrContent(String payload, String code) {
+    private View buildQrContent(String payload) {
         LinearLayout layout = new LinearLayout(requireContext());
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(0, 8, 0, 0);
@@ -421,10 +470,6 @@ public class GroupsFragment extends Fragment {
         qrImage.setScaleType(ImageView.ScaleType.FIT_CENTER);
         qrImage.setImageBitmap(generateQrBitmap(payload, 900));
         layout.addView(qrImage);
-
-        TextView codeTv = DialogUtils.createMessageView(requireContext(), "Codigo: " + code);
-        codeTv.setPadding(0, dp(10), 0, 0);
-        layout.addView(codeTv);
         return layout;
     }
 
@@ -554,8 +599,7 @@ public class GroupsFragment extends Fragment {
         List<String> emails = emailsField instanceof List ? (List<String>) emailsField : new ArrayList<>();
 
         detailNameTv.setText(name == null ? "Grupo" : name);
-        String shareCode = doc.getString("shareCode");
-        detailDescTv.setText(shareCode == null || shareCode.trim().isEmpty() ? desc : desc + "\nCodigo: " + shareCode);
+        detailDescTv.setText(desc);
         if (emails.isEmpty()) {
             detailMembersTv.setText("Miembros: sin datos");
         } else {

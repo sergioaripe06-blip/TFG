@@ -147,7 +147,7 @@ public class ExpensesFragment extends Fragment {
         if (currentGroupId == null) {
             currentGroupName = "Selecciona un piso";
             workspaceTitleTv.setText(currentGroupName);
-            workspaceMetaTv.setText("Entra desde la pestana de pisos para ver gastos y saldos.");
+            workspaceMetaTv.setText("Entra desde la pestaña de pisos para ver gastos y saldos.");
             expenseRows.clear();
             saldoRows.clear();
             expensesAdapter.notifyDataSetChanged();
@@ -162,13 +162,17 @@ public class ExpensesFragment extends Fragment {
             if (!isAdded()) return;
             currentGroupName = doc.getString("name") == null ? "Piso actual" : doc.getString("name");
             currentUserRole = resolveCurrentUserRole(doc);
-            Object membersField = doc.get("memberEmails");
-            int memberCount = membersField instanceof List ? ((List<?>) membersField).size() : 0;
-            String shareCode = doc.getString("shareCode");
-            String meta = memberCount + " participantes";
-            if (shareCode != null && !shareCode.trim().isEmpty()) {
-                meta = meta + " - Codigo " + shareCode;
+            String description = doc.getString("description");
+            if (description == null || description.trim().isEmpty()) {
+                description = "Sin descripción";
             }
+            List<String> memberEmails = castEmails(doc.get("memberEmails"));
+            List<String> memberIds = castStrings(doc.get("members"));
+            String ownerEmail = resolveOwnerEmail(doc, memberIds, memberEmails);
+            String membersLabel = memberEmails.isEmpty() ? "Sin datos" : String.join(", ", memberEmails);
+            String meta = "Piso: " + description
+                    + "\nPropietario: " + (ownerEmail.isEmpty() ? "Sin datos" : ownerEmail)
+                    + "\nMiembros (" + memberEmails.size() + "): " + membersLabel;
             workspaceTitleTv.setText(currentGroupName);
             workspaceMetaTv.setText(meta);
         });
@@ -698,6 +702,37 @@ public class ExpensesFragment extends Fragment {
             }
         }
         return emails;
+    }
+
+    private List<String> castStrings(Object raw) {
+        List<String> values = new ArrayList<>();
+        if (raw instanceof List) {
+            for (Object item : (List<?>) raw) {
+                if (item != null) {
+                    values.add(item.toString());
+                }
+            }
+        }
+        return values;
+    }
+
+    private String resolveOwnerEmail(DocumentSnapshot groupDoc, List<String> memberIds, List<String> memberEmails) {
+        String ownerId = groupDoc.getString("ownerId");
+        if (ownerId == null || ownerId.trim().isEmpty()) {
+            return "";
+        }
+        int size = Math.min(memberIds.size(), memberEmails.size());
+        for (int i = 0; i < size; i++) {
+            if (ownerId.equals(memberIds.get(i))) {
+                return memberEmails.get(i);
+            }
+        }
+        String myUid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        if (ownerId.equals(myUid)) {
+            String myEmail = FirebaseAuth.getInstance().getCurrentUser().getEmail();
+            return myEmail == null ? "" : myEmail.toLowerCase(Locale.ROOT);
+        }
+        return "";
     }
 
     private void showRowDetail(WorkspaceRow row) {
