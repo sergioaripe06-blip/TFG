@@ -63,6 +63,24 @@
         android:paddingHorizontal="12dp"
         android:popupBackground="@color/surface_dark_alt" />
 
+    <Spinner
+        android:id="@+id/roomSpinner"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_input_dark_round"
+        android:paddingHorizontal="12dp"
+        android:popupBackground="@color/surface_dark_alt" />
+
+    <TextView
+        android:id="@+id/roomMembersHintTv"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="Sin habitación: selecciona personas manualmente."
+        android:textColor="@color/text_muted"
+        android:textSize="12sp" />
+
     <Button
         android:id="@+id/attachTicketBtn"
         android:layout_width="match_parent"

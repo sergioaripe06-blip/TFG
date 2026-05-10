@@ -1,6 +1,7 @@
 package com.sergio.flatshare.ui;
 
 import android.app.AlertDialog;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
@@ -14,8 +15,8 @@ import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
-import android.widget.ListView;
 import android.widget.LinearLayout;
+import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -24,15 +25,15 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FieldValue;
+import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.EncodeHintType;
 import com.google.zxing.MultiFormatWriter;
 import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.firestore.DocumentSnapshot;
-import com.google.firebase.firestore.FieldValue;
-import com.google.firebase.firestore.FirebaseFirestore;
 import com.journeyapps.barcodescanner.ScanContract;
 import com.journeyapps.barcodescanner.ScanOptions;
 import com.sergio.flatshare.R;
@@ -41,14 +42,16 @@ import com.sergio.flatshare.util.SessionStore;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Hashtable;
 
 public class GroupsFragment extends Fragment {
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
     private final List<GroupItem> groups = new ArrayList<>();
+    private final SparseBooleanArray animatedPositions = new SparseBooleanArray();
+
     private GroupsAdapter adapter;
     private View detailsCard;
     private TextView emptyGroupsTv;
@@ -57,8 +60,10 @@ public class GroupsFragment extends Fragment {
     private TextView detailMembersTv;
     private TextView totalGroupsTv;
     private TextView totalMembersTv;
-    private final SparseBooleanArray animatedPositions = new SparseBooleanArray();
+    private Button manageRoomsBtn;
+
     private String selectedGroupId;
+
     private final ActivityResultLauncher<ScanOptions> qrScannerLauncher =
             registerForActivityResult(new ScanContract(), result -> {
                 if (!isAdded()) return;
@@ -66,7 +71,7 @@ public class GroupsFragment extends Fragment {
                 String raw = result.getContents().trim();
                 String code = extractGroupCode(raw);
                 if (code.isEmpty()) {
-                    Toast.makeText(requireContext(), "QR no valido para unirse a piso", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(requireContext(), "QR no vÃƒÂ¡lido para unirse al piso", Toast.LENGTH_SHORT).show();
                     return;
                 }
                 joinGroupByCode(code);
@@ -86,6 +91,7 @@ public class GroupsFragment extends Fragment {
         detailNameTv = view.findViewById(R.id.detailGroupNameTv);
         detailDescTv = view.findViewById(R.id.detailGroupDescTv);
         detailMembersTv = view.findViewById(R.id.detailGroupMembersTv);
+        manageRoomsBtn = view.findViewById(R.id.manageRoomsBtn);
         Button editBtn = view.findViewById(R.id.editGroupBtn);
         Button inviteBtn = view.findViewById(R.id.inviteGroupBtn);
         Button closeBtn = view.findViewById(R.id.closeDetailsBtn);
@@ -94,16 +100,28 @@ public class GroupsFragment extends Fragment {
         listView.setAdapter(adapter);
 
         listView.setOnItemClickListener((parent, v, position, id) -> {
-            selectedGroupId = groups.get(position).id;
+            GroupItem selected = groups.get(position);
+            selectedGroupId = selected.id;
             SessionStore.setCurrentGroup(requireContext(), selectedGroupId);
-            loadGroupDetails(selectedGroupId);
-            if (requireActivity() instanceof MainActivity) {
-                ((MainActivity) requireActivity()).openCurrentGroupWorkspace();
+            if (selected.isOwner) {
+                openOwnerRoomsSetup(selectedGroupId);
+            } else {
+                SessionStore.clearCurrentRoom(requireContext());
+                if (requireActivity() instanceof MainActivity) {
+                    ((MainActivity) requireActivity()).openCurrentGroupWorkspace();
+                }
             }
+        });
+
+        listView.setOnItemLongClickListener((parent, v, position, id) -> {
+            selectedGroupId = groups.get(position).id;
+            loadGroupDetails(selectedGroupId);
+            return true;
         });
 
         editBtn.setOnClickListener(v -> editSelectedGroup());
         inviteBtn.setOnClickListener(v -> showInviteOptionsDialog(selectedGroupId));
+        manageRoomsBtn.setOnClickListener(v -> openOwnerRoomsSetup(selectedGroupId));
         closeBtn.setOnClickListener(v -> {
             selectedGroupId = null;
             detailsCard.setVisibility(View.GONE);
@@ -111,37 +129,10 @@ public class GroupsFragment extends Fragment {
 
         addGroupBtn.setOnClickListener(v -> createGroupDialog());
         joinGroupBtn.setOnClickListener(v -> joinGroupDialog());
+
         loadGroups();
         checkInvitations();
         return view;
-    }
-
-    private void showActionDialog() {
-        View content = DialogUtils.createVerticalActions(requireContext());
-        Button createBtn = DialogUtils.createActionButton(requireContext(), "Crear piso", true);
-        Button joinBtn = DialogUtils.createActionButton(requireContext(), "Unirse piso", false);
-        ((ViewGroup) content).addView(createBtn);
-        ((ViewGroup) content).addView(joinBtn);
-
-        DialogUtils.Shell shell = DialogUtils.buildShell(
-                requireContext(),
-                "Acciones",
-                "Elige como quieres entrar en tu proximo piso.",
-                content,
-                "Cerrar",
-                null
-        );
-
-        AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
-        shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
-        createBtn.setOnClickListener(v -> {
-            dialog.dismiss();
-            createGroupDialog();
-        });
-        joinBtn.setOnClickListener(v -> {
-            dialog.dismiss();
-            joinGroupDialog();
-        });
     }
 
     private void createGroupDialog() {
@@ -156,7 +147,7 @@ public class GroupsFragment extends Fragment {
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 "Nuevo piso",
-                "Completa la ubicación para crear el piso.",
+                "Completa la ubicaciÃƒÂ³n para crear el piso.",
                 form,
                 "Cancelar",
                 "Crear"
@@ -174,7 +165,7 @@ public class GroupsFragment extends Fragment {
 
             if (name.isEmpty() || street.isEmpty() || portal.isEmpty()
                     || postalCode.isEmpty() || city.isEmpty() || province.isEmpty()) {
-                Toast.makeText(requireContext(), "Completa todos los datos de ubicación", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Completa todos los datos de ubicaciÃƒÂ³n", Toast.LENGTH_SHORT).show();
                 return;
             }
 
@@ -207,9 +198,13 @@ public class GroupsFragment extends Fragment {
                 codeData.put("name", name);
                 doc.update("shareCode", shareCode);
                 db.collection("group_codes").document(shareCode).set(codeData);
+
+                selectedGroupId = doc.getId();
+                SessionStore.setCurrentGroup(requireContext(), selectedGroupId);
                 loadGroups();
                 dialog.dismiss();
-                Toast.makeText(requireContext(), "Piso creado. Tocalo en la lista para entrar.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Piso creado. Ahora define habitaciones.", Toast.LENGTH_SHORT).show();
+                openOwnerRoomsSetup(selectedGroupId);
             }).addOnFailureListener(e ->
                     Toast.makeText(requireContext(), "Error creando piso: " + e.getMessage(), Toast.LENGTH_LONG).show()
             );
@@ -218,7 +213,7 @@ public class GroupsFragment extends Fragment {
 
     private void joinGroupDialog() {
         View content = DialogUtils.createVerticalActions(requireContext());
-        Button codeBtn = DialogUtils.createActionButton(requireContext(), "Escribir codigo", true);
+        Button codeBtn = DialogUtils.createActionButton(requireContext(), "Escribir cÃƒÂ³digo", true);
         Button qrBtn = DialogUtils.createActionButton(requireContext(), "Escanear QR", false);
         ((LinearLayout) content).addView(codeBtn);
         ((LinearLayout) content).addView(qrBtn);
@@ -226,7 +221,7 @@ public class GroupsFragment extends Fragment {
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 "Unirse a un piso",
-                "Puedes escribir el codigo o escanear un QR.",
+                "Puedes escribir el cÃƒÂ³digo o escanear un QR.",
                 content,
                 "Cerrar",
                 null
@@ -237,8 +232,8 @@ public class GroupsFragment extends Fragment {
             dialog.dismiss();
             showSingleInputDialog(
                     "Unirse a un piso",
-                    "Escribe el codigo para entrar en un piso compartido.",
-                    "Codigo del piso",
+                    "Escribe el cÃƒÂ³digo para entrar en un piso compartido.",
+                    "CÃƒÂ³digo del piso",
                     InputType.TYPE_CLASS_TEXT,
                     "Unirse",
                     value -> {
@@ -253,35 +248,6 @@ public class GroupsFragment extends Fragment {
             dialog.dismiss();
             openQrScanner();
         });
-    }
-
-    private void inviteDialog(String groupId) {
-        if (groupId == null) {
-            Toast.makeText(requireContext(), "Selecciona un grupo primero", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        showSingleInputDialog(
-                "Invitar al grupo",
-                "Comparte el piso por email con otra persona.",
-                "persona@email.com",
-                InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
-                "Enviar",
-                value -> {
-                    String invitedEmail = value.trim().toLowerCase(Locale.ROOT);
-                    if (invitedEmail.isEmpty()) return false;
-
-                    Map<String, Object> inv = new HashMap<>();
-                    inv.put("groupId", groupId);
-                    inv.put("invitedEmail", invitedEmail);
-                    inv.put("inviterUid", FirebaseAuth.getInstance().getCurrentUser().getUid());
-                    inv.put("status", "pending");
-                    inv.put("createdAt", FieldValue.serverTimestamp());
-                    db.collection("invitations").add(inv)
-                            .addOnSuccessListener(v -> Toast.makeText(requireContext(), "Invitacion enviada", Toast.LENGTH_SHORT).show());
-                    return true;
-                }
-        );
     }
 
     private void showSingleInputDialog(String title, String subtitle, String hint, int inputType, String actionLabel, SingleInputAction action) {
@@ -331,12 +297,12 @@ public class GroupsFragment extends Fragment {
                 .get()
                 .addOnSuccessListener(result -> {
                     if (!result.exists()) {
-                        Toast.makeText(requireContext(), "Codigo no valido", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(requireContext(), "CÃƒÂ³digo no vÃƒÂ¡lido", Toast.LENGTH_SHORT).show();
                         return;
                     }
                     String groupId = result.getString("groupId");
                     if (groupId == null || groupId.trim().isEmpty()) {
-                        Toast.makeText(requireContext(), "Codigo no valido", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(requireContext(), "CÃƒÂ³digo no vÃƒÂ¡lido", Toast.LENGTH_SHORT).show();
                         return;
                     }
                     addUserToGroup(groupId, uid, email);
@@ -351,8 +317,8 @@ public class GroupsFragment extends Fragment {
         ).addOnSuccessListener(v -> {
             selectedGroupId = groupId;
             SessionStore.setCurrentGroup(requireContext(), groupId);
+            SessionStore.clearCurrentRoom(requireContext());
             loadGroups();
-            loadGroupDetails(groupId);
             if (requireActivity() instanceof MainActivity) {
                 ((MainActivity) requireActivity()).openCurrentGroupWorkspace();
             }
@@ -365,15 +331,17 @@ public class GroupsFragment extends Fragment {
             return;
         }
         View content = DialogUtils.createVerticalActions(requireContext());
-        Button codeBtn = DialogUtils.createActionButton(requireContext(), "Invitar por código", true);
+        Button codeBtn = DialogUtils.createActionButton(requireContext(), "Invitar por cÃƒÂ³digo", true);
         Button qrBtn = DialogUtils.createActionButton(requireContext(), "Invitar por QR", false);
+        Button emailBtn = DialogUtils.createActionButton(requireContext(), "Invitar por email", false);
         ((LinearLayout) content).addView(codeBtn);
         ((LinearLayout) content).addView(qrBtn);
+        ((LinearLayout) content).addView(emailBtn);
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 "Invitar al piso",
-                "Elige cómo quieres compartir el acceso.",
+                "Elige cÃƒÂ³mo quieres compartir el acceso.",
                 content,
                 "Cerrar",
                 null
@@ -388,6 +356,34 @@ public class GroupsFragment extends Fragment {
             dialog.dismiss();
             showShareQrOnlyDialog(groupId);
         });
+        emailBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            inviteByEmail(groupId);
+        });
+    }
+
+    private void inviteByEmail(String groupId) {
+        showSingleInputDialog(
+                "Invitar por email",
+                "Comparte el piso por correo con otra persona.",
+                "persona@email.com",
+                InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
+                "Enviar",
+                value -> {
+                    String invitedEmail = value.trim().toLowerCase(Locale.ROOT);
+                    if (invitedEmail.isEmpty()) return false;
+
+                    Map<String, Object> inv = new HashMap<>();
+                    inv.put("groupId", groupId);
+                    inv.put("invitedEmail", invitedEmail);
+                    inv.put("inviterUid", FirebaseAuth.getInstance().getCurrentUser().getUid());
+                    inv.put("status", "pending");
+                    inv.put("createdAt", FieldValue.serverTimestamp());
+                    db.collection("invitations").add(inv)
+                            .addOnSuccessListener(v -> Toast.makeText(requireContext(), "InvitaciÃƒÂ³n enviada", Toast.LENGTH_SHORT).show());
+                    return true;
+                }
+        );
     }
 
     private void showShareCodeOnlyDialog(String groupId) {
@@ -400,8 +396,8 @@ public class GroupsFragment extends Fragment {
             View content = DialogUtils.createMessageView(requireContext(), code);
             DialogUtils.Shell shell = DialogUtils.buildShell(
                     requireContext(),
-                    "Código del piso",
-                    "Comparte este código para unirse al piso.",
+                    "CÃƒÂ³digo del piso",
+                    "Comparte este cÃƒÂ³digo para unirse al piso.",
                     content,
                     null,
                     "Cerrar"
@@ -514,10 +510,10 @@ public class GroupsFragment extends Fragment {
     }
 
     private void showInvitationDecision(String invitationId, String groupId) {
-        View content = DialogUtils.createMessageView(requireContext(), "Tienes una invitacion a un piso compartido.");
+        View content = DialogUtils.createMessageView(requireContext(), "Tienes una invitaciÃƒÂ³n a un piso compartido.");
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
-                "Invitacion pendiente",
+                "InvitaciÃƒÂ³n pendiente",
                 "Decide si quieres entrar ahora o rechazarla.",
                 content,
                 "Rechazar",
@@ -544,6 +540,7 @@ public class GroupsFragment extends Fragment {
         ).addOnSuccessListener(v -> {
             db.collection("invitations").document(invitationId).update("status", "accepted");
             SessionStore.setCurrentGroup(requireContext(), groupId);
+            SessionStore.clearCurrentRoom(requireContext());
             loadGroups();
             if (requireActivity() instanceof MainActivity) {
                 ((MainActivity) requireActivity()).openCurrentGroupWorkspace();
@@ -560,6 +557,7 @@ public class GroupsFragment extends Fragment {
             for (DocumentSnapshot doc : res.getDocuments()) {
                 String name = doc.getString("name");
                 String description = doc.getString("description");
+                String ownerId = doc.getString("ownerId");
                 Object membersField = doc.get("members");
                 List<?> members = membersField instanceof List ? (List<?>) membersField : null;
                 int count = members == null ? 0 : members.size();
@@ -568,7 +566,8 @@ public class GroupsFragment extends Fragment {
                         doc.getId(),
                         name == null ? "Piso" : name,
                         count,
-                        description == null || description.trim().isEmpty() ? "Sin direccion cargada" : description
+                        description == null || description.trim().isEmpty() ? "Sin direccion cargada" : description,
+                        uid.equals(ownerId)
                 ));
             }
             adapter.notifyDataSetChanged();
@@ -589,14 +588,19 @@ public class GroupsFragment extends Fragment {
         db.collection("groups").document(groupId).get().addOnSuccessListener(this::renderGroupDetails);
     }
 
+    @SuppressWarnings("unchecked")
     private void renderGroupDetails(DocumentSnapshot doc) {
         if (!isAdded() || doc == null || !doc.exists()) return;
         String name = doc.getString("name");
         String desc = doc.getString("description");
-        if (desc == null || desc.trim().isEmpty()) desc = "Sin descripcion";
+        if (desc == null || desc.trim().isEmpty()) desc = "Sin descripciÃƒÂ³n";
 
         Object emailsField = doc.get("memberEmails");
         List<String> emails = emailsField instanceof List ? (List<String>) emailsField : new ArrayList<>();
+
+        String ownerId = doc.getString("ownerId");
+        String myUid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        boolean isOwner = ownerId != null && ownerId.equals(myUid);
 
         detailNameTv.setText(name == null ? "Grupo" : name);
         detailDescTv.setText(desc);
@@ -609,6 +613,8 @@ public class GroupsFragment extends Fragment {
             }
             detailMembersTv.setText(membersText.toString());
         }
+
+        manageRoomsBtn.setVisibility(isOwner ? View.VISIBLE : View.GONE);
         detailsCard.setVisibility(View.VISIBLE);
     }
 
@@ -626,7 +632,7 @@ public class GroupsFragment extends Fragment {
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 "Editar grupo",
-                "Actualiza el nombre y la descripcion del piso.",
+                "Actualiza el nombre y la descripciÃƒÂ³n del piso.",
                 form,
                 "Cancelar",
                 "Guardar"
@@ -639,13 +645,20 @@ public class GroupsFragment extends Fragment {
             if (newName.isEmpty()) return;
             Map<String, Object> updates = new HashMap<>();
             updates.put("name", newName);
-            updates.put("description", newDesc.isEmpty() ? "Sin descripcion" : newDesc);
+            updates.put("description", newDesc.isEmpty() ? "Sin descripciÃƒÂ³n" : newDesc);
             db.collection("groups").document(selectedGroupId).update(updates).addOnSuccessListener(task -> {
                 loadGroups();
                 loadGroupDetails(selectedGroupId);
                 dialog.dismiss();
             });
         });
+    }
+
+    private void openOwnerRoomsSetup(String groupId) {
+        if (groupId == null || groupId.trim().isEmpty()) return;
+        Intent intent = new Intent(requireContext(), OwnerRoomsActivity.class);
+        intent.putExtra(OwnerRoomsActivity.EXTRA_GROUP_ID, groupId);
+        startActivity(intent);
     }
 
     private interface SingleInputAction {
@@ -657,12 +670,14 @@ public class GroupsFragment extends Fragment {
         final String name;
         final int members;
         final String description;
+        final boolean isOwner;
 
-        GroupItem(String id, String name, int members, String description) {
+        GroupItem(String id, String name, int members, String description, boolean isOwner) {
             this.id = id;
             this.name = name;
             this.members = members;
             this.description = description;
+            this.isOwner = isOwner;
         }
     }
 

@@ -230,6 +230,17 @@
                 android:text="Cerrar"
                 android:textColor="@color/text_light" />
         </LinearLayout>
+
+        <Button
+            android:id="@+id/manageRoomsBtn"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_tab_default"
+            android:text="Gestionar habitaciones"
+            android:textAllCaps="false"
+            android:textColor="@color/text_light"
+            android:visibility="gone" />
     </LinearLayout>
 
 </FrameLayout>

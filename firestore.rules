@@ -35,13 +35,16 @@ service cloud.firestore {
 
     function isSelfJoinUpdate() {
       return signedIn()
-        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['members', 'memberEmails'])
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['members', 'memberEmails', 'roles'])
         && request.resource.data.members.size() == resource.data.members.size() + 1
         && request.resource.data.members.hasAll(resource.data.members)
         && request.resource.data.members.hasAny([authUid()])
         && request.resource.data.memberEmails.size() == resource.data.memberEmails.size() + 1
         && request.resource.data.memberEmails.hasAll(resource.data.memberEmails)
-        && request.resource.data.memberEmails.hasAny([authEmail()]);
+        && request.resource.data.memberEmails.hasAny([authEmail()])
+        && request.resource.data.roles.size() == resource.data.roles.size() + 1
+        && request.resource.data.roles.keys().hasAll(resource.data.roles.keys())
+        && request.resource.data.roles[authUid()] == 'member';
     }
 
     match /users/{userId} {
@@ -78,6 +81,19 @@ service cloud.firestore {
       );
 
       allow delete: if signedIn() && isGroupOwner(groupId);
+    }
+
+    match /rooms_groups/{roomId} {
+      allow create: if signedIn()
+        && request.resource.data.createdByUid == authUid()
+        && request.resource.data.updatedByUid == authUid()
+        && isGroupOwner(request.resource.data.groupId);
+
+      allow read: if signedIn()
+        && isGroupMember(resource.data.groupId);
+
+      allow update, delete: if signedIn()
+        && isGroupOwner(resource.data.groupId);
     }
 
     match /expenses/{expenseId} {

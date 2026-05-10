@@ -1,6 +1,7 @@
 # Firebase Setup
 
-Este documento es la referencia viva de Firebase para `FlatShare`. La idea es ir actualizandolo cuando cambie la app, la estructura de datos o las reglas.
+Este documento es la referencia viva de Firebase para `FlatShare`.
+Actualízalo cuando cambie la app, la estructura de datos o las reglas.
 
 ## Estado actual
 
@@ -13,67 +14,52 @@ La app usa:
   - `usernames`
   - `groups`
   - `group_codes`
+  - `rooms_groups`
   - `expenses`
   - `payments`
+  - `payment_deadlines`
   - `invitations`
   - `reminders`
+  - `activity_logs`
 
-## Que hace cada coleccion
-
-### `users/{uid}`
-
-Documento privado del usuario autenticado.
-
-Campos actuales:
-
-- `uid`
-- `email`
-- `displayName`
-- `fullName`
-- `username`
-- `phone`
-- `city`
-- `profileCompleted`
-
-### `usernames/{username}`
-
-Indice publico para poder iniciar sesion usando nombre de usuario en vez de email.
-
-Campos actuales:
-
-- `uid`
-- `email`
-- `displayName`
+## Qué hace cada colección
 
 ### `groups/{groupId}`
 
 Piso o grupo compartido.
 
-Campos actuales:
+Campos actuales principales:
 
 - `name`
 - `description`
+- `location` (`street`, `portal`, `postalCode`, `city`, `province`)
 - `ownerId`
+- `roles`
 - `members`
 - `memberEmails`
 - `shareCode`
 - `createdAt`
 
-### `group_codes/{shareCode}`
+### `rooms_groups/{roomId}`
 
-Indice para entrar a un piso mediante codigo.
+Habitaciones de un piso y residentes asignados.
 
 Campos actuales:
 
 - `groupId`
-- `ownerId`
 - `name`
+- `memberEmails`
+- `memberCount`
+- `createdByUid`
+- `updatedByUid`
+- `createdAt`
+- `updatedAt`
 
 ### `expenses/{expenseId}`
 
 Gastos del piso.
 
-Campos actuales:
+Campos actuales principales:
 
 - `groupId`
 - `concept`
@@ -81,67 +67,36 @@ Campos actuales:
 - `payerId`
 - `payerEmail`
 - `customSplit`
-- `createdAt`
-
-### `payments/{paymentId}`
-
-Pagos entre miembros.
-
-Campos actuales:
-
-- `groupId`
-- `amount`
-- `fromEmail`
-- `toEmail`
-- `createdAt`
-
-### `invitations/{invitationId}`
-
-Invitaciones por email.
-
-Campos actuales:
-
-- `groupId`
-- `invitedEmail`
-- `inviterUid`
-- `status`
-- `createdAt`
-
-### `reminders/{reminderId}`
-
-Recordatorios internos del usuario dentro de un grupo.
-
-Campos actuales:
-
-- `groupId`
-- `title`
-- `interval`
-- `ownerUid`
+- `category`
+- `priority`
+- `ticketUri`
+- `dueAt`
+- `dueDateText`
+- `roomId`
+- `roomName`
 - `createdAt`
 
 ## Reglas recomendadas
 
-El archivo fuente de reglas del proyecto es [firestore.rules](c:/Users/sarino/Documents/TFG/FlatShareApp/firestore.rules).
+El archivo fuente de reglas es [firestore.rules](./firestore.rules).
 
-Resumen de la estrategia:
+Resumen:
 
-- `users`: solo el propio usuario puede leer y escribir su documento
-- `usernames`: lectura publica para permitir login con usuario
-- `group_codes`: lectura para usuarios autenticados, escritura solo del propietario
-- `groups`: solo miembros pueden leer; solo el dueno edita, salvo el caso controlado de auto-union por codigo
-- `expenses`, `payments`, `reminders`: solo miembros del grupo
-- `invitations`: acceso para quien invita o quien recibe
+- `groups`: solo miembros leen, propietario gestiona.
+- `rooms_groups`: miembros leen, propietario crea/edita/elimina.
+- `expenses`, `payments`, `payment_deadlines`, `reminders`: solo miembros del grupo.
+- `invitations`: acceso para quien invita o quien recibe.
 
-## Como meterlo en Firebase
+## Cómo aplicarlo en Firebase
 
-1. Abre `Firebase Console`
-2. Entra en tu proyecto
-3. Ve a `Firestore Database`
-4. Abre la pestana `Rules`
-5. Copia el contenido de `firestore.rules`
-6. Pulsa `Publish`
+1. Abre `Firebase Console`.
+2. Entra en tu proyecto.
+3. Ve a `Firestore Database`.
+4. Abre la pestaña `Rules`.
+5. Copia el contenido de `firestore.rules`.
+6. Pulsa `Publish`.
 
-## Que debes activar en Firebase
+## Qué activar
 
 ### Authentication
 
@@ -153,26 +108,9 @@ En `Authentication > Sign-in method` activa:
 
 En `Firestore Database`:
 
-- crea la base de datos en `Native mode`
-- aplica las reglas del archivo `firestore.rules`
+- Crea la base de datos en `Native mode`.
+- Aplica las reglas de `firestore.rules`.
 
-## No hace falta crear campos a mano
+## No hace falta crear colecciones a mano
 
-La app crea los documentos necesarios automaticamente al:
-
-- registrarse un usuario
-- crear un piso
-- unirse a un piso por codigo
-- crear gastos
-- registrar pagos
-- crear recordatorios
-
-## Mantenimiento
-
-Actualiza este archivo cuando cambie cualquiera de estas cosas:
-
-- nuevas colecciones
-- nuevos campos
-- cambios en login o registro
-- cambios en invitaciones o codigos de piso
-- cambios en reglas de seguridad
+La app crea los documentos automáticamente al crear piso, habitaciones, gastos, pagos y recordatorios.

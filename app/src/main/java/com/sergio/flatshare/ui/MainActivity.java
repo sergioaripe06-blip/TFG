@@ -47,6 +47,22 @@ public class MainActivity extends AppCompatActivity {
         if (savedInstanceState == null) {
             nav.setSelectedItemId(R.id.menu_groups);
         }
+        handleOpenWorkspaceIntent(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleOpenWorkspaceIntent(intent);
+    }
+
+    private void handleOpenWorkspaceIntent(Intent intent) {
+        if (intent == null) return;
+        if (intent.getBooleanExtra(OwnerRoomsActivity.EXTRA_OPEN_WORKSPACE, false)) {
+            openCurrentGroupWorkspace();
+            intent.removeExtra(OwnerRoomsActivity.EXTRA_OPEN_WORKSPACE);
+        }
     }
 
     public void openCurrentGroupWorkspace() {
