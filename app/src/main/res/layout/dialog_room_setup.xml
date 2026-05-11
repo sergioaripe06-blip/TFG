@@ -7,40 +7,41 @@
     android:paddingBottom="4dp">
 
     <EditText
-        android:id="@+id/editFullNameEt"
+        android:id="@+id/roomNameEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@drawable/bg_input_dark_round"
-        android:hint="Nombre completo"
+        android:hint="Nombre de la habitaci&#243;n"
+        android:inputType="textCapWords"
         android:paddingHorizontal="16dp"
         android:paddingVertical="12dp"
         android:textColor="@color/text_light"
         android:textColorHint="@color/text_muted" />
 
     <EditText
-        android:id="@+id/editPhoneEt"
+        android:id="@+id/roomCapacityEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:background="@drawable/bg_input_dark_round"
-        android:hint="Teléfono"
-        android:inputType="phone"
+        android:hint="Capacidad de personas"
+        android:inputType="number"
+        android:maxLength="2"
         android:paddingHorizontal="16dp"
         android:paddingVertical="12dp"
         android:textColor="@color/text_light"
         android:textColorHint="@color/text_muted" />
 
     <EditText
-        android:id="@+id/editBirthDateEt"
+        android:id="@+id/roomCostEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:background="@drawable/bg_input_dark_round"
-        android:hint="Fecha de nacimiento (YYYY-MM-DD)"
-        android:inputType="none"
+        android:hint="Coste de la habitaci&#243;n (EUR)"
+        android:inputType="numberDecimal"
         android:paddingHorizontal="16dp"
         android:paddingVertical="12dp"
         android:textColor="@color/text_light"
         android:textColorHint="@color/text_muted" />
-
 </LinearLayout>

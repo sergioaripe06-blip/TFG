@@ -18,6 +18,13 @@ public class SessionStore {
         return p.getString(KEY_GROUP, null);
     }
 
+    public static void clearCurrentGroup(Context context) {
+        context.getSharedPreferences(PREF, Context.MODE_PRIVATE)
+                .edit()
+                .remove(KEY_GROUP)
+                .apply();
+    }
+
     public static void setCurrentRoom(Context context, String roomId, String roomName) {
         context.getSharedPreferences(PREF, Context.MODE_PRIVATE)
                 .edit()

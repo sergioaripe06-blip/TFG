@@ -19,17 +19,44 @@
         android:textColorHint="@color/text_muted" />
 
     <EditText
-        android:id="@+id/paymentToEt"
+        android:id="@+id/paymentConceptEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:background="@drawable/bg_input_dark_round"
-        android:hint="Email destino"
-        android:inputType="textEmailAddress"
+        android:hint="Concepto del pago"
+        android:inputType="textCapWords"
         android:paddingHorizontal="16dp"
         android:paddingVertical="12dp"
         android:textColor="@color/text_light"
         android:textColorHint="@color/text_muted" />
+
+    <Spinner
+        android:id="@+id/paymentTargetTypeSpinner"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_input_dark_round"
+        android:paddingHorizontal="12dp"
+        android:popupBackground="@color/surface_dark_alt" />
+
+    <Spinner
+        android:id="@+id/paymentMemberSpinner"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_input_dark_round"
+        android:paddingHorizontal="12dp"
+        android:popupBackground="@color/surface_dark_alt" />
+
+    <Spinner
+        android:id="@+id/paymentRoomSpinner"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_input_dark_round"
+        android:paddingHorizontal="12dp"
+        android:popupBackground="@color/surface_dark_alt" />
 
     <Spinner
         android:id="@+id/paymentCategorySpinner"

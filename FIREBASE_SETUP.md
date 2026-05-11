@@ -28,7 +28,7 @@ La app usa:
 
 Piso o grupo compartido.
 
-Campos actuales principales:
+Campos principales:
 
 - `name`
 - `description`
@@ -38,16 +38,20 @@ Campos actuales principales:
 - `members`
 - `memberEmails`
 - `shareCode`
+- `roomCount`
 - `createdAt`
 
 ### `rooms_groups/{roomId}`
 
 Habitaciones de un piso y residentes asignados.
 
-Campos actuales:
+Campos:
 
 - `groupId`
+- `roomNumber`
 - `name`
+- `capacity`
+- `monthlyCost`
 - `memberEmails`
 - `memberCount`
 - `createdByUid`
@@ -59,7 +63,7 @@ Campos actuales:
 
 Gastos del piso.
 
-Campos actuales principales:
+Campos principales:
 
 - `groupId`
 - `concept`
@@ -76,6 +80,53 @@ Campos actuales principales:
 - `roomName`
 - `createdAt`
 
+### `payments/{paymentId}`
+
+Pagos entre miembros.
+
+Campos principales:
+
+- `groupId`
+- `amount`
+- `fromEmail`
+- `toEmail`
+- `concept`
+- `targetType` (`habitacion`, `miembro`, `todos`)
+- `roomId` (opcional)
+- `roomName` (opcional)
+- `category`
+- `priority`
+- `status`
+- `dueAt`
+- `dueDateText`
+- `createdAt`
+
+### `reminders/{reminderId}`
+
+Recordatorios del piso (visibles en pestaña de Recordatorios y calendario).
+
+Campos principales:
+
+- `groupId`
+- `groupName`
+- `ownerUid`
+- `ownerEmail`
+- `title`
+- `startAt`
+- `startDateText`
+- `interval` (`diario`, `semanal`, `mensual`, `personalizado`)
+- `intervalDays` (entero, para personalizado)
+- `targetType` (`todos`, `miembro`, `habitacion`, `x_habitacion`)
+- `targetEmails` (array)
+- `targetMemberEmail` (opcional)
+- `roomId` (opcional)
+- `roomName` (opcional)
+- `roomIds` (array opcional)
+- `roomNames` (array opcional)
+- `attachmentUri` (opcional)
+- `reminderCode` (int, para alarmas locales)
+- `createdAt`
+
 ## Reglas recomendadas
 
 El archivo fuente de reglas es [firestore.rules](./firestore.rules).
@@ -84,7 +135,7 @@ Resumen:
 
 - `groups`: solo miembros leen, propietario gestiona.
 - `rooms_groups`: miembros leen, propietario crea/edita/elimina.
-- `expenses`, `payments`, `payment_deadlines`, `reminders`: solo miembros del grupo.
+- `expenses`, `payments`, `payment_deadlines`, `reminders`, `activity_logs`: solo miembros del grupo.
 - `invitations`: acceso para quien invita o quien recibe.
 
 ## Cómo aplicarlo en Firebase

@@ -131,6 +131,14 @@ service cloud.firestore {
         && isGroupMember(resource.data.groupId);
     }
 
+    match /activity_logs/{logId} {
+      allow create: if signedIn()
+        && isGroupMember(request.resource.data.groupId);
+
+      allow read, update, delete: if signedIn()
+        && isGroupMember(resource.data.groupId);
+    }
+
     match /invitations/{invitationId} {
       allow create: if signedIn()
         && request.resource.data.inviterUid == authUid()

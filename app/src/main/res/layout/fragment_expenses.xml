@@ -34,9 +34,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
-                android:text="Entra desde la pestaña de pisos para ver gastos y saldos."
+                android:text="Entra desde la pesta&#241;a de pisos para ver gastos, saldos y recordatorios."
                 android:textColor="@color/text_muted"
-                android:textSize="13sp" />
+                android:textSize="13sp"
+                android:visibility="gone" />
 
             <LinearLayout
                 android:id="@+id/tabRow"
@@ -46,11 +47,48 @@
                 android:orientation="horizontal">
 
                 <Button
-                    android:id="@+id/gastosTabBtn"
+                    android:id="@+id/roomsTabBtn"
                     android:layout_width="0dp"
                     android:layout_height="36dp"
                     android:layout_weight="1"
+                    android:background="@drawable/bg_tab_default"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:paddingHorizontal="6dp"
+                    android:maxLines="1"
+                    android:textSize="11sp"
+                    android:text="Habitaciones"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_muted" />
+
+                <Button
+                    android:id="@+id/tenantsTabBtn"
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_tab_default"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:paddingHorizontal="6dp"
+                    android:maxLines="1"
+                    android:textSize="11sp"
+                    android:text="Inquilinos"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_muted" />
+
+                <Button
+                    android:id="@+id/gastosTabBtn"
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
                     android:background="@drawable/bg_tab_selected"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:paddingHorizontal="6dp"
+                    android:maxLines="1"
+                    android:textSize="11sp"
                     android:text="Gastos"
                     android:textAllCaps="false"
                     android:textColor="@color/text_light" />
@@ -59,12 +97,67 @@
                     android:id="@+id/saldosTabBtn"
                     android:layout_width="0dp"
                     android:layout_height="36dp"
-                    android:layout_marginStart="8dp"
+                    android:layout_marginStart="6dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_tab_default"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:paddingHorizontal="6dp"
+                    android:maxLines="1"
+                    android:textSize="11sp"
                     android:text="Saldos"
                     android:textAllCaps="false"
                     android:textColor="@color/text_muted" />
+
+                <Button
+                    android:id="@+id/remindersTabBtn"
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_tab_default"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:paddingHorizontal="6dp"
+                    android:maxLines="1"
+                    android:textSize="11sp"
+                    android:text="Recordatorios"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_muted" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/expensesToolsRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:orientation="horizontal">
+
+                <EditText
+                    android:id="@+id/expensesSearchEt"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_input_dark_round"
+                    android:hint="Buscar gasto o pago"
+                    android:imeOptions="actionDone"
+                    android:inputType="text"
+                    android:maxLines="1"
+                    android:singleLine="true"
+                    android:paddingHorizontal="12dp"
+                    android:textColor="@color/text_light"
+                    android:textColorHint="@color/text_muted" />
+
+                <Button
+                    android:id="@+id/openFiltersBtn"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/bg_tab_default"
+                    android:paddingHorizontal="14dp"
+                    android:text="Filtros"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_light" />
             </LinearLayout>
         </LinearLayout>
 
@@ -92,6 +185,40 @@
             android:listSelector="@android:color/transparent"
             android:paddingBottom="110dp"
             android:visibility="gone" />
+
+        <ListView
+            android:id="@+id/remindersLv"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginTop="14dp"
+            android:clipToPadding="false"
+            android:divider="@android:color/transparent"
+            android:dividerHeight="0dp"
+            android:listSelector="@android:color/transparent"
+            android:paddingBottom="110dp"
+            android:visibility="gone" />
+
+        <FrameLayout
+            android:id="@+id/tenantsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginTop="14dp"
+            android:visibility="gone" />
+
+        <ListView
+            android:id="@+id/roomsLv"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginTop="14dp"
+            android:clipToPadding="false"
+            android:divider="@android:color/transparent"
+            android:dividerHeight="0dp"
+            android:listSelector="@android:color/transparent"
+            android:paddingBottom="110dp"
+            android:visibility="gone" />
     </LinearLayout>
 
     <LinearLayout
@@ -107,7 +234,7 @@
             android:id="@+id/addExpenseCenterFab"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:contentDescription="Accion principal"
+            android:contentDescription="Acci&#243;n principal"
             app:backgroundTint="@color/primary_green"
             app:srcCompat="@android:drawable/ic_input_add"
             app:tint="@color/on_primary_green" />
@@ -123,3 +250,5 @@
     </LinearLayout>
 
 </FrameLayout>
+
+

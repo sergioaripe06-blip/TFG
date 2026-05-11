@@ -1,5 +1,7 @@
 package com.sergio.flatshare.ui;
 
+import android.app.DatePickerDialog;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.widget.Button;
@@ -35,6 +37,7 @@ public class RegisterActivity extends AppCompatActivity {
         EditText passwordEt = findViewById(R.id.passwordEt);
         Button registerBtn = findViewById(R.id.registerBtn);
         TextView loginTv = findViewById(R.id.loginTv);
+        setupBirthDateField(birthDateEt);
 
         registerBtn.setOnClickListener(v -> {
             String fullName = fullNameEt.getText().toString().trim();
@@ -92,7 +95,7 @@ public class RegisterActivity extends AppCompatActivity {
         try {
             birthDate = fmt.parse(birthDateIso);
         } catch (ParseException e) {
-            Toast.makeText(this, "Formato invalido. Usa YYYY-MM-DD", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Formato inválido. Usa YYYY-MM-DD", Toast.LENGTH_SHORT).show();
             return false;
         }
         Calendar birth = Calendar.getInstance();
@@ -103,5 +106,47 @@ public class RegisterActivity extends AppCompatActivity {
             age--;
         }
         return age >= 18;
+    }
+
+    private void setupBirthDateField(EditText birthDateEt) {
+        birthDateEt.setKeyListener(null);
+        birthDateEt.setFocusable(false);
+        birthDateEt.setFocusableInTouchMode(false);
+        birthDateEt.setClickable(true);
+        birthDateEt.setCursorVisible(false);
+        birthDateEt.setLongClickable(false);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            birthDateEt.setShowSoftInputOnFocus(false);
+        }
+        birthDateEt.setOnLongClickListener(v -> true);
+        birthDateEt.setOnClickListener(v -> openBirthDatePicker(birthDateEt));
+        birthDateEt.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) openBirthDatePicker(birthDateEt);
+        });
+    }
+
+    private void openBirthDatePicker(EditText targetField) {
+        Calendar calendar = Calendar.getInstance();
+        String currentValue = targetField.getText() == null ? "" : targetField.getText().toString().trim();
+        if (!currentValue.isEmpty()) {
+            try {
+                SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT);
+                fmt.setLenient(false);
+                calendar.setTime(fmt.parse(currentValue));
+            } catch (Exception ignored) {
+            }
+        } else {
+            calendar.add(Calendar.YEAR, -18);
+        }
+
+        DatePickerDialog dialog = new DatePickerDialog(
+                this,
+                (view, year, month, dayOfMonth) -> targetField.setText(String.format(Locale.ROOT, "%04d-%02d-%02d", year, month + 1, dayOfMonth)),
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH),
+                calendar.get(Calendar.DAY_OF_MONTH)
+        );
+        dialog.getDatePicker().setMaxDate(System.currentTimeMillis());
+        dialog.show();
     }
 }

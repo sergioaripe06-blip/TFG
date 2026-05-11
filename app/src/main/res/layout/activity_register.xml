@@ -146,7 +146,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:hint="Fecha de nacimiento (YYYY-MM-DD)"
+                    android:hint="Fecha de nacimiento"
                     app:boxBackgroundColor="@color/surface_chip"
                     app:boxBackgroundMode="filled"
                     app:boxCornerRadiusBottomEnd="16dp"
@@ -159,7 +159,7 @@
                         android:id="@+id/birthDateEt"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:inputType="date"
+                        android:inputType="none"
                         android:textColor="@color/text_light"
                         android:textColorHint="@color/text_muted" />
                 </com.google.android.material.textfield.TextInputLayout>

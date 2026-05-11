@@ -11,16 +11,23 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.text.Editable;
+import android.text.InputType;
+import android.text.TextWatcher;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.EditorInfo;
 import android.widget.ArrayAdapter;
 import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.ImageView;
@@ -34,6 +41,8 @@ import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
@@ -57,12 +66,15 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.Hashtable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -70,7 +82,10 @@ import java.util.regex.Pattern;
 public class ExpensesFragment extends Fragment {
     private static final String TAB_EXPENSES = "expenses";
     private static final String TAB_SALDOS = "saldos";
-    private static final String ROOM_NONE_LABEL = "Sin habitaciÃƒÆ’Ã‚Â³n";
+    private static final String TAB_REMINDERS = "reminders";
+    private static final String TAB_ROOMS = "rooms";
+    private static final String TAB_TENANTS = "tenants";
+    private static final String ROOM_ALL_LABEL = "Todas las habitaciones";
     private static final String[] SPENDING_TYPES = {"agua", "electricidad", "internet", "alquiler", "comida", "otros"};
     private static final int[] SPENDING_TYPE_COLORS = {
             Color.parseColor("#44D4FF"),
@@ -81,23 +96,39 @@ public class ExpensesFragment extends Fragment {
             Color.parseColor("#C3C3C3")
     };
     private static final String[] PRIORITY_TYPES = {"baja", "media", "alta"};
+    private static final String[] PAYMENT_TARGET_TYPES = {"Habitación", "Miembro", "Todos"};
+    private static final String[] REMINDER_INTERVAL_TYPES = {"Diario", "Semanal", "Mensual", "Personalizado"};
+    private static final String[] REMINDER_TARGET_TYPES = {"Todos", "Miembro", "Habitación", "X habitación"};
     private static final SimpleDateFormat DUE_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT);
 
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
     private final List<WorkspaceRow> expenseRows = new ArrayList<>();
     private final List<WorkspaceRow> saldoRows = new ArrayList<>();
+    private final List<WorkspaceRow> reminderRows = new ArrayList<>();
+    private final List<WorkspaceRow> roomRows = new ArrayList<>();
 
     private WorkspaceAdapter expensesAdapter;
     private WorkspaceAdapter saldosAdapter;
+    private WorkspaceAdapter remindersAdapter;
+    private WorkspaceAdapter roomsAdapter;
 
     private TextView workspaceTitleTv;
     private TextView workspaceMetaTv;
     private ListView expensesLv;
     private ListView saldosLv;
+    private ListView remindersLv;
+    private ListView roomsLv;
+    private View tenantsContainer;
     private View workspaceCtaLayout;
     private TextView addMainLabelTv;
     private Button gastosTabBtn;
     private Button saldosTabBtn;
+    private Button remindersTabBtn;
+    private Button roomsTabBtn;
+    private Button tenantsTabBtn;
+    private View expensesToolsRow;
+    private EditText expensesSearchEt;
+    private Button openFiltersBtn;
 
     private String currentTab = TAB_EXPENSES;
     private String currentGroupId;
@@ -108,14 +139,22 @@ public class ExpensesFragment extends Fragment {
     private List<String> currentRoomMembers = new ArrayList<>();
     private String filterPersonEmail;
     private String filterCategory;
+    private String filterSearchQuery;
     private Long filterFromMs;
     private Long filterToMs;
     private String pendingTicketUri;
     private EditText pendingTicketAmountEt;
     private TextView pendingTicketStatusTv;
+    private String pendingReminderAttachmentUri;
+    private TextView pendingReminderAttachmentStatusTv;
+    private boolean isRebindingRoomSelectors = false;
+    private final Map<String, String> memberDisplayNamesByEmail = new HashMap<>();
+    private String workspaceMetaCache = "";
 
     private final ActivityResultLauncher<String> ticketPickerLauncher =
             registerForActivityResult(new ActivityResultContracts.GetContent(), this::handleTicketSelected);
+    private final ActivityResultLauncher<String> reminderAttachmentPickerLauncher =
+            registerForActivityResult(new ActivityResultContracts.GetContent(), this::handleReminderAttachmentSelected);
 
     @Nullable
     @Override
@@ -123,23 +162,82 @@ public class ExpensesFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_expenses, container, false);
         workspaceTitleTv = view.findViewById(R.id.workspaceTitleTv);
         workspaceMetaTv = view.findViewById(R.id.workspaceMetaTv);
+        workspaceMetaTv.setVisibility(View.GONE);
         expensesLv = view.findViewById(R.id.expensesLv);
         saldosLv = view.findViewById(R.id.saldosLv);
+        remindersLv = view.findViewById(R.id.remindersLv);
+        roomsLv = view.findViewById(R.id.roomsLv);
+        tenantsContainer = view.findViewById(R.id.tenantsContainer);
         workspaceCtaLayout = view.findViewById(R.id.workspaceCtaLayout);
         addMainLabelTv = view.findViewById(R.id.addMainLabelTv);
         gastosTabBtn = view.findViewById(R.id.gastosTabBtn);
         saldosTabBtn = view.findViewById(R.id.saldosTabBtn);
+        remindersTabBtn = view.findViewById(R.id.remindersTabBtn);
+        roomsTabBtn = view.findViewById(R.id.roomsTabBtn);
+        tenantsTabBtn = view.findViewById(R.id.tenantsTabBtn);
+        expensesToolsRow = view.findViewById(R.id.expensesToolsRow);
+        expensesSearchEt = view.findViewById(R.id.expensesSearchEt);
+        openFiltersBtn = view.findViewById(R.id.openFiltersBtn);
         FloatingActionButton mainFab = view.findViewById(R.id.addExpenseCenterFab);
 
         expensesAdapter = new WorkspaceAdapter(expenseRows);
         saldosAdapter = new WorkspaceAdapter(saldoRows);
+        remindersAdapter = new WorkspaceAdapter(reminderRows);
+        roomsAdapter = new WorkspaceAdapter(roomRows);
         expensesLv.setAdapter(expensesAdapter);
         saldosLv.setAdapter(saldosAdapter);
+        remindersLv.setAdapter(remindersAdapter);
+        roomsLv.setAdapter(roomsAdapter);
 
         gastosTabBtn.setOnClickListener(v -> switchTab(TAB_EXPENSES));
         saldosTabBtn.setOnClickListener(v -> switchTab(TAB_SALDOS));
+        remindersTabBtn.setOnClickListener(v -> switchTab(TAB_REMINDERS));
+        roomsTabBtn.setOnClickListener(v -> switchTab(TAB_ROOMS));
+        tenantsTabBtn.setOnClickListener(v -> switchTab(TAB_TENANTS));
+        openFiltersBtn.setOnClickListener(v -> showFiltersDialog());
+        workspaceTitleTv.setOnLongClickListener(v -> {
+            if (currentGroupId == null || workspaceMetaCache == null || workspaceMetaCache.trim().isEmpty()) {
+                return false;
+            }
+            showWorkspaceMetaDialog();
+            return true;
+        });
+        expensesSearchEt.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                String query = s == null ? "" : s.toString().trim().toLowerCase(Locale.ROOT);
+                filterSearchQuery = query.isEmpty() ? null : query;
+                loadExpenses();
+            }
+        });
+        expensesSearchEt.setOnFocusChangeListener((v, hasFocus) -> updateCtaVisibilityForCurrentTab());
+        expensesSearchEt.setOnEditorActionListener((v, actionId, event) -> {
+            boolean done = actionId == EditorInfo.IME_ACTION_DONE
+                    || actionId == EditorInfo.IME_ACTION_SEARCH
+                    || (event != null && event.getKeyCode() == KeyEvent.KEYCODE_ENTER);
+            if (done) {
+                expensesSearchEt.clearFocus();
+                updateCtaVisibilityForCurrentTab();
+                return true;
+            }
+            return false;
+        });
         mainFab.setOnClickListener(v -> handleMainAction());
         expensesLv.setOnItemClickListener((parent, v, position, id) -> showRowDetail(expenseRows.get(position)));
+        remindersLv.setOnItemClickListener((parent, v, position, id) -> showRowDetail(reminderRows.get(position)));
+        roomsLv.setOnItemClickListener((parent, v, position, id) -> openRoomFromTab(roomRows.get(position)));
+        roomsLv.setOnItemLongClickListener((parent, v, position, id) -> {
+            showRoomActionsFromTab(roomRows.get(position));
+            return true;
+        });
 
         switchTab(TAB_EXPENSES);
         refreshWorkspace();
@@ -153,62 +251,133 @@ public class ExpensesFragment extends Fragment {
         if (currentGroupId == null) {
             currentGroupName = "Selecciona un piso";
             workspaceTitleTv.setText(currentGroupName);
-            workspaceMetaTv.setText("Entra desde la pestana de pisos para ver gastos y saldos.");
+            workspaceMetaCache = "Entra desde la pestaña de pisos para ver gastos, saldos, recordatorios y habitaciones.";
+            workspaceMetaTv.setText(workspaceMetaCache);
+            workspaceMetaTv.setVisibility(View.GONE);
             expenseRows.clear();
             saldoRows.clear();
+            reminderRows.clear();
+            roomRows.clear();
             expensesAdapter.notifyDataSetChanged();
             saldosAdapter.notifyDataSetChanged();
+            remindersAdapter.notifyDataSetChanged();
+            roomsAdapter.notifyDataSetChanged();
             workspaceCtaLayout.setVisibility(View.GONE);
             switchTab(currentTab);
             return;
         }
 
-        workspaceCtaLayout.setVisibility(View.VISIBLE);
+        switchTab(currentTab);
+        updateCtaVisibilityForCurrentTab();
         db.collection("groups").document(currentGroupId).get().addOnSuccessListener(doc -> {
             if (!isAdded()) return;
             currentGroupName = doc.getString("name") == null ? "Piso actual" : doc.getString("name");
             currentUserRole = resolveCurrentUserRole(doc);
-            String description = doc.getString("description");
-            if (description == null || description.trim().isEmpty()) {
-                description = "Sin descripcion";
-            }
+            String rawDescription = doc.getString("description");
+            final String description = (rawDescription == null || rawDescription.trim().isEmpty())
+                    ? "Sin descripción"
+                    : rawDescription;
             List<String> memberEmails = castEmails(doc.get("memberEmails"));
             List<String> memberIds = castStrings(doc.get("members"));
-            String ownerEmail = resolveOwnerEmail(doc, memberIds, memberEmails);
-            String membersLabel = memberEmails.isEmpty() ? "Sin datos" : String.join(", ", memberEmails);
-            String meta = "Piso: " + description
-                    + "\nPropietario: " + (ownerEmail.isEmpty() ? "Sin datos" : ownerEmail)
-                    + "\nMiembros (" + memberEmails.size() + "): " + membersLabel;
-            if (hasRoomContext()) {
-                meta += "\nHabitacion activa: " + (currentRoomName == null ? "Seleccionada" : currentRoomName);
-            }
-            workspaceTitleTv.setText(currentGroupName);
-            workspaceMetaTv.setText(meta);
-        });
+            resolveMemberDisplayNames(memberIds, memberEmails, () -> {
+                if (!isAdded()) return;
+                String ownerEmail = resolveOwnerEmail(doc, memberIds, memberEmails);
+                String ownerLabel = displayNameForEmail(ownerEmail);
+                List<String> memberLabels = new ArrayList<>();
+                for (String email : memberEmails) {
+                    memberLabels.add(displayNameForEmail(email));
+                }
+                String membersLabel = memberLabels.isEmpty() ? "Sin datos" : String.join(", ", memberLabels);
+                String meta = "Piso: " + description
+                        + "\nPropietario: " + (ownerLabel.isEmpty() ? "Sin datos" : ownerLabel)
+                        + "\nMiembros (" + memberEmails.size() + "): " + membersLabel;
+                if (hasRoomContext()) {
+                    meta += "\nHabitación activa: " + (currentRoomName == null ? "Seleccionada" : currentRoomName);
+                }
+                workspaceTitleTv.setText(currentGroupName);
+                workspaceMetaCache = meta;
+                workspaceMetaTv.setText(meta);
+                workspaceMetaTv.setVisibility(View.GONE);
 
-        loadRoomContext(() -> {
-            loadExpenses();
-            loadFinancialViews();
+                loadRoomContext(() -> {
+                    loadExpenses();
+                    loadFinancialViews();
+                    loadReminders();
+                    loadRoomsOverview();
+                    ensureTenantsFragment();
+                });
+            });
         });
     }
     private void switchTab(String tab) {
         currentTab = tab;
         boolean showExpenses = TAB_EXPENSES.equals(tab);
         boolean showSaldos = TAB_SALDOS.equals(tab);
+        boolean showReminders = TAB_REMINDERS.equals(tab);
+        boolean showRooms = TAB_ROOMS.equals(tab);
+        boolean showTenants = TAB_TENANTS.equals(tab);
 
         expensesLv.setVisibility(showExpenses ? View.VISIBLE : View.GONE);
         saldosLv.setVisibility(showSaldos ? View.VISIBLE : View.GONE);
+        remindersLv.setVisibility(showReminders ? View.VISIBLE : View.GONE);
+        roomsLv.setVisibility(showRooms ? View.VISIBLE : View.GONE);
+        tenantsContainer.setVisibility(showTenants ? View.VISIBLE : View.GONE);
+        expensesToolsRow.setVisibility(showExpenses && currentGroupId != null ? View.VISIBLE : View.GONE);
 
         updateTabStyle(gastosTabBtn, showExpenses);
         updateTabStyle(saldosTabBtn, showSaldos);
+        updateTabStyle(remindersTabBtn, showReminders);
+        updateTabStyle(roomsTabBtn, showRooms);
+        updateTabStyle(tenantsTabBtn, showTenants);
 
         if (showExpenses) {
             addMainLabelTv.setText("Nuevo gasto");
-            workspaceCtaLayout.setVisibility(currentGroupId == null ? View.GONE : View.VISIBLE);
-        } else {
+        } else if (showSaldos) {
             addMainLabelTv.setText("Nuevo pago");
-            workspaceCtaLayout.setVisibility(currentGroupId == null ? View.GONE : View.VISIBLE);
+        } else if (showReminders) {
+            addMainLabelTv.setText("Nuevo recordatorio");
+        } else if (showTenants) {
+            addMainLabelTv.setText("Inquilinos");
+            ensureTenantsFragment();
+        } else {
+            addMainLabelTv.setText("Habitaciones");
         }
+        updateCtaVisibilityForCurrentTab();
+    }
+
+    private void showWorkspaceMetaDialog() {
+        View content = DialogUtils.createMessageView(requireContext(), workspaceMetaCache);
+        DialogUtils.Shell shell = DialogUtils.buildShell(
+                requireContext(),
+                currentGroupName == null || currentGroupName.trim().isEmpty() ? "Datos del piso" : currentGroupName,
+                "Información del piso",
+                content,
+                null,
+                "Cerrar"
+        );
+        AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+        shell.confirmBtn.setOnClickListener(v -> dialog.dismiss());
+    }
+
+    private void updateCtaVisibilityForCurrentTab() {
+        if (workspaceCtaLayout == null) return;
+        boolean ctaAllowedTab = TAB_EXPENSES.equals(currentTab) || TAB_SALDOS.equals(currentTab) || TAB_REMINDERS.equals(currentTab);
+        boolean hideForSearch = TAB_EXPENSES.equals(currentTab) && expensesSearchEt != null && expensesSearchEt.hasFocus();
+        boolean visible = currentGroupId != null && ctaAllowedTab && !hideForSearch;
+        workspaceCtaLayout.setVisibility(visible ? View.VISIBLE : View.GONE);
+    }
+
+    private void ensureTenantsFragment() {
+        if (!isAdded() || tenantsContainer == null) return;
+        Fragment existing = getChildFragmentManager().findFragmentByTag("tenants");
+        if (existing instanceof TenantsFragment) {
+            ((TenantsFragment) existing).refreshTenants();
+            return;
+        }
+        getChildFragmentManager()
+                .beginTransaction()
+                .replace(R.id.tenantsContainer, new TenantsFragment(), "tenants")
+                .commit();
     }
 
     private void updateTabStyle(Button button, boolean selected) {
@@ -225,30 +394,268 @@ public class ExpensesFragment extends Fragment {
             showExpenseActionDialog();
         } else if (TAB_SALDOS.equals(currentTab)) {
             createPaymentDialog();
+        } else if (TAB_REMINDERS.equals(currentTab)) {
+            createReminderDialog();
         }
+    }
+
+    private void openRoomFromTab(WorkspaceRow row) {
+        if ("all_rooms".equals(row.id)) {
+            SessionStore.clearCurrentRoom(requireContext());
+            currentRoomId = null;
+            currentRoomName = null;
+            currentRoomMembers = new ArrayList<>();
+            switchTab(TAB_EXPENSES);
+            refreshWorkspace();
+            return;
+        }
+        SessionStore.setCurrentRoom(requireContext(), row.id, row.title);
+        currentRoomId = row.id;
+        currentRoomName = row.title;
+        switchTab(TAB_EXPENSES);
+        refreshWorkspace();
+    }
+
+    private void loadRoomsOverview() {
+        if (currentGroupId == null) return;
+        roomRows.clear();
+        roomRows.add(new WorkspaceRow(
+                "all_rooms",
+                "room",
+                "Todas las habitaciones",
+                hasRoomContext() ? "Habitación activa: " + (currentRoomName == null ? "Seleccionada" : currentRoomName) : "Ver gastos de todo el piso",
+                "",
+                null
+        ));
+        db.collection("rooms_groups")
+                .whereEqualTo("groupId", currentGroupId)
+                .get()
+                .addOnSuccessListener(result -> {
+                    DecimalFormat df = new DecimalFormat("0.00");
+                    for (DocumentSnapshot doc : result.getDocuments()) {
+                        String roomName = doc.getString("name");
+                        Long roomNumber = doc.getLong("roomNumber");
+                        Long capacity = doc.getLong("capacity");
+                        Double monthlyCost = doc.getDouble("monthlyCost");
+                        List<String> residents = castEmails(doc.get("memberEmails"));
+                        String title = (roomNumber == null || roomNumber <= 0)
+                                ? (roomName == null || roomName.trim().isEmpty() ? "Habitación" : roomName)
+                                : "Hab. " + roomNumber + " - " + (roomName == null || roomName.trim().isEmpty() ? "Habitación" : roomName);
+                        String subtitle = "Capacidad: " + (capacity == null ? 0 : capacity)
+                                + " | Residentes: " + residents.size();
+                        roomRows.add(new WorkspaceRow(
+                                doc.getId(),
+                                "room",
+                                title,
+                                subtitle,
+                                (monthlyCost == null ? "0.00" : df.format(monthlyCost)) + " EUR",
+                                doc
+                        ));
+                    }
+                    roomsAdapter.notifyDataSetChanged();
+                })
+                .addOnFailureListener(e -> roomsAdapter.notifyDataSetChanged());
+    }
+
+    private void showRoomActionsFromTab(WorkspaceRow row) {
+        if ("all_rooms".equals(row.id) || row.snapshot == null) return;
+        if (!canManageRooms()) {
+            Toast.makeText(requireContext(), "Solo el propietario puede gestionar habitaciones", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        ViewGroup content = DialogUtils.createVerticalActions(requireContext());
+        Button editRoomBtn = DialogUtils.createActionButton(requireContext(), "Editar habitación", true);
+        Button editResidentsBtn = DialogUtils.createActionButton(requireContext(), "Editar inquilinos", false);
+        Button deleteRoomBtn = DialogUtils.createActionButton(requireContext(), "Eliminar habitación", false);
+        content.addView(editRoomBtn);
+        content.addView(editResidentsBtn);
+        content.addView(deleteRoomBtn);
+
+        DialogUtils.Shell shell = DialogUtils.buildShell(
+                requireContext(),
+                row.title,
+                "Gestiona esta habitación.",
+                content,
+                "Cerrar",
+                null
+        );
+        AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+        shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+        editRoomBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            editRoomFromWorkspace(row);
+        });
+        editResidentsBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            editRoomResidentsFromWorkspace(row);
+        });
+        deleteRoomBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            requestRoomDeletion(row);
+        });
+    }
+
+    private void editRoomFromWorkspace(WorkspaceRow row) {
+        if (row.snapshot == null) return;
+        View form = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_room_setup, null, false);
+        EditText roomNameEt = form.findViewById(R.id.roomNameEt);
+        EditText roomCapacityEt = form.findViewById(R.id.roomCapacityEt);
+        EditText roomCostEt = form.findViewById(R.id.roomCostEt);
+
+        String roomName = row.snapshot.getString("name");
+        Long capacity = row.snapshot.getLong("capacity");
+        Double monthlyCost = row.snapshot.getDouble("monthlyCost");
+        roomNameEt.setText(roomName == null ? "" : roomName);
+        roomCapacityEt.setText(capacity == null ? "" : String.valueOf(capacity.intValue()));
+        roomCostEt.setText(monthlyCost == null ? "" : String.valueOf(monthlyCost));
+
+        DialogUtils.Shell shell = DialogUtils.buildShell(
+                requireContext(),
+                "Editar habitación",
+                "Actualiza nombre, capacidad y coste.",
+                form,
+                "Cancelar",
+                "Guardar"
+        );
+        AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+        shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+        shell.confirmBtn.setOnClickListener(v -> {
+            String nameValue = roomNameEt.getText().toString().trim();
+            String capacityValue = roomCapacityEt.getText().toString().trim();
+            String costValue = roomCostEt.getText().toString().trim();
+            if (nameValue.isEmpty() || capacityValue.isEmpty() || costValue.isEmpty()) {
+                Toast.makeText(requireContext(), "Completa todos los datos de la habitación", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            int parsedCapacity;
+            double parsedCost;
+            try {
+                parsedCapacity = Integer.parseInt(capacityValue);
+                parsedCost = Double.parseDouble(costValue);
+            } catch (NumberFormatException e) {
+                Toast.makeText(requireContext(), "Capacidad o coste no válidos", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (parsedCapacity <= 0) {
+                Toast.makeText(requireContext(), "La capacidad debe ser mayor que 0", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (parsedCost < 0) {
+                Toast.makeText(requireContext(), "El coste no puede ser negativo", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("name", nameValue);
+            updates.put("capacity", parsedCapacity);
+            updates.put("monthlyCost", parsedCost);
+            updates.put("updatedByUid", FirebaseAuth.getInstance().getCurrentUser().getUid());
+            updates.put("updatedAt", FieldValue.serverTimestamp());
+            db.collection("rooms_groups").document(row.id)
+                    .update(updates)
+                    .addOnSuccessListener(v2 -> {
+                    Toast.makeText(requireContext(), "Habitación actualizada", Toast.LENGTH_SHORT).show();
+                        refreshWorkspace();
+                        dialog.dismiss();
+                    })
+                    .addOnFailureListener(e -> Toast.makeText(requireContext(), "No se pudo actualizar la habitación", Toast.LENGTH_SHORT).show());
+        });
+    }
+
+    private void editRoomResidentsFromWorkspace(WorkspaceRow row) {
+        if (row.snapshot == null) return;
+        loadCurrentGroupMembers(members -> {
+            if (members.isEmpty()) {
+                Toast.makeText(requireContext(), "No hay miembros para asignar", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            List<String> currentResidents = castEmails(row.snapshot.get("memberEmails"));
+
+            ScrollView scroll = new ScrollView(requireContext());
+            LinearLayout content = new LinearLayout(requireContext());
+            content.setOrientation(LinearLayout.VERTICAL);
+            scroll.addView(content);
+
+            List<CheckBox> checks = new ArrayList<>();
+            for (String member : members) {
+                CheckBox cb = new CheckBox(requireContext());
+                cb.setText(displayNameForEmail(member));
+                cb.setTextColor(requireContext().getColor(R.color.text_light));
+                cb.setChecked(currentResidents.contains(member));
+                checks.add(cb);
+                content.addView(cb);
+            }
+
+            DialogUtils.Shell shell = DialogUtils.buildShell(
+                    requireContext(),
+                    "Editar inquilinos",
+                    "Marca los miembros que viven en esta habitación.",
+                    scroll,
+                    "Cancelar",
+                    "Guardar"
+            );
+            AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+            shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+            shell.confirmBtn.setOnClickListener(view -> {
+                List<String> selected = new ArrayList<>();
+                for (int i = 0; i < checks.size(); i++) {
+                    if (checks.get(i).isChecked()) selected.add(members.get(i));
+                }
+                Map<String, Object> updates = new HashMap<>();
+                updates.put("memberEmails", selected);
+                updates.put("memberCount", selected.size());
+                updates.put("updatedByUid", FirebaseAuth.getInstance().getCurrentUser().getUid());
+                updates.put("updatedAt", FieldValue.serverTimestamp());
+                db.collection("rooms_groups").document(row.id)
+                        .update(updates)
+                        .addOnSuccessListener(done -> {
+                            Toast.makeText(requireContext(), "Inquilinos actualizados", Toast.LENGTH_SHORT).show();
+                            refreshWorkspace();
+                            dialog.dismiss();
+                        })
+                        .addOnFailureListener(e -> Toast.makeText(requireContext(), "No se pudo actualizar", Toast.LENGTH_SHORT).show());
+            });
+        });
+    }
+
+    private void requestRoomDeletion(WorkspaceRow row) {
+        showDeleteConfirmation(
+                "Eliminar habitación",
+                "Se eliminará la habitación y su asignación de inquilinos.",
+                () -> {
+                    db.collection("rooms_groups").document(row.id)
+                            .delete()
+                            .addOnSuccessListener(v -> {
+                                if (row.id.equals(currentRoomId)) {
+                                    SessionStore.clearCurrentRoom(requireContext());
+                                    currentRoomId = null;
+                                    currentRoomName = null;
+                                }
+                                Toast.makeText(requireContext(), "Habitación eliminada", Toast.LENGTH_SHORT).show();
+                                refreshWorkspace();
+                            })
+                            .addOnFailureListener(e -> Toast.makeText(requireContext(), "No se pudo eliminar la habitación", Toast.LENGTH_SHORT).show());
+                }
+        );
     }
 
     private void showExpenseActionDialog() {
         ViewGroup content = DialogUtils.createVerticalActions(requireContext());
         Button expenseBtn = DialogUtils.createActionButton(requireContext(), "Nuevo gasto", true);
         Button paymentBtn = DialogUtils.createActionButton(requireContext(), "Registrar pago", false);
-        Button reminderBtn = DialogUtils.createActionButton(requireContext(), "Recordatorio", false);
-        Button filterBtn = DialogUtils.createActionButton(requireContext(), "Filtros", false);
         Button pdfBtn = DialogUtils.createActionButton(requireContext(), "Exportar PDF", false);
         Button qrBtn = DialogUtils.createActionButton(requireContext(), "Mostrar QR", false);
-        Button historyBtn = DialogUtils.createActionButton(requireContext(), "Historial", false);
         content.addView(expenseBtn);
         content.addView(paymentBtn);
-        content.addView(reminderBtn);
-        content.addView(filterBtn);
         content.addView(pdfBtn);
         content.addView(qrBtn);
-        content.addView(historyBtn);
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
-                "Nueva acciÃƒÆ’Ã‚Â³n",
-                "Crea un gasto, registra un pago o programa un aviso.",
+                "Nueva acción",
+                "Crea un gasto, registra un pago o comparte acceso al piso.",
                 content,
                 "Cerrar",
                 null
@@ -263,14 +670,6 @@ public class ExpensesFragment extends Fragment {
             dialog.dismiss();
             createPaymentDialog();
         });
-        reminderBtn.setOnClickListener(v -> {
-            dialog.dismiss();
-            createReminderDialog();
-        });
-        filterBtn.setOnClickListener(v -> {
-            dialog.dismiss();
-            showFiltersDialog();
-        });
         pdfBtn.setOnClickListener(v -> {
             dialog.dismiss();
             exportMonthlySummaryPdf();
@@ -278,10 +677,6 @@ public class ExpensesFragment extends Fragment {
         qrBtn.setOnClickListener(v -> {
             dialog.dismiss();
             showCurrentGroupQrDialog();
-        });
-        historyBtn.setOnClickListener(v -> {
-            dialog.dismiss();
-            showActivityHistoryDialog();
         });
     }
 
@@ -325,7 +720,7 @@ public class ExpensesFragment extends Fragment {
         qrImage.setImageBitmap(generateQrBitmap(payload, 900));
         layout.addView(qrImage);
 
-        TextView codeTv = DialogUtils.createMessageView(requireContext(), "CÃƒÆ’Ã‚Â³digo: " + code);
+        TextView codeTv = DialogUtils.createMessageView(requireContext(), "Código: " + code);
         codeTv.setPadding(0, dp(10), 0, 0);
         layout.addView(codeTv);
         return layout;
@@ -361,19 +756,36 @@ public class ExpensesFragment extends Fragment {
                 return;
             }
             loadCurrentGroupRooms(rooms -> {
+                if (rooms.isEmpty()) {
+                    Toast.makeText(
+                            requireContext(),
+                            "Primero crea al menos una habitación en la pestaña Habitaciones para poder añadir gastos.",
+                            Toast.LENGTH_LONG
+                    ).show();
+                    return;
+                }
                 View form = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_expense, null, false);
                 pendingTicketUri = null;
                 setupTypeSpinner((Spinner) form.findViewById(R.id.categorySpinner), null);
                 setupPrioritySpinner((Spinner) form.findViewById(R.id.expensePrioritySpinner), null);
                 setupDateField(form.findViewById(R.id.dueDateEt));
                 setupSplitUi(form, members, null);
-                setupRoomSelector(form, members, rooms, null, null, null);
+                List<String> defaultRoomIds = hasRoomContext() ? Collections.singletonList(currentRoomId) : null;
+                setupRoomSelector(
+                        form,
+                        members,
+                        rooms,
+                        defaultRoomIds,
+                        hasRoomContext() ? currentRoomId : null,
+                        hasRoomContext() ? currentRoomName : null,
+                        null
+                );
                 setupTicketControls(form);
 
                 DialogUtils.Shell shell = DialogUtils.buildShell(
                         requireContext(),
                         "Nuevo gasto",
-                        "AÃƒÆ’Ã‚Â±ade un gasto al piso actual.",
+                        "Añade un gasto al piso actual.",
                         form,
                         "Cancelar",
                         "Guardar"
@@ -397,7 +809,7 @@ public class ExpensesFragment extends Fragment {
         String dueDateText = ((EditText) form.findViewById(R.id.dueDateEt)).getText().toString().trim();
         if (concept.isEmpty() || amountStr.isEmpty() || currentGroupId == null) return false;
         if (dueDateText.isEmpty()) {
-            Toast.makeText(requireContext(), "Debes indicar fecha lÃƒÆ’Ã‚Â­mite", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Debes indicar fecha límite", Toast.LENGTH_SHORT).show();
             return false;
         }
 
@@ -405,7 +817,7 @@ public class ExpensesFragment extends Fragment {
         try {
             amount = Double.parseDouble(amountStr);
         } catch (NumberFormatException e) {
-            Toast.makeText(requireContext(), "Importe no vÃƒÆ’Ã‚Â¡lido", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Importe no válido", Toast.LENGTH_SHORT).show();
             return false;
         }
         if (amount <= 0) {
@@ -419,10 +831,14 @@ public class ExpensesFragment extends Fragment {
         }
         Date dueDate = parseDueDateOrNull(dueDateText);
         if (dueDate == null) {
-            Toast.makeText(requireContext(), "Fecha invÃƒÆ’Ã‚Â¡lida. Usa YYYY-MM-DD", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Fecha inválida. Usa YYYY-MM-DD", Toast.LENGTH_SHORT).show();
             return false;
         }
-        RoomOption selectedRoom = resolveSelectedRoomOption(form, rooms);
+        List<RoomOption> selectedRooms = resolveSelectedRoomOptions(form, rooms);
+        if (selectedRooms.isEmpty()) {
+            Toast.makeText(requireContext(), "Selecciona al menos una habitación", Toast.LENGTH_SHORT).show();
+            return false;
+        }
 
         Map<String, Object> data = new HashMap<>();
         data.put("groupId", currentGroupId);
@@ -437,8 +853,25 @@ public class ExpensesFragment extends Fragment {
         data.put("ticketUri", pendingTicketUri == null ? "" : pendingTicketUri);
         data.put("dueAt", dueDate);
         data.put("dueDateText", dueDateText);
-        data.put("roomId", selectedRoom == null ? "" : selectedRoom.id);
-        data.put("roomName", selectedRoom == null ? "" : selectedRoom.name);
+        List<String> selectedRoomIds = new ArrayList<>();
+        List<String> selectedRoomNames = new ArrayList<>();
+        for (RoomOption room : selectedRooms) {
+            selectedRoomIds.add(room.id);
+            selectedRoomNames.add(room.name);
+        }
+        boolean allRoomsSelected = selectedRooms.size() == rooms.size();
+        data.put("roomIds", selectedRoomIds);
+        data.put("roomNames", selectedRoomNames);
+        if (allRoomsSelected) {
+            data.put("roomId", "all");
+            data.put("roomName", ROOM_ALL_LABEL);
+        } else if (selectedRooms.size() == 1) {
+            data.put("roomId", selectedRooms.get(0).id);
+            data.put("roomName", selectedRooms.get(0).name);
+        } else {
+            data.put("roomId", "multi");
+            data.put("roomName", "Varias habitaciones");
+        }
 
         if (documentId == null) {
             db.collection("expenses").add(data).addOnSuccessListener(task -> {
@@ -477,95 +910,642 @@ public class ExpensesFragment extends Fragment {
     }
 
     private void createPaymentDialog() {
-        View form = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_payment, null, false);
-        setupTypeSpinner((Spinner) form.findViewById(R.id.paymentCategorySpinner), null);
-        setupPrioritySpinner((Spinner) form.findViewById(R.id.paymentPrioritySpinner), "media");
-        setupDateField(form.findViewById(R.id.paymentDueDateEt));
-        DialogUtils.Shell shell = DialogUtils.buildShell(
-                requireContext(),
-                "Registrar pago",
-                "Guarda un pago entre miembros del piso.",
-                form,
-                "Cancelar",
-                "Guardar"
-        );
-        AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
-        shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
-        shell.confirmBtn.setOnClickListener(v -> {
-            if (currentGroupId == null) return;
-            String amountStr = ((EditText) form.findViewById(R.id.paymentAmountEt)).getText().toString().trim();
-            String toEmail = ((EditText) form.findViewById(R.id.paymentToEt)).getText().toString().trim().toLowerCase(Locale.ROOT);
-            String category = ((Spinner) form.findViewById(R.id.paymentCategorySpinner)).getSelectedItem().toString();
-            String priority = ((Spinner) form.findViewById(R.id.paymentPrioritySpinner)).getSelectedItem().toString();
-            String dueDateText = ((EditText) form.findViewById(R.id.paymentDueDateEt)).getText().toString().trim();
-            if (amountStr.isEmpty() || toEmail.isEmpty() || dueDateText.isEmpty()) return;
-            Date dueDate = parseDueDateOrNull(dueDateText);
-            if (dueDate == null) {
-                Toast.makeText(requireContext(), "Fecha invÃƒÆ’Ã‚Â¡lida. Usa YYYY-MM-DD", Toast.LENGTH_SHORT).show();
+        loadCurrentGroupMembers(members -> {
+            if (members.isEmpty()) {
+                Toast.makeText(requireContext(), "No hay miembros disponibles para registrar el pago", Toast.LENGTH_SHORT).show();
                 return;
             }
-            double amount;
-            try {
-                amount = Double.parseDouble(amountStr);
-            } catch (NumberFormatException e) {
-                Toast.makeText(requireContext(), "Importe no vÃƒÆ’Ã‚Â¡lido", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            Map<String, Object> data = new HashMap<>();
-            data.put("groupId", currentGroupId);
-            data.put("amount", amount);
-            String fromEmail = FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
-            data.put("fromEmail", fromEmail);
-            data.put("toEmail", toEmail);
-            data.put("category", category);
-            data.put("priority", priority.isEmpty() ? "media" : priority.toLowerCase(Locale.ROOT));
-            data.put("status", "pending");
-            data.put("createdAt", FieldValue.serverTimestamp());
-            data.put("dueAt", dueDate);
-            data.put("dueDateText", dueDateText);
-            db.collection("payments").add(data).addOnSuccessListener(task -> {
-                logActivity("payment_created", "Pago a " + toEmail, amount, "payment");
-                syncPaymentDeadline(task.getId(), "Pago directo", amount, fromEmail, toEmail, dueDate, priority);
-                loadExpenses();
-                loadFinancialViews();
-                dialog.dismiss();
+            loadCurrentGroupRooms(rooms -> {
+                View form = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_payment, null, false);
+                setupTypeSpinner((Spinner) form.findViewById(R.id.paymentCategorySpinner), null);
+                setupPrioritySpinner((Spinner) form.findViewById(R.id.paymentPrioritySpinner), "media");
+                setupDateField(form.findViewById(R.id.paymentDueDateEt));
+                setupPaymentTargetSelectors(form, members, rooms, hasRoomContext() ? currentRoomId : null);
+                DialogUtils.Shell shell = DialogUtils.buildShell(
+                        requireContext(),
+                        "Registrar pago",
+                        "Elige si el pago es para una habitación, un miembro o para todos.",
+                        form,
+                        "Cancelar",
+                        "Guardar"
+                );
+                AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+                shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+                shell.confirmBtn.setOnClickListener(v -> {
+                    if (savePayment(form, members, rooms)) {
+                        dialog.dismiss();
+                    }
+                });
             });
         });
     }
 
-    private void createReminderDialog() {
-        View form = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_reminder, null, false);
-        DialogUtils.Shell shell = DialogUtils.buildShell(
-                requireContext(),
-                "Nuevo recordatorio",
-                "Programa un aviso recurrente para este piso.",
-                form,
-                "Cancelar",
-                "Programar"
-        );
-        AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
-        shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
-        shell.confirmBtn.setOnClickListener(v -> {
-            String title = ((EditText) form.findViewById(R.id.reminderTitleEt)).getText().toString().trim();
-            String interval = ((EditText) form.findViewById(R.id.reminderIntervalEt)).getText().toString().trim().toLowerCase(Locale.ROOT);
-            if (title.isEmpty() || interval.isEmpty()) return;
-            long intervalMs = interval.equals("diario") ? 24L * 60 * 60 * 1000 : interval.equals("mensual") ? 30L * 24 * 60 * 60 * 1000 : 7L * 24 * 60 * 60 * 1000;
-            int reminderId = (int) (System.currentTimeMillis() % Integer.MAX_VALUE);
-            long firstTrigger = System.currentTimeMillis() + 10_000;
-            ReminderScheduler.schedule(requireContext(), reminderId, "FlatShare: " + title, "Revisa tus pagos compartidos", firstTrigger, intervalMs);
+    private void setupPaymentTargetSelectors(View form, List<String> members, List<RoomOption> rooms, @Nullable String defaultRoomId) {
+        Spinner targetTypeSpinner = form.findViewById(R.id.paymentTargetTypeSpinner);
+        Spinner memberSpinner = form.findViewById(R.id.paymentMemberSpinner);
+        Spinner roomSpinner = form.findViewById(R.id.paymentRoomSpinner);
 
-            Map<String, Object> data = new HashMap<>();
-            data.put("title", title);
-            data.put("interval", interval);
-            data.put("ownerUid", FirebaseAuth.getInstance().getCurrentUser().getUid());
-            data.put("groupId", currentGroupId);
-            data.put("createdAt", FieldValue.serverTimestamp());
-            db.collection("reminders").add(data);
+        targetTypeSpinner.setAdapter(buildLightSpinnerAdapter(PAYMENT_TARGET_TYPES));
+        memberSpinner.setAdapter(buildLightSpinnerAdapter(members.toArray(new String[0])));
 
-            Toast.makeText(requireContext(), "Recordatorio programado", Toast.LENGTH_SHORT).show();
-            dialog.dismiss();
+        String[] roomLabels = new String[rooms.size()];
+        for (int i = 0; i < rooms.size(); i++) {
+            roomLabels[i] = rooms.get(i).name;
+        }
+        roomSpinner.setAdapter(buildLightSpinnerAdapter(roomLabels));
+
+        targetTypeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                String type = PAYMENT_TARGET_TYPES[position];
+                memberSpinner.setVisibility("Miembro".equals(type) ? View.VISIBLE : View.GONE);
+                roomSpinner.setVisibility("Habitación".equals(type) ? View.VISIBLE : View.GONE);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
         });
+        int roomIndex = findRoomIndexById(rooms, defaultRoomId);
+        if (roomIndex >= 0) {
+            targetTypeSpinner.setSelection(0);
+            roomSpinner.setSelection(roomIndex);
+        } else {
+            targetTypeSpinner.setSelection(1);
+        }
+    }
+
+    private boolean savePayment(View form, List<String> members, List<RoomOption> rooms) {
+        if (currentGroupId == null) return false;
+        String amountStr = ((EditText) form.findViewById(R.id.paymentAmountEt)).getText().toString().trim();
+        String concept = ((EditText) form.findViewById(R.id.paymentConceptEt)).getText().toString().trim();
+        String category = ((Spinner) form.findViewById(R.id.paymentCategorySpinner)).getSelectedItem().toString();
+        String priority = ((Spinner) form.findViewById(R.id.paymentPrioritySpinner)).getSelectedItem().toString();
+        String dueDateText = ((EditText) form.findViewById(R.id.paymentDueDateEt)).getText().toString().trim();
+        String targetType = ((Spinner) form.findViewById(R.id.paymentTargetTypeSpinner)).getSelectedItem().toString();
+        int memberIndex = ((Spinner) form.findViewById(R.id.paymentMemberSpinner)).getSelectedItemPosition();
+        int roomIndex = ((Spinner) form.findViewById(R.id.paymentRoomSpinner)).getSelectedItemPosition();
+        if (amountStr.isEmpty() || dueDateText.isEmpty()) {
+            Toast.makeText(requireContext(), "Debes indicar importe y fecha límite", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        Date dueDate = parseDueDateOrNull(dueDateText);
+        if (dueDate == null) {
+            Toast.makeText(requireContext(), "Fecha inválida. Usa YYYY-MM-DD", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        double amount;
+        try {
+            amount = Double.parseDouble(amountStr);
+        } catch (NumberFormatException e) {
+            Toast.makeText(requireContext(), "Importe no válido", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        if (amount <= 0) {
+            Toast.makeText(requireContext(), "El importe debe ser mayor que 0", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+
+        String fromEmail = FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
+        List<PaymentTarget> targets = resolvePaymentTargets(targetType, members, rooms, memberIndex, roomIndex, fromEmail);
+        if (targets.isEmpty()) {
+            Toast.makeText(requireContext(), "No hay destinatarios válidos para este pago", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+
+        double splitAmount = amount / targets.size();
+        String safePriority = priority == null || priority.trim().isEmpty() ? "media" : priority.toLowerCase(Locale.ROOT);
+        String safeConcept = concept.isEmpty() ? "Pago directo" : concept;
+        WriteBatch batch = db.batch();
+        List<Map<String, Object>> createdPayments = new ArrayList<>();
+        for (PaymentTarget target : targets) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("groupId", currentGroupId);
+            data.put("amount", splitAmount);
+            data.put("fromEmail", fromEmail);
+            data.put("toEmail", target.toEmail);
+            data.put("category", category);
+            data.put("priority", safePriority);
+            data.put("status", "pending");
+            data.put("createdAt", FieldValue.serverTimestamp());
+            data.put("dueAt", dueDate);
+            data.put("dueDateText", dueDateText);
+            data.put("concept", safeConcept);
+            data.put("targetType", targetType.toLowerCase(Locale.ROOT));
+            data.put("roomId", target.roomId == null ? "" : target.roomId);
+            data.put("roomName", target.roomName == null ? "" : target.roomName);
+            var paymentRef = db.collection("payments").document();
+            batch.set(paymentRef, data);
+            Map<String, Object> created = new HashMap<>();
+            created.put("paymentId", paymentRef.getId());
+            created.put("toEmail", target.toEmail);
+            createdPayments.add(created);
+        }
+        batch.commit().addOnSuccessListener(v -> {
+            for (Map<String, Object> created : createdPayments) {
+                String paymentId = String.valueOf(created.get("paymentId"));
+                String toEmail = String.valueOf(created.get("toEmail"));
+                logActivity("payment_created", "Pago a " + toEmail, splitAmount, "payment");
+                syncPaymentDeadline(paymentId, safeConcept, splitAmount, fromEmail, toEmail, dueDate, safePriority);
+            }
+            loadExpenses();
+            loadFinancialViews();
+        });
+        return true;
+    }
+
+    private List<PaymentTarget> resolvePaymentTargets(
+            String targetType,
+            List<String> members,
+            List<RoomOption> rooms,
+            int memberIndex,
+            int roomIndex,
+            String fromEmail
+    ) {
+        List<PaymentTarget> targets = new ArrayList<>();
+        if ("Miembro".equals(targetType)) {
+            if (memberIndex >= 0 && memberIndex < members.size()) {
+                String toEmail = members.get(memberIndex).toLowerCase(Locale.ROOT);
+                if (!toEmail.equals(fromEmail)) {
+                    targets.add(new PaymentTarget(toEmail, null, null));
+                }
+            }
+            return targets;
+        }
+        if ("Habitación".equals(targetType)) {
+            if (roomIndex >= 0 && roomIndex < rooms.size()) {
+                RoomOption room = rooms.get(roomIndex);
+                for (String resident : room.memberEmails) {
+                    String email = resident.toLowerCase(Locale.ROOT);
+                    if (!email.equals(fromEmail)) {
+                        targets.add(new PaymentTarget(email, room.id, room.name));
+                    }
+                }
+            }
+            return targets;
+        }
+
+        for (String member : members) {
+            String email = member.toLowerCase(Locale.ROOT);
+            if (!email.equals(fromEmail)) {
+                targets.add(new PaymentTarget(email, null, null));
+            }
+        }
+        return targets;
+    }
+
+    private void createReminderDialog() {
+        if (currentGroupId == null) {
+            Toast.makeText(requireContext(), "Selecciona un piso primero", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        loadCurrentGroupMembers(members -> {
+            if (members.isEmpty()) {
+                Toast.makeText(requireContext(), "No hay miembros en este piso", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            loadCurrentGroupRooms(rooms -> {
+                View form = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_reminder, null, false);
+                pendingReminderAttachmentUri = null;
+                setupDateField(form.findViewById(R.id.reminderStartDateEt));
+                setupReminderFormControls(form, members, rooms, hasRoomContext() ? currentRoomId : null);
+
+                DialogUtils.Shell shell = DialogUtils.buildShell(
+                        requireContext(),
+                        "Nuevo recordatorio",
+                        "Define concepto, destinatario, fecha e intervalo.",
+                        form,
+                        "Cancelar",
+                        "Guardar"
+                );
+                AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+                shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+                shell.confirmBtn.setOnClickListener(v -> {
+                    String concept = ((EditText) form.findViewById(R.id.reminderTitleEt)).getText().toString().trim();
+                    String dateText = ((EditText) form.findViewById(R.id.reminderStartDateEt)).getText().toString().trim();
+                    if (concept.isEmpty() || dateText.isEmpty()) {
+                        Toast.makeText(requireContext(), "Completa concepto y fecha", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    Date startAt = parseReminderStartDateOrNull(dateText);
+                    if (startAt == null) {
+                        Toast.makeText(requireContext(), "Fecha inválida. Usa YYYY-MM-DD", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    ReminderIntervalConfig intervalConfig = resolveReminderInterval(form);
+                    if (intervalConfig == null) return;
+
+                    ReminderTargetConfig targetConfig = resolveReminderTargets(form, members, rooms);
+                    if (targetConfig == null || targetConfig.targetEmails.isEmpty()) {
+                        Toast.makeText(requireContext(), "No hay destinatarios válidos", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    String myEmail = FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
+                    String intervalKey = intervalConfig.intervalKey.toLowerCase(Locale.ROOT);
+                    Map<String, Object> data = new HashMap<>();
+                    data.put("title", concept);
+                    data.put("interval", intervalKey);
+                    data.put("intervalDays", intervalConfig.intervalDays);
+                    data.put("startAt", startAt);
+                    data.put("startDateText", dateText);
+                    data.put("targetType", targetConfig.targetType.toLowerCase(Locale.ROOT));
+                    data.put("targetEmails", targetConfig.targetEmails);
+                    data.put("targetMemberEmail", targetConfig.memberEmail);
+                    data.put("roomId", targetConfig.primaryRoomId);
+                    data.put("roomName", targetConfig.primaryRoomName);
+                    data.put("roomIds", targetConfig.roomIds);
+                    data.put("roomNames", targetConfig.roomNames);
+                    data.put("attachmentUri", pendingReminderAttachmentUri == null ? "" : pendingReminderAttachmentUri);
+                    data.put("ownerUid", FirebaseAuth.getInstance().getCurrentUser().getUid());
+                    data.put("ownerEmail", myEmail);
+                    data.put("groupId", currentGroupId);
+                    data.put("groupName", currentGroupName);
+                    data.put("createdAt", FieldValue.serverTimestamp());
+
+                    db.collection("reminders").add(data).addOnSuccessListener(ref -> {
+                        int reminderCode = Math.abs(("manual_" + ref.getId()).hashCode());
+                        db.collection("reminders").document(ref.getId()).update("reminderCode", reminderCode);
+                        if (targetConfig.targetEmails.contains(myEmail)) {
+                            scheduleManualReminder(reminderCode, concept, startAt.getTime(), intervalConfig.intervalMs);
+                        }
+                        loadReminders();
+                        Toast.makeText(requireContext(), "Recordatorio guardado", Toast.LENGTH_SHORT).show();
+                        dialog.dismiss();
+                    }).addOnFailureListener(e ->
+                            Toast.makeText(requireContext(), "No se pudo guardar el recordatorio", Toast.LENGTH_SHORT).show()
+                    );
+                });
+            });
+        });
+    }
+
+    private void setupReminderFormControls(View form, List<String> members, List<RoomOption> rooms, @Nullable String defaultRoomId) {
+        Spinner intervalSpinner = form.findViewById(R.id.reminderIntervalSpinner);
+        intervalSpinner.setAdapter(buildLightSpinnerAdapter(REMINDER_INTERVAL_TYPES));
+        intervalSpinner.setSelection(1);
+        EditText customDaysEt = form.findViewById(R.id.reminderCustomDaysEt);
+        intervalSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                customDaysEt.setVisibility(position == 3 ? View.VISIBLE : View.GONE);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
+
+        setupReminderTargetSelectors(form, members, rooms, defaultRoomId);
+
+        pendingReminderAttachmentStatusTv = form.findViewById(R.id.reminderAttachmentStatusTv);
+        pendingReminderAttachmentStatusTv.setText("Sin adjunto");
+        Button attachBtn = form.findViewById(R.id.reminderAttachBtn);
+        attachBtn.setOnClickListener(v -> reminderAttachmentPickerLauncher.launch("*/*"));
+    }
+
+    private void setupReminderTargetSelectors(View form, List<String> members, List<RoomOption> rooms, @Nullable String defaultRoomId) {
+        Spinner targetTypeSpinner = form.findViewById(R.id.reminderTargetTypeSpinner);
+        Spinner memberSpinner = form.findViewById(R.id.reminderMemberSpinner);
+        Spinner roomSpinner = form.findViewById(R.id.reminderRoomSpinner);
+        LinearLayout roomsContainer = form.findViewById(R.id.reminderRoomsContainer);
+        Button addLineBtn = form.findViewById(R.id.addReminderRoomLineBtn);
+        Button removeLineBtn = form.findViewById(R.id.removeReminderRoomLineBtn);
+
+        targetTypeSpinner.setAdapter(buildLightSpinnerAdapter(REMINDER_TARGET_TYPES));
+
+        List<String> memberLabels = new ArrayList<>();
+        for (String email : members) {
+            memberLabels.add(displayNameForEmail(email));
+        }
+        memberSpinner.setAdapter(buildLightSpinnerAdapter(memberLabels.toArray(new String[0])));
+
+        List<String> roomLabels = new ArrayList<>();
+        for (RoomOption room : rooms) {
+            roomLabels.add(room.name);
+        }
+        roomSpinner.setAdapter(buildLightSpinnerAdapter(roomLabels.toArray(new String[0])));
+
+        rebindReminderRoomLines(form, rooms, null);
+        addLineBtn.setOnClickListener(v -> {
+            List<String> currentKeys = collectReminderRoomLineKeys(roomsContainer);
+            currentKeys.add(firstAvailableRoomKey(rooms, currentKeys));
+            rebindReminderRoomLines(form, rooms, currentKeys);
+            updateReminderTargetSection(form, targetTypeSpinner.getSelectedItemPosition());
+        });
+        removeLineBtn.setOnClickListener(v -> {
+            List<String> currentKeys = collectReminderRoomLineKeys(roomsContainer);
+            if (currentKeys.size() > 1) {
+                currentKeys.remove(currentKeys.size() - 1);
+            }
+            rebindReminderRoomLines(form, rooms, currentKeys);
+            updateReminderTargetSection(form, targetTypeSpinner.getSelectedItemPosition());
+        });
+
+        targetTypeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                updateReminderTargetSection(form, position);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
+        int roomIndex = findRoomIndexById(rooms, defaultRoomId);
+        if (roomIndex >= 0) {
+            targetTypeSpinner.setSelection(2);
+            roomSpinner.setSelection(roomIndex);
+        } else {
+            targetTypeSpinner.setSelection(0);
+        }
+    }
+
+    private void updateReminderTargetSection(View form, int targetTypePosition) {
+        Spinner memberSpinner = form.findViewById(R.id.reminderMemberSpinner);
+        Spinner roomSpinner = form.findViewById(R.id.reminderRoomSpinner);
+        LinearLayout roomsContainer = form.findViewById(R.id.reminderRoomsContainer);
+        Button addLineBtn = form.findViewById(R.id.addReminderRoomLineBtn);
+        Button removeLineBtn = form.findViewById(R.id.removeReminderRoomLineBtn);
+
+        boolean showMember = targetTypePosition == 1;
+        boolean showRoom = targetTypePosition == 2;
+        boolean showRoomLines = targetTypePosition == 3;
+
+        memberSpinner.setVisibility(showMember ? View.VISIBLE : View.GONE);
+        roomSpinner.setVisibility(showRoom ? View.VISIBLE : View.GONE);
+        roomsContainer.setVisibility(showRoomLines ? View.VISIBLE : View.GONE);
+        addLineBtn.setVisibility(showRoomLines ? View.VISIBLE : View.GONE);
+        removeLineBtn.setVisibility(showRoomLines && roomsContainer.getChildCount() > 1 ? View.VISIBLE : View.GONE);
+    }
+
+    private void rebindReminderRoomLines(View form, List<RoomOption> rooms, @Nullable List<String> seedKeys) {
+        LinearLayout container = form.findViewById(R.id.reminderRoomsContainer);
+        List<String> selectedKeys = seedKeys == null ? collectReminderRoomLineKeys(container) : new ArrayList<>(seedKeys);
+        if (selectedKeys.isEmpty()) {
+            selectedKeys.add(firstAvailableRoomKey(rooms, Collections.emptyList()));
+        }
+        selectedKeys = deduplicateRoomKeys(selectedKeys);
+        container.removeAllViews();
+
+        for (int i = 0; i < selectedKeys.size(); i++) {
+            Spinner spinner = buildReminderRoomLineSpinner(rooms, selectedKeys, i, selectedKeys.get(i));
+            spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                    rebindReminderRoomLines(form, rooms, null);
+                    Spinner targetTypeSpinner = form.findViewById(R.id.reminderTargetTypeSpinner);
+                    updateReminderTargetSection(form, targetTypeSpinner.getSelectedItemPosition());
+                }
+
+                @Override
+                public void onNothingSelected(AdapterView<?> parent) {
+                }
+            });
+            container.addView(spinner);
+        }
+    }
+
+    private Spinner buildReminderRoomLineSpinner(
+            List<RoomOption> rooms,
+            List<String> selectedKeys,
+            int spinnerIndex,
+            String selectedKey
+    ) {
+        Spinner spinner = new Spinner(requireContext(), Spinner.MODE_DROPDOWN);
+        spinner.setBackgroundResource(R.drawable.bg_input_dark_round);
+        spinner.setPadding(dp(12), 0, dp(12), 0);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(50)
+        );
+        if (spinnerIndex > 0) params.topMargin = dp(8);
+        spinner.setLayoutParams(params);
+
+        List<String> optionKeys = new ArrayList<>();
+        List<String> optionLabels = new ArrayList<>();
+        for (RoomOption room : rooms) {
+            boolean selectedElsewhere = false;
+            for (int i = 0; i < selectedKeys.size(); i++) {
+                if (i == spinnerIndex) continue;
+                if (room.id.equals(selectedKeys.get(i))) {
+                    selectedElsewhere = true;
+                    break;
+                }
+            }
+            if (!selectedElsewhere || room.id.equals(selectedKey)) {
+                optionKeys.add(room.id);
+                optionLabels.add(room.name);
+            }
+        }
+        if (optionKeys.isEmpty() && !rooms.isEmpty()) {
+            optionKeys.add(rooms.get(0).id);
+            optionLabels.add(rooms.get(0).name);
+        }
+
+        spinner.setTag(optionKeys);
+        spinner.setAdapter(buildLightSpinnerAdapter(optionLabels.toArray(new String[0])));
+        int selectedIndex = optionKeys.indexOf(selectedKey);
+        spinner.setSelection(selectedIndex >= 0 ? selectedIndex : 0);
+        return spinner;
+    }
+
+    private List<String> collectReminderRoomLineKeys(LinearLayout container) {
+        List<String> keys = new ArrayList<>();
+        for (int i = 0; i < container.getChildCount(); i++) {
+            View child = container.getChildAt(i);
+            if (!(child instanceof Spinner spinner)) continue;
+            @SuppressWarnings("unchecked")
+            List<String> optionKeys = (List<String>) spinner.getTag();
+            int selected = spinner.getSelectedItemPosition();
+            if (optionKeys == null || selected < 0 || selected >= optionKeys.size()) continue;
+            keys.add(optionKeys.get(selected));
+        }
+        return keys;
+    }
+
+    @Nullable
+    private ReminderIntervalConfig resolveReminderInterval(View form) {
+        int intervalIndex = ((Spinner) form.findViewById(R.id.reminderIntervalSpinner)).getSelectedItemPosition();
+        if (intervalIndex == 0) return new ReminderIntervalConfig("diario", 1, 24L * 60L * 60L * 1000L);
+        if (intervalIndex == 1) return new ReminderIntervalConfig("semanal", 7, 7L * 24L * 60L * 60L * 1000L);
+        if (intervalIndex == 2) return new ReminderIntervalConfig("mensual", 30, 30L * 24L * 60L * 60L * 1000L);
+
+        String customDaysText = ((EditText) form.findViewById(R.id.reminderCustomDaysEt)).getText().toString().trim();
+        if (customDaysText.isEmpty()) {
+            Toast.makeText(requireContext(), "Indica cada cuántos días", Toast.LENGTH_SHORT).show();
+            return null;
+        }
+        int customDays;
+        try {
+            customDays = Integer.parseInt(customDaysText);
+        } catch (NumberFormatException e) {
+            Toast.makeText(requireContext(), "Intervalo personalizado no válido", Toast.LENGTH_SHORT).show();
+            return null;
+        }
+        if (customDays <= 0) {
+            Toast.makeText(requireContext(), "El intervalo personalizado debe ser mayor que 0", Toast.LENGTH_SHORT).show();
+            return null;
+        }
+        long intervalMs = customDays * 24L * 60L * 60L * 1000L;
+        return new ReminderIntervalConfig("personalizado", customDays, intervalMs);
+    }
+
+    @Nullable
+    private ReminderTargetConfig resolveReminderTargets(View form, List<String> members, List<RoomOption> rooms) {
+        int targetTypeIndex = ((Spinner) form.findViewById(R.id.reminderTargetTypeSpinner)).getSelectedItemPosition();
+        if (targetTypeIndex == 0) {
+            return new ReminderTargetConfig("todos", new ArrayList<>(members), "", "", new ArrayList<>(), new ArrayList<>(), "");
+        }
+        if (targetTypeIndex == 1) {
+            int memberIndex = ((Spinner) form.findViewById(R.id.reminderMemberSpinner)).getSelectedItemPosition();
+            if (memberIndex < 0 || memberIndex >= members.size()) return null;
+            String targetEmail = members.get(memberIndex).toLowerCase(Locale.ROOT);
+            return new ReminderTargetConfig("miembro", Collections.singletonList(targetEmail), "", "", new ArrayList<>(), new ArrayList<>(), targetEmail);
+        }
+        if (targetTypeIndex == 2) {
+            int roomIndex = ((Spinner) form.findViewById(R.id.reminderRoomSpinner)).getSelectedItemPosition();
+            if (roomIndex < 0 || roomIndex >= rooms.size()) return null;
+            RoomOption room = rooms.get(roomIndex);
+            return new ReminderTargetConfig(
+                    "habitacion",
+                    new ArrayList<>(room.memberEmails),
+                    room.id,
+                    room.name,
+                    Collections.singletonList(room.id),
+                    Collections.singletonList(room.name),
+                    ""
+            );
+        }
+
+        LinearLayout linesContainer = form.findViewById(R.id.reminderRoomsContainer);
+        List<String> selectedRoomKeys = collectReminderRoomLineKeys(linesContainer);
+        if (selectedRoomKeys.isEmpty()) return null;
+        Set<String> targetEmails = new HashSet<>();
+        List<String> roomIds = new ArrayList<>();
+        List<String> roomNames = new ArrayList<>();
+        for (String roomKey : selectedRoomKeys) {
+            for (RoomOption room : rooms) {
+                if (!room.id.equals(roomKey)) continue;
+                roomIds.add(room.id);
+                roomNames.add(room.name);
+                targetEmails.addAll(room.memberEmails);
+                break;
+            }
+        }
+        return new ReminderTargetConfig(
+                "x_habitacion",
+                new ArrayList<>(targetEmails),
+                roomIds.isEmpty() ? "" : roomIds.get(0),
+                roomNames.isEmpty() ? "" : roomNames.get(0),
+                roomIds,
+                roomNames,
+                ""
+        );
+    }
+
+    private void scheduleManualReminder(int reminderCode, String title, long firstTrigger, long intervalMs) {
+        if (intervalMs <= 0) {
+            ReminderScheduler.scheduleOneTime(requireContext(), reminderCode, "FlatShare: " + title, "Recordatorio pendiente", firstTrigger);
+            return;
+        }
+        ReminderScheduler.schedule(requireContext(), reminderCode, "FlatShare: " + title, "Recordatorio pendiente", firstTrigger, intervalMs);
+    }
+
+    @Nullable
+    private Date parseReminderStartDateOrNull(String value) {
+        try {
+            Date parsed = DUE_DATE_FORMAT.parse(value);
+            if (parsed == null) return null;
+            Calendar selected = Calendar.getInstance();
+            selected.setTime(parsed);
+            selected.set(Calendar.HOUR_OF_DAY, 10);
+            selected.set(Calendar.MINUTE, 0);
+            selected.set(Calendar.SECOND, 0);
+            selected.set(Calendar.MILLISECOND, 0);
+
+            Calendar today = Calendar.getInstance();
+            today.set(Calendar.HOUR_OF_DAY, 0);
+            today.set(Calendar.MINUTE, 0);
+            today.set(Calendar.SECOND, 0);
+            today.set(Calendar.MILLISECOND, 0);
+            Calendar selectedDay = Calendar.getInstance();
+            selectedDay.setTime(parsed);
+            selectedDay.set(Calendar.HOUR_OF_DAY, 0);
+            selectedDay.set(Calendar.MINUTE, 0);
+            selectedDay.set(Calendar.SECOND, 0);
+            selectedDay.set(Calendar.MILLISECOND, 0);
+            if (selectedDay.before(today)) return null;
+            return selected.getTime();
+        } catch (ParseException e) {
+            return null;
+        }
+    }
+
+    private void loadReminders() {
+        if (currentGroupId == null) return;
+        reminderRows.clear();
+        db.collection("reminders")
+                .whereEqualTo("groupId", currentGroupId)
+                .get()
+                .addOnSuccessListener(result -> {
+                    List<DocumentSnapshot> docs = new ArrayList<>(result.getDocuments());
+                    docs.sort((a, b) -> {
+                        Date da = a.getDate("startAt");
+                        Date dbDate = b.getDate("startAt");
+                        if (da == null && dbDate == null) return 0;
+                        if (da == null) return 1;
+                        if (dbDate == null) return -1;
+                        return da.compareTo(dbDate);
+                    });
+                    for (DocumentSnapshot doc : docs) {
+                        String title = doc.getString("title");
+                        String subtitle = buildReminderSubtitle(doc);
+                        String interval = doc.getString("interval");
+                        String amountLabel = interval == null || interval.trim().isEmpty()
+                                ? "Recordatorio"
+                                : capitalizeTypeLabel(interval);
+                        reminderRows.add(new WorkspaceRow(
+                                doc.getId(),
+                                "reminder",
+                                title == null || title.trim().isEmpty() ? "Recordatorio" : title,
+                                subtitle,
+                                amountLabel,
+                                doc
+                        ));
+                    }
+                    remindersAdapter.notifyDataSetChanged();
+                })
+                .addOnFailureListener(e -> remindersAdapter.notifyDataSetChanged());
+    }
+
+    private String buildReminderSubtitle(DocumentSnapshot doc) {
+        String targetType = doc.getString("targetType");
+        String startDateText = doc.getString("startDateText");
+        String interval = doc.getString("interval");
+        Long intervalDays = doc.getLong("intervalDays");
+        String who;
+        if ("miembro".equals(targetType)) {
+            who = "Miembro: " + displayNameForEmail(doc.getString("targetMemberEmail"));
+        } else if ("habitacion".equals(targetType)) {
+            String roomName = doc.getString("roomName");
+            who = "Habitación: " + (roomName == null || roomName.trim().isEmpty() ? "Sin nombre" : roomName);
+        } else if ("x_habitacion".equals(targetType)) {
+            List<String> roomNames = castStrings(doc.get("roomNames"));
+            who = roomNames.isEmpty() ? "X habitación" : "X habitación: " + String.join(", ", roomNames);
+        } else {
+            who = "Todos los miembros";
+        }
+
+        String intervalLabel = interval == null ? "semanal" : interval;
+        if ("personalizado".equals(intervalLabel) && intervalDays != null && intervalDays > 0) {
+            intervalLabel = "cada " + intervalDays + " días";
+        }
+        if (startDateText == null || startDateText.trim().isEmpty()) {
+            return who + " · " + intervalLabel;
+        }
+        return who + " · " + intervalLabel + " · desde " + startDateText;
     }
     private void loadExpenses() {
         if (currentGroupId == null) return;
@@ -573,23 +1553,22 @@ public class ExpensesFragment extends Fragment {
         expenseRows.clear();
 
         var expenseQuery = db.collection("expenses").whereEqualTo("groupId", currentGroupId);
-        if (hasRoomContext()) {
-            expenseQuery = expenseQuery.whereEqualTo("roomId", currentRoomId);
-        }
 
         expenseQuery.get().addOnSuccessListener(result -> {
             for (DocumentSnapshot doc : result.getDocuments()) {
+                if (hasRoomContext() && !matchesExpenseWithCurrentRoom(doc)) continue;
                 Double amountValue = doc.getDouble("amount");
                 String concept = doc.getString("concept");
                 String payerEmail = doc.getString("payerEmail");
+                String payerLabel = displayNameForEmail(payerEmail);
                 String category = doc.getString("category");
                 String roomName = doc.getString("roomName");
                 String dueDateText = doc.getString("dueDateText");
-                String subtitle = (payerEmail == null ? "Gasto compartido" : "Pagado por " + payerEmail)
+                String subtitle = (payerEmail == null ? "Gasto compartido" : "Pagado por " + payerLabel)
                         + (roomName == null || roomName.trim().isEmpty() ? "" : " - hab. " + roomName)
                         + (category == null || category.isEmpty() ? "" : " - " + category)
                         + (dueDateText == null || dueDateText.isEmpty() ? "" : " - vence " + dueDateText);
-                if (!passesFiltersExpense(doc, payerEmail, category)) continue;
+                if (!passesFiltersExpense(doc, payerEmail, category, concept, roomName)) continue;
                 expenseRows.add(new WorkspaceRow(
                         doc.getId(),
                         "expense",
@@ -604,23 +1583,27 @@ public class ExpensesFragment extends Fragment {
                 for (DocumentSnapshot doc : payments.getDocuments()) {
                     String fromEmail = doc.getString("fromEmail");
                     String toEmail = doc.getString("toEmail");
-                    if (hasRoomContext() && !isRoomPayment(fromEmail, toEmail)) continue;
+                    String toLabel = displayNameForEmail(toEmail);
+                    if (hasRoomContext() && !isRoomPayment(doc, fromEmail, toEmail)) continue;
 
                     Double amountValue = doc.getDouble("amount");
+                    String concept = doc.getString("concept");
+                    String roomName = doc.getString("roomName");
                     String status = doc.getString("status");
                     Date dueAt = doc.getDate("dueAt");
                     String dueDateText = doc.getString("dueDateText");
                     boolean confirmed = "confirmed".equals(status);
                     boolean overdue = !confirmed && dueAt != null && dueAt.getTime() < System.currentTimeMillis();
                     String statusLabel = confirmed ? "Confirmado" : (overdue ? "Vencido" : "Pendiente");
-                    String subtitle = (toEmail == null ? "Pago registrado" : "A " + toEmail)
+                    String subtitle = (toEmail == null ? "Pago registrado" : "A " + toLabel)
+                            + (roomName == null || roomName.trim().isEmpty() ? "" : " - hab. " + roomName)
                             + " - " + statusLabel
                             + (dueDateText == null || dueDateText.isEmpty() ? "" : " - vence " + dueDateText);
                     if (!passesFiltersPayment(doc)) continue;
                     expenseRows.add(new WorkspaceRow(
                             doc.getId(),
                             "payment",
-                            "Pago enviado",
+                            concept == null || concept.trim().isEmpty() ? "Pago enviado" : concept,
                             subtitle,
                             amountValue == null ? "0.00 EUR" : df.format(amountValue) + " EUR",
                             doc
@@ -630,10 +1613,24 @@ public class ExpensesFragment extends Fragment {
             });
         });
     }
+
+    private boolean matchesExpenseWithCurrentRoom(DocumentSnapshot doc) {
+        if (!hasRoomContext()) return true;
+        String singleRoomId = doc.getString("roomId");
+        if ("all".equalsIgnoreCase(singleRoomId)) return true;
+        if (currentRoomId != null && currentRoomId.equals(singleRoomId)) return true;
+        Object roomIdsRaw = doc.get("roomIds");
+        if (roomIdsRaw instanceof List<?> ids) {
+            for (Object id : ids) {
+                if (id != null && id.toString().equals(currentRoomId)) return true;
+            }
+        }
+        return false;
+    }
     private void loadFinancialViews() {
         if (currentGroupId == null) return;
         db.collection("groups").document(currentGroupId).get().addOnSuccessListener(groupDoc -> {
-            List<String> members = hasRoomContext() ? new ArrayList<>(currentRoomMembers) : castEmails(groupDoc.get("memberEmails"));
+            List<String> members = castEmails(groupDoc.get("memberEmails"));
             if (members.isEmpty()) {
                 saldoRows.clear();
                 saldosAdapter.notifyDataSetChanged();
@@ -646,9 +1643,6 @@ public class ExpensesFragment extends Fragment {
             }
 
             var expenseQuery = db.collection("expenses").whereEqualTo("groupId", currentGroupId);
-            if (hasRoomContext()) {
-                expenseQuery = expenseQuery.whereEqualTo("roomId", currentRoomId);
-            }
             expenseQuery.get().addOnSuccessListener(expenses -> {
                 for (DocumentSnapshot doc : expenses.getDocuments()) {
                     double amount = doc.getDouble("amount") == null ? 0.0 : doc.getDouble("amount");
@@ -693,7 +1687,6 @@ public class ExpensesFragment extends Fragment {
                 double amount = payment.getDouble("amount") == null ? 0.0 : payment.getDouble("amount");
                 String from = payment.getString("fromEmail");
                 String to = payment.getString("toEmail");
-                if (hasRoomContext() && !isRoomPayment(from, to)) continue;
                 if (from != null && net.containsKey(from)) net.put(from, net.getOrDefault(from, 0.0) + amount);
                 if (to != null && net.containsKey(to)) net.put(to, net.getOrDefault(to, 0.0) - amount);
             }
@@ -715,10 +1708,11 @@ public class ExpensesFragment extends Fragment {
         ));
         for (Map.Entry<String, Double> entry : net.entrySet()) {
             double value = entry.getValue();
+            String memberLabel = displayNameForEmail(entry.getKey());
             saldoRows.add(new WorkspaceRow(
                     entry.getKey(),
                     "saldo",
-                    entry.getKey(),
+                    memberLabel,
                     value >= 0 ? "Saldo a favor" : "Saldo pendiente",
                     df.format(value) + " EUR",
                     null
@@ -764,8 +1758,12 @@ public class ExpensesFragment extends Fragment {
         });
     }
 
-    private boolean isRoomPayment(@Nullable String fromEmail, @Nullable String toEmail) {
+    private boolean isRoomPayment(DocumentSnapshot doc, @Nullable String fromEmail, @Nullable String toEmail) {
         if (!hasRoomContext()) return true;
+        String paymentRoomId = doc.getString("roomId");
+        if (paymentRoomId != null && paymentRoomId.equals(currentRoomId)) {
+            return true;
+        }
         String from = fromEmail == null ? "" : fromEmail.toLowerCase(Locale.ROOT);
         String to = toEmail == null ? "" : toEmail.toLowerCase(Locale.ROOT);
         return currentRoomMembers.contains(from) && currentRoomMembers.contains(to);
@@ -795,6 +1793,58 @@ public class ExpensesFragment extends Fragment {
         return values;
     }
 
+    private void resolveMemberDisplayNames(List<String> memberIds, List<String> memberEmails, Runnable onDone) {
+        memberDisplayNamesByEmail.clear();
+        for (String email : memberEmails) {
+            if (email != null && !email.trim().isEmpty()) {
+                memberDisplayNamesByEmail.put(email.toLowerCase(Locale.ROOT), email.toLowerCase(Locale.ROOT));
+            }
+        }
+        if (memberIds.isEmpty()) {
+            onDone.run();
+            return;
+        }
+
+        List<Task<DocumentSnapshot>> tasks = new ArrayList<>();
+        for (String uid : memberIds) {
+            if (uid != null && !uid.trim().isEmpty()) {
+                tasks.add(db.collection("users").document(uid).get());
+            }
+        }
+        if (tasks.isEmpty()) {
+            onDone.run();
+            return;
+        }
+
+        Tasks.whenAllComplete(tasks)
+                .addOnSuccessListener(results -> {
+                    for (Task<DocumentSnapshot> task : tasks) {
+                        if (!task.isSuccessful() || task.getResult() == null) continue;
+                        DocumentSnapshot userDoc = task.getResult();
+                        String email = userDoc.getString("email");
+                        if (email == null || email.trim().isEmpty()) continue;
+                        String normalizedEmail = email.toLowerCase(Locale.ROOT);
+                        String displayName = userDoc.getString("displayName");
+                        if (displayName == null || displayName.trim().isEmpty()) {
+                            displayName = userDoc.getString("username");
+                        }
+                        if (displayName == null || displayName.trim().isEmpty()) {
+                            displayName = normalizedEmail;
+                        }
+                        memberDisplayNamesByEmail.put(normalizedEmail, displayName.trim());
+                    }
+                    onDone.run();
+                })
+                .addOnFailureListener(e -> onDone.run());
+    }
+
+    private String displayNameForEmail(@Nullable String email) {
+        if (email == null || email.trim().isEmpty()) return "";
+        String normalized = email.toLowerCase(Locale.ROOT);
+        String name = memberDisplayNamesByEmail.get(normalized);
+        return name == null || name.trim().isEmpty() ? normalized : name;
+    }
+
     private String resolveOwnerEmail(DocumentSnapshot groupDoc, List<String> memberIds, List<String> memberEmails) {
         String ownerId = groupDoc.getString("ownerId");
         if (ownerId == null || ownerId.trim().isEmpty()) {
@@ -815,32 +1865,100 @@ public class ExpensesFragment extends Fragment {
     }
 
     private void showRowDetail(WorkspaceRow row) {
-        if ("payment".equals(row.type)) {
-            String myEmail = FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
-            String toEmail = row.snapshot == null ? null : row.snapshot.getString("toEmail");
-            String status = row.snapshot == null ? null : row.snapshot.getString("status");
-            boolean canConfirm = row.snapshot != null && "pending".equals(status) && myEmail.equals(toEmail);
-            View content = DialogUtils.createMessageView(requireContext(), row.subtitle + "\n" + row.amount);
+        if ("reminder".equals(row.type)) {
+            if (row.snapshot == null) return;
+            String ownerUid = row.snapshot.getString("ownerUid");
+            String myUid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+            boolean canDelete = ownerUid != null && ownerUid.equals(myUid);
+            ViewGroup content = DialogUtils.createVerticalActions(requireContext());
+            Button detailBtn = DialogUtils.createActionButton(requireContext(), "Ver detalle", true);
+            content.addView(detailBtn);
+            Button deleteBtn = null;
+            if (canDelete) {
+                deleteBtn = DialogUtils.createActionButton(requireContext(), "Eliminar recordatorio", false);
+                content.addView(deleteBtn);
+            }
+
             DialogUtils.Shell shell = DialogUtils.buildShell(
                     requireContext(),
                     row.title,
-                    "Detalle del movimiento",
+                    "Acciones de recordatorio",
                     content,
-                    canConfirm ? "Rechazar" : null,
-                    canConfirm ? "Confirmar" : "Cerrar"
+                    "Cerrar",
+                    null
             );
             AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
-            if (canConfirm) {
-                shell.cancelBtn.setOnClickListener(v -> {
-                    updatePaymentStatus(row.id, "rejected");
+            shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+            detailBtn.setOnClickListener(v ->
+                    Toast.makeText(requireContext(), row.subtitle, Toast.LENGTH_LONG).show()
+            );
+            if (deleteBtn != null) {
+                deleteBtn.setOnClickListener(v -> {
                     dialog.dismiss();
+                    requestReminderDeletion(row);
                 });
-                shell.confirmBtn.setOnClickListener(v -> {
+            }
+            return;
+        }
+
+        if ("payment".equals(row.type)) {
+            if (row.snapshot == null) return;
+            String myEmail = FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
+            String toEmail = row.snapshot.getString("toEmail");
+            String status = row.snapshot.getString("status");
+            boolean canConfirm = "pending".equals(status) && myEmail.equalsIgnoreCase(toEmail == null ? "" : toEmail);
+            boolean canDelete = canManagePayment(row.snapshot);
+
+            ViewGroup content = DialogUtils.createVerticalActions(requireContext());
+            Button detailBtn = DialogUtils.createActionButton(requireContext(), "Ver detalle", true);
+            content.addView(detailBtn);
+            Button confirmBtn = null;
+            Button rejectBtn = null;
+            if (canConfirm) {
+                confirmBtn = DialogUtils.createActionButton(requireContext(), "Confirmar", false);
+                rejectBtn = DialogUtils.createActionButton(requireContext(), "Rechazar", false);
+                content.addView(confirmBtn);
+                content.addView(rejectBtn);
+            }
+            Button deleteBtn = null;
+            if (canDelete) {
+                deleteBtn = DialogUtils.createActionButton(requireContext(), "Eliminar pago", false);
+                content.addView(deleteBtn);
+            }
+
+            DialogUtils.Shell shell = DialogUtils.buildShell(
+                    requireContext(),
+                    row.title,
+                    "Acciones de pago",
+                    content,
+                    "Cerrar",
+                    null
+            );
+            AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+            shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+            detailBtn.setOnClickListener(v ->
+                    Toast.makeText(requireContext(), row.subtitle + " - " + row.amount, Toast.LENGTH_LONG).show()
+            );
+            if (confirmBtn != null) {
+                Button finalConfirmBtn = confirmBtn;
+                finalConfirmBtn.setOnClickListener(v -> {
                     updatePaymentStatus(row.id, "confirmed");
                     dialog.dismiss();
                 });
-            } else {
-                shell.confirmBtn.setOnClickListener(v -> dialog.dismiss());
+            }
+            if (rejectBtn != null) {
+                Button finalRejectBtn = rejectBtn;
+                finalRejectBtn.setOnClickListener(v -> {
+                    updatePaymentStatus(row.id, "rejected");
+                    dialog.dismiss();
+                });
+            }
+            if (deleteBtn != null) {
+                Button finalDeleteBtn = deleteBtn;
+                finalDeleteBtn.setOnClickListener(v -> {
+                    dialog.dismiss();
+                    requestPaymentDeletion(row);
+                });
             }
             return;
         }
@@ -861,6 +1979,19 @@ public class ExpensesFragment extends Fragment {
                 shell.confirmBtn.setOnClickListener(v -> dialog.dismiss());
                 return;
             }
+        } else {
+            View content = DialogUtils.createMessageView(requireContext(), row.subtitle + "\n" + row.amount);
+            DialogUtils.Shell shell = DialogUtils.buildShell(
+                    requireContext(),
+                    row.title,
+                    "Detalle",
+                    content,
+                    null,
+                    "Cerrar"
+            );
+            AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+            shell.confirmBtn.setOnClickListener(v -> dialog.dismiss());
+            return;
         }
 
         View content = DialogUtils.createMessageView(requireContext(), row.subtitle + "\n" + row.amount);
@@ -874,7 +2005,7 @@ public class ExpensesFragment extends Fragment {
         );
         AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
         shell.cancelBtn.setOnClickListener(v -> {
-            deleteExpense(row);
+            requestExpenseDeletion(row);
             dialog.dismiss();
         });
         shell.confirmBtn.setOnClickListener(v -> {
@@ -909,6 +2040,7 @@ public class ExpensesFragment extends Fragment {
                         form,
                         members,
                         rooms,
+                        castStrings(row.snapshot.get("roomIds")),
                         row.snapshot.getString("roomId"),
                         row.snapshot.getString("roomName"),
                         currentSplit
@@ -956,12 +2088,23 @@ public class ExpensesFragment extends Fragment {
                     List<RoomOption> rooms = new ArrayList<>();
                     for (DocumentSnapshot doc : result.getDocuments()) {
                         String roomName = doc.getString("name");
+                        Long roomNumber = doc.getLong("roomNumber");
+                        Long capacity = doc.getLong("capacity");
+                        Double monthlyCost = doc.getDouble("monthlyCost");
+                        String normalizedName = roomName == null || roomName.trim().isEmpty() ? "Habitación" : roomName;
+                        String label = (roomNumber == null || roomNumber <= 0)
+                                ? normalizedName
+                                : "Hab. " + roomNumber + " - " + normalizedName;
                         rooms.add(new RoomOption(
                                 doc.getId(),
-                                roomName == null || roomName.trim().isEmpty() ? "HabitaciÃƒÆ’Ã‚Â³n" : roomName,
-                                castEmails(doc.get("memberEmails"))
+                                label,
+                                castEmails(doc.get("memberEmails")),
+                                roomNumber == null ? 0 : roomNumber.intValue(),
+                                capacity == null ? 0 : capacity.intValue(),
+                                monthlyCost == null ? 0.0 : monthlyCost
                         ));
                     }
+                    rooms.sort((a, b) -> Integer.compare(a.roomNumber <= 0 ? Integer.MAX_VALUE : a.roomNumber, b.roomNumber <= 0 ? Integer.MAX_VALUE : b.roomNumber));
                     callback.onLoaded(rooms);
                 })
                 .addOnFailureListener(e -> callback.onLoaded(new ArrayList<>()));
@@ -971,94 +2114,220 @@ public class ExpensesFragment extends Fragment {
             View form,
             List<String> allMembers,
             List<RoomOption> rooms,
+            @Nullable List<String> selectedRoomIds,
             @Nullable String selectedRoomId,
             @Nullable String selectedRoomName,
             @Nullable String currentCustomSplit
     ) {
-        Spinner roomSpinner = form.findViewById(R.id.roomSpinner);
-        TextView roomMembersHintTv = form.findViewById(R.id.roomMembersHintTv);
-        List<RoomOption> spinnerRooms = new ArrayList<>();
-        spinnerRooms.add(null);
-        spinnerRooms.addAll(rooms);
-        roomSpinner.setTag(spinnerRooms);
+        boolean keepInitialSplit = currentCustomSplit != null && !currentCustomSplit.trim().isEmpty();
+        form.setTag(R.id.roomMembersHintTv, keepInitialSplit);
 
-        String[] roomLabels = new String[spinnerRooms.size()];
-        roomLabels[0] = ROOM_NONE_LABEL;
-        for (int i = 1; i < spinnerRooms.size(); i++) {
-            roomLabels[i] = spinnerRooms.get(i).name;
+        List<String> initialKeys = new ArrayList<>();
+        if (selectedRoomIds != null && !selectedRoomIds.isEmpty()) {
+            initialKeys.addAll(selectedRoomIds);
+        } else if (selectedRoomId != null && !selectedRoomId.trim().isEmpty()) {
+            if ("all".equalsIgnoreCase(selectedRoomId)) {
+                initialKeys.add(ROOM_ALL_LABEL);
+            } else {
+                initialKeys.add(selectedRoomId);
+            }
+        } else if (selectedRoomName != null && selectedRoomName.equalsIgnoreCase(ROOM_ALL_LABEL)) {
+            initialKeys.add(ROOM_ALL_LABEL);
+        } else {
+            initialKeys.add(rooms.isEmpty() ? ROOM_ALL_LABEL : rooms.get(0).id);
         }
-        roomSpinner.setAdapter(buildLightSpinnerAdapter(roomLabels));
-
-        int initialIndex = 0;
-        if (selectedRoomId != null && !selectedRoomId.trim().isEmpty()) {
-            for (int i = 1; i < spinnerRooms.size(); i++) {
-                RoomOption room = spinnerRooms.get(i);
-                if (room != null && selectedRoomId.equals(room.id)) {
-                    initialIndex = i;
-                    break;
-                }
-            }
-        } else if (selectedRoomName != null && !selectedRoomName.trim().isEmpty()) {
-            for (int i = 1; i < spinnerRooms.size(); i++) {
-                RoomOption room = spinnerRooms.get(i);
-                if (room != null && selectedRoomName.equalsIgnoreCase(room.name)) {
-                    initialIndex = i;
-                    break;
-                }
-            }
-        }
-
-        final boolean[] initialSelection = {true};
-        roomSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                RoomOption selected = (position >= 0 && position < spinnerRooms.size()) ? spinnerRooms.get(position) : null;
-                if (selected == null) {
-                    roomMembersHintTv.setText("Sin habitaciÃƒÆ’Ã‚Â³n: selecciona personas manualmente.");
-                    if (!initialSelection[0]) {
-                        setSplitRowsForMembers(form, allMembers, null, false);
-                    }
-                } else {
-                    List<String> roomMembers = sanitizeRoomMembers(selected.memberEmails, allMembers);
-                    if (roomMembers.isEmpty()) {
-                        roomMembersHintTv.setText("HabitaciÃƒÆ’Ã‚Â³n sin residentes asignados.");
-                    } else {
-                        roomMembersHintTv.setText("Residentes: " + String.join(", ", roomMembers));
-                    }
-
-                    boolean shouldPrefill = !initialSelection[0]
-                            || currentCustomSplit == null
-                            || currentCustomSplit.trim().isEmpty();
-                    if (shouldPrefill) {
-                        setSplitRowsForMembers(form, allMembers, roomMembers, true);
-                    }
-                }
-                initialSelection[0] = false;
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-            }
-        });
-        roomSpinner.setSelection(initialIndex);
+        rebindRoomSelectors(form, allMembers, rooms, initialKeys);
     }
 
-    @Nullable
-    private RoomOption resolveSelectedRoomOption(View form, List<RoomOption> loadedRooms) {
-        Spinner roomSpinner = form.findViewById(R.id.roomSpinner);
-        int selectedIndex = roomSpinner.getSelectedItemPosition();
-        if (selectedIndex <= 0) return null;
+    private void rebindRoomSelectors(View form, List<String> allMembers, List<RoomOption> rooms, @Nullable List<String> seedKeys) {
+        if (isRebindingRoomSelectors) return;
+        isRebindingRoomSelectors = true;
+        LinearLayout container = form.findViewById(R.id.roomSelectorsContainer);
+        Button addRoomBtn = form.findViewById(R.id.addRoomSelectionBtn);
+        Button removeRoomBtn = form.findViewById(R.id.removeRoomSelectionBtn);
+        TextView roomMembersHintTv = form.findViewById(R.id.roomMembersHintTv);
 
-        @SuppressWarnings("unchecked")
-        List<RoomOption> spinnerRooms = (List<RoomOption>) roomSpinner.getTag();
-        if (spinnerRooms != null && selectedIndex < spinnerRooms.size()) {
-            return spinnerRooms.get(selectedIndex);
+        List<String> selectedKeys = seedKeys == null ? collectRoomSelectionKeys(container) : new ArrayList<>(seedKeys);
+        if (selectedKeys.isEmpty()) selectedKeys.add(rooms.isEmpty() ? ROOM_ALL_LABEL : rooms.get(0).id);
+        if (selectedKeys.contains(ROOM_ALL_LABEL)) {
+            selectedKeys.clear();
+            selectedKeys.add(ROOM_ALL_LABEL);
         }
-        int fallbackIndex = selectedIndex - 1;
-        if (fallbackIndex >= 0 && fallbackIndex < loadedRooms.size()) {
-            return loadedRooms.get(fallbackIndex);
+        selectedKeys = deduplicateRoomKeys(selectedKeys);
+
+        container.removeAllViews();
+        for (int i = 0; i < selectedKeys.size(); i++) {
+            boolean allowAllOption = i == 0;
+            String selectedKey = selectedKeys.get(i);
+            Spinner spinner = buildRoomSelectorSpinner(rooms, selectedKeys, i, allowAllOption, selectedKey);
+            spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                    rebindRoomSelectors(form, allMembers, rooms, null);
+                }
+
+                @Override
+                public void onNothingSelected(AdapterView<?> parent) {
+                }
+            });
+            container.addView(spinner);
         }
-        return null;
+
+        List<String> refreshedKeys = collectRoomSelectionKeys(container);
+        if (refreshedKeys.contains(ROOM_ALL_LABEL)) {
+            addRoomBtn.setVisibility(View.GONE);
+            removeRoomBtn.setVisibility(View.GONE);
+        } else {
+            int remaining = rooms.size() - refreshedKeys.size();
+            addRoomBtn.setVisibility(remaining > 0 ? View.VISIBLE : View.GONE);
+            removeRoomBtn.setVisibility(refreshedKeys.size() > 1 ? View.VISIBLE : View.GONE);
+        }
+
+        addRoomBtn.setOnClickListener(v -> {
+            List<String> currentKeys = collectRoomSelectionKeys(container);
+            if (currentKeys.contains(ROOM_ALL_LABEL)) return;
+            currentKeys.add(firstAvailableRoomKey(rooms, currentKeys));
+            rebindRoomSelectors(form, allMembers, rooms, currentKeys);
+        });
+        removeRoomBtn.setOnClickListener(v -> {
+            List<String> currentKeys = collectRoomSelectionKeys(container);
+            if (currentKeys.size() > 1) {
+                currentKeys.remove(currentKeys.size() - 1);
+                rebindRoomSelectors(form, allMembers, rooms, currentKeys);
+            }
+        });
+
+        List<RoomOption> selectedRooms = resolveSelectedRoomOptions(form, rooms);
+        List<String> mergedMembers = mergeSelectedRoomMembers(selectedRooms, allMembers);
+        if (selectedRooms.size() == rooms.size()) {
+            roomMembersHintTv.setText("Todas las habitaciones seleccionadas.");
+        } else if (mergedMembers.isEmpty()) {
+            roomMembersHintTv.setText("Habitación sin residentes asignados.");
+        } else {
+            roomMembersHintTv.setText("Residentes: " + String.join(", ", mergedMembers));
+        }
+
+        Object keepInitialSplitTag = form.getTag(R.id.roomMembersHintTv);
+        boolean keepInitialSplit = keepInitialSplitTag instanceof Boolean && (Boolean) keepInitialSplitTag;
+        if (keepInitialSplit) {
+            form.setTag(R.id.roomMembersHintTv, false);
+        } else {
+            setSplitRowsForMembers(form, allMembers, mergedMembers.isEmpty() ? null : mergedMembers, true);
+        }
+        isRebindingRoomSelectors = false;
+    }
+
+    private Spinner buildRoomSelectorSpinner(
+            List<RoomOption> rooms,
+            List<String> selectedKeys,
+            int spinnerIndex,
+            boolean allowAllOption,
+            String selectedKey
+    ) {
+        Spinner spinner = new Spinner(requireContext(), Spinner.MODE_DROPDOWN);
+        spinner.setBackgroundResource(R.drawable.bg_input_dark_round);
+        spinner.setPadding(dp(12), 0, dp(12), 0);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(50)
+        );
+        if (spinnerIndex > 0) params.topMargin = dp(8);
+        spinner.setLayoutParams(params);
+
+        List<String> optionKeys = new ArrayList<>();
+        List<String> optionLabels = new ArrayList<>();
+        if (allowAllOption) {
+            optionKeys.add(ROOM_ALL_LABEL);
+            optionLabels.add(ROOM_ALL_LABEL);
+        }
+
+        for (RoomOption room : rooms) {
+            boolean selectedElsewhere = false;
+            for (int i = 0; i < selectedKeys.size(); i++) {
+                if (i == spinnerIndex) continue;
+                if (room.id.equals(selectedKeys.get(i))) {
+                    selectedElsewhere = true;
+                    break;
+                }
+            }
+            if (!selectedElsewhere || room.id.equals(selectedKey)) {
+                optionKeys.add(room.id);
+                optionLabels.add(room.name);
+            }
+        }
+
+        spinner.setTag(optionKeys);
+        spinner.setAdapter(buildLightSpinnerAdapter(optionLabels.toArray(new String[0])));
+        int selectedIndex = optionKeys.indexOf(selectedKey);
+        spinner.setSelection(selectedIndex >= 0 ? selectedIndex : 0);
+        return spinner;
+    }
+
+    private List<String> collectRoomSelectionKeys(LinearLayout container) {
+        List<String> keys = new ArrayList<>();
+        for (int i = 0; i < container.getChildCount(); i++) {
+            View child = container.getChildAt(i);
+            if (!(child instanceof Spinner spinner)) continue;
+            @SuppressWarnings("unchecked")
+            List<String> optionKeys = (List<String>) spinner.getTag();
+            int selectedIndex = spinner.getSelectedItemPosition();
+            if (optionKeys == null || selectedIndex < 0 || selectedIndex >= optionKeys.size()) continue;
+            keys.add(optionKeys.get(selectedIndex));
+        }
+        return keys;
+    }
+
+    private List<String> deduplicateRoomKeys(List<String> keys) {
+        List<String> unique = new ArrayList<>();
+        for (String key : keys) {
+            if (!unique.contains(key)) unique.add(key);
+        }
+        return unique;
+    }
+
+    private String firstAvailableRoomKey(List<RoomOption> rooms, List<String> selectedKeys) {
+        for (RoomOption room : rooms) {
+            if (!selectedKeys.contains(room.id)) return room.id;
+        }
+        return rooms.isEmpty() ? ROOM_ALL_LABEL : rooms.get(0).id;
+    }
+
+    private int findRoomIndexById(List<RoomOption> rooms, @Nullable String roomId) {
+        if (roomId == null || roomId.trim().isEmpty()) return -1;
+        for (int i = 0; i < rooms.size(); i++) {
+            if (roomId.equals(rooms.get(i).id)) return i;
+        }
+        return -1;
+    }
+
+    private List<RoomOption> resolveSelectedRoomOptions(View form, List<RoomOption> loadedRooms) {
+        LinearLayout container = form.findViewById(R.id.roomSelectorsContainer);
+        List<String> keys = collectRoomSelectionKeys(container);
+        if (keys.contains(ROOM_ALL_LABEL)) {
+            return new ArrayList<>(loadedRooms);
+        }
+        List<RoomOption> selected = new ArrayList<>();
+        for (String key : keys) {
+            for (RoomOption room : loadedRooms) {
+                if (room.id.equals(key)) {
+                    selected.add(room);
+                    break;
+                }
+            }
+        }
+        return selected;
+    }
+
+    private List<String> mergeSelectedRoomMembers(List<RoomOption> selectedRooms, List<String> allMembers) {
+        List<String> merged = new ArrayList<>();
+        for (RoomOption room : selectedRooms) {
+            for (String email : room.memberEmails) {
+                if (allMembers.contains(email) && !merged.contains(email)) {
+                    merged.add(email);
+                }
+            }
+        }
+        return merged;
     }
 
     private List<String> sanitizeRoomMembers(List<String> roomMembers, List<String> allMembers) {
@@ -1227,7 +2496,7 @@ public class ExpensesFragment extends Fragment {
                 try {
                     partAmount = Double.parseDouble(amountText);
                 } catch (NumberFormatException e) {
-                    Toast.makeText(requireContext(), "Hay importes de reparto no vÃƒÆ’Ã‚Â¡lidos", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(requireContext(), "Hay importes de reparto no válidos", Toast.LENGTH_SHORT).show();
                     return null;
                 }
                 if (partAmount < 0) {
@@ -1254,7 +2523,7 @@ public class ExpensesFragment extends Fragment {
         }
 
         if (splitsByEmail.isEmpty()) {
-            Toast.makeText(requireContext(), "AÃƒÆ’Ã‚Â±ade al menos una lÃƒÆ’Ã‚Â­nea de reparto", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Añade al menos una línea de reparto", Toast.LENGTH_SHORT).show();
             return null;
         }
 
@@ -1279,6 +2548,30 @@ public class ExpensesFragment extends Fragment {
         return builder.toString();
     }
 
+    private void requestExpenseDeletion(WorkspaceRow row) {
+        showDeleteConfirmation(
+                "Eliminar gasto",
+                "Se eliminará el gasto y sus vencimientos asociados.",
+                () -> deleteExpense(row)
+        );
+    }
+
+    private void requestPaymentDeletion(WorkspaceRow row) {
+        showDeleteConfirmation(
+                "Eliminar pago",
+                "Se eliminará el pago y sus recordatorios asociados.",
+                () -> deletePayment(row)
+        );
+    }
+
+    private void requestReminderDeletion(WorkspaceRow row) {
+        showDeleteConfirmation(
+                "Eliminar recordatorio",
+                "Se eliminará el recordatorio seleccionado.",
+                () -> deleteReminder(row)
+        );
+    }
+
     private void deleteExpense(WorkspaceRow row) {
         if (row.snapshot != null && !canManageExpense(row.snapshot.getString("payerId"))) {
             Toast.makeText(requireContext(), "No tienes permisos para borrar este gasto", Toast.LENGTH_SHORT).show();
@@ -1295,12 +2588,48 @@ public class ExpensesFragment extends Fragment {
         });
     }
 
+    private void deletePayment(WorkspaceRow row) {
+        if (row.snapshot == null || !canManagePayment(row.snapshot)) {
+            Toast.makeText(requireContext(), "No tienes permisos para borrar este pago", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        db.collection("payments").document(row.id).delete().addOnSuccessListener(v -> {
+            deleteDeadlinesBySource("payment", row.id);
+            double amount = row.snapshot.getDouble("amount") == null ? 0.0 : row.snapshot.getDouble("amount");
+            logActivity("payment_deleted", row.snapshot.getString("concept"), amount, row.snapshot.getString("category"));
+            loadExpenses();
+            loadFinancialViews();
+        });
+    }
+
+    private void deleteReminder(WorkspaceRow row) {
+        if (row.snapshot == null) return;
+        String ownerUid = row.snapshot.getString("ownerUid");
+        String myUid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        if (ownerUid == null || !ownerUid.equals(myUid)) {
+            Toast.makeText(requireContext(), "Solo quien lo creó puede eliminarlo", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Long reminderCode = row.snapshot.getLong("reminderCode");
+        if (reminderCode != null) {
+            ReminderScheduler.cancel(requireContext(), reminderCode.intValue());
+        }
+        db.collection("reminders").document(row.id).delete().addOnSuccessListener(v -> {
+            logActivity("reminder_deleted", row.title, 0.0, "reminder");
+            loadReminders();
+        }).addOnFailureListener(e ->
+                Toast.makeText(requireContext(), "No se pudo eliminar el recordatorio", Toast.LENGTH_SHORT).show()
+        );
+    }
+
     private void showFiltersDialog() {
         View form = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_filters, null, false);
         EditText categoryEt = form.findViewById(R.id.filterCategoryEt);
         EditText personEt = form.findViewById(R.id.filterPersonEt);
         EditText fromDateEt = form.findViewById(R.id.filterFromDateEt);
         EditText toDateEt = form.findViewById(R.id.filterToDateEt);
+        setupDateField(fromDateEt);
+        setupDateField(toDateEt);
         categoryEt.setText(filterCategory == null ? "" : filterCategory);
         personEt.setText(filterPersonEmail == null ? "" : filterPersonEmail);
         SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT);
@@ -1345,7 +2674,7 @@ public class ExpensesFragment extends Fragment {
                     filterToMs = endDay.getTimeInMillis();
                 }
             } catch (ParseException e) {
-                Toast.makeText(requireContext(), "Formato de fecha no vÃƒÆ’Ã‚Â¡lido (YYYY-MM-DD)", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Formato de fecha no válido (YYYY-MM-DD)", Toast.LENGTH_SHORT).show();
                 return;
             }
             loadExpenses();
@@ -1353,12 +2682,27 @@ public class ExpensesFragment extends Fragment {
         });
     }
 
-    private boolean passesFiltersExpense(DocumentSnapshot doc, @Nullable String payerEmail, @Nullable String category) {
+    private boolean passesFiltersExpense(
+            DocumentSnapshot doc,
+            @Nullable String payerEmail,
+            @Nullable String category,
+            @Nullable String concept,
+            @Nullable String roomName
+    ) {
         if (filterPersonEmail != null && (payerEmail == null || !payerEmail.equalsIgnoreCase(filterPersonEmail))) {
             return false;
         }
         if (filterCategory != null && (category == null || !category.toLowerCase(Locale.ROOT).contains(filterCategory))) {
             return false;
+        }
+        if (filterSearchQuery != null) {
+            String combined = (concept == null ? "" : concept) + " "
+                    + (payerEmail == null ? "" : payerEmail) + " "
+                    + (category == null ? "" : category) + " "
+                    + (roomName == null ? "" : roomName);
+            if (!combined.toLowerCase(Locale.ROOT).contains(filterSearchQuery)) {
+                return false;
+            }
         }
         return passesDateFilter(doc);
     }
@@ -1370,6 +2714,19 @@ public class ExpensesFragment extends Fragment {
             boolean match = (from != null && from.equalsIgnoreCase(filterPersonEmail))
                     || (to != null && to.equalsIgnoreCase(filterPersonEmail));
             if (!match) return false;
+        }
+        if (filterSearchQuery != null) {
+            String concept = doc.getString("concept");
+            String from = doc.getString("fromEmail");
+            String to = doc.getString("toEmail");
+            String roomName = doc.getString("roomName");
+            String combined = (concept == null ? "" : concept) + " "
+                    + (from == null ? "" : from) + " "
+                    + (to == null ? "" : to) + " "
+                    + (roomName == null ? "" : roomName);
+            if (!combined.toLowerCase(Locale.ROOT).contains(filterSearchQuery)) {
+                return false;
+            }
         }
         return passesDateFilter(doc);
     }
@@ -1395,6 +2752,35 @@ public class ExpensesFragment extends Fragment {
         String myUid = FirebaseAuth.getInstance().getCurrentUser().getUid();
         if ("admin".equals(currentUserRole)) return true;
         return payerId != null && payerId.equals(myUid);
+    }
+
+    private boolean canManagePayment(@NonNull DocumentSnapshot paymentDoc) {
+        if ("admin".equals(currentUserRole)) return true;
+        String fromEmail = paymentDoc.getString("fromEmail");
+        String myEmail = FirebaseAuth.getInstance().getCurrentUser().getEmail();
+        return fromEmail != null && myEmail != null && fromEmail.equalsIgnoreCase(myEmail);
+    }
+
+    private boolean canManageRooms() {
+        return "admin".equals(currentUserRole);
+    }
+
+    private void showDeleteConfirmation(String title, String detail, Runnable onConfirmed) {
+        View content = DialogUtils.createMessageView(requireContext(), detail);
+        DialogUtils.Shell shell = DialogUtils.buildShell(
+                requireContext(),
+                title,
+                "Confirmar eliminación",
+                content,
+                "Cancelar",
+                "Eliminar"
+        );
+        AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+        shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+        shell.confirmBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            onConfirmed.run();
+        });
     }
 
     private String resolveCurrentUserRole(DocumentSnapshot groupDoc) {
@@ -1552,7 +2938,7 @@ public class ExpensesFragment extends Fragment {
         int reminderB = Math.abs(("due_b_" + suffix).hashCode());
         String title = concept == null || concept.isEmpty() ? "Pago pendiente" : concept;
         if (oneDayBefore > now) {
-            ReminderScheduler.scheduleOneTime(requireContext(), reminderA, "Pago vence maÃƒÆ’Ã‚Â±ana", title + " - " + amountLabel, oneDayBefore);
+            ReminderScheduler.scheduleOneTime(requireContext(), reminderA, "Pago vence mañana", title + " - " + amountLabel, oneDayBefore);
         }
         if (dueAtMs > now) {
             ReminderScheduler.scheduleOneTime(requireContext(), reminderB, "Pago vence hoy", title + " - " + amountLabel, dueAtMs);
@@ -1599,12 +2985,12 @@ public class ExpensesFragment extends Fragment {
                         String actor = doc.getString("actorEmail");
                         String concept = doc.getString("concept");
                         Double amount = doc.getDouble("amount");
-                        message.append("- ").append(action == null ? "acciÃƒÆ’Ã‚Â³n" : action)
+                        message.append("- ").append(action == null ? "acción" : action)
                                 .append(" | ").append(actor == null ? "usuario" : actor)
                                 .append(" | ").append(concept == null ? "" : concept)
                                 .append(" | ").append(amount == null ? "0.00" : amount).append(" EUR\n");
                     }
-                    if (message.length() == 0) message.append("Sin actividad todavÃƒÆ’Ã‚Â­a.");
+                    if (message.length() == 0) message.append("Sin actividad todavía.");
                     View content = DialogUtils.createMessageView(requireContext(), message.toString());
                     DialogUtils.Shell shell = DialogUtils.buildShell(
                             requireContext(),
@@ -1641,16 +3027,24 @@ public class ExpensesFragment extends Fragment {
                         String detected = extractFirstAmount(text.getText());
                         if (detected != null && pendingTicketAmountEt != null) {
                             pendingTicketAmountEt.setText(detected);
-                            if (pendingTicketStatusTv != null) pendingTicketStatusTv.setText("OCR detectÃƒÆ’Ã‚Â³ importe: " + detected);
+                            if (pendingTicketStatusTv != null) pendingTicketStatusTv.setText("OCR detectó importe: " + detected);
                         } else if (pendingTicketStatusTv != null) {
-                            pendingTicketStatusTv.setText("OCR listo, no se encontrÃƒÆ’Ã‚Â³ importe claro.");
+                            pendingTicketStatusTv.setText("OCR listo, no se encontró importe claro.");
                         }
                     })
                     .addOnFailureListener(e -> {
-                        if (pendingTicketStatusTv != null) pendingTicketStatusTv.setText("OCR fallÃƒÆ’Ã‚Â³.");
+                        if (pendingTicketStatusTv != null) pendingTicketStatusTv.setText("OCR falló.");
                     });
         } catch (Exception e) {
             if (pendingTicketStatusTv != null) pendingTicketStatusTv.setText("No se pudo leer la imagen.");
+        }
+    }
+
+    private void handleReminderAttachmentSelected(@Nullable Uri uri) {
+        if (uri == null || !isAdded()) return;
+        pendingReminderAttachmentUri = uri.toString();
+        if (pendingReminderAttachmentStatusTv != null) {
+            pendingReminderAttachmentStatusTv.setText("Adjunto: " + uri.getLastPathSegment());
         }
     }
 
@@ -1736,11 +3130,69 @@ public class ExpensesFragment extends Fragment {
         final String id;
         final String name;
         final List<String> memberEmails;
+        final int roomNumber;
+        final int capacity;
+        final double monthlyCost;
 
-        RoomOption(String id, String name, List<String> memberEmails) {
+        RoomOption(String id, String name, List<String> memberEmails, int roomNumber, int capacity, double monthlyCost) {
             this.id = id;
             this.name = name;
             this.memberEmails = memberEmails;
+            this.roomNumber = roomNumber;
+            this.capacity = capacity;
+            this.monthlyCost = monthlyCost;
+        }
+    }
+
+    private static class PaymentTarget {
+        final String toEmail;
+        final String roomId;
+        final String roomName;
+
+        PaymentTarget(String toEmail, @Nullable String roomId, @Nullable String roomName) {
+            this.toEmail = toEmail;
+            this.roomId = roomId;
+            this.roomName = roomName;
+        }
+    }
+
+    private static class ReminderIntervalConfig {
+        final String intervalKey;
+        final int intervalDays;
+        final long intervalMs;
+
+        ReminderIntervalConfig(String intervalKey, int intervalDays, long intervalMs) {
+            this.intervalKey = intervalKey;
+            this.intervalDays = intervalDays;
+            this.intervalMs = intervalMs;
+        }
+    }
+
+    private static class ReminderTargetConfig {
+        final String targetType;
+        final List<String> targetEmails;
+        final String primaryRoomId;
+        final String primaryRoomName;
+        final List<String> roomIds;
+        final List<String> roomNames;
+        final String memberEmail;
+
+        ReminderTargetConfig(
+                String targetType,
+                List<String> targetEmails,
+                String primaryRoomId,
+                String primaryRoomName,
+                List<String> roomIds,
+                List<String> roomNames,
+                String memberEmail
+        ) {
+            this.targetType = targetType;
+            this.targetEmails = targetEmails;
+            this.primaryRoomId = primaryRoomId;
+            this.primaryRoomName = primaryRoomName;
+            this.roomIds = roomIds;
+            this.roomNames = roomNames;
+            this.memberEmail = memberEmail;
         }
     }
 
@@ -1932,3 +3384,4 @@ public class ExpensesFragment extends Fragment {
         }
     }
 }
+

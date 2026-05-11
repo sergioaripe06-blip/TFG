@@ -18,15 +18,119 @@
         android:textColorHint="@color/text_muted" />
 
     <EditText
-        android:id="@+id/reminderIntervalEt"
+        android:id="@+id/reminderStartDateEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:background="@drawable/bg_input_dark_round"
-        android:hint="Intervalo: diario, semanal o mensual"
+        android:hint="@string/due_date_hint"
+        android:clickable="true"
+        android:focusable="false"
+        android:inputType="none"
         android:paddingHorizontal="16dp"
         android:paddingVertical="12dp"
         android:textColor="@color/text_light"
         android:textColorHint="@color/text_muted" />
+
+    <Spinner
+        android:id="@+id/reminderIntervalSpinner"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_input_dark_round"
+        android:paddingHorizontal="12dp"
+        android:popupBackground="@color/surface_dark_alt" />
+
+    <EditText
+        android:id="@+id/reminderCustomDaysEt"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_input_dark_round"
+        android:hint="Cada cuántos días"
+        android:inputType="number"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp"
+        android:textColor="@color/text_light"
+        android:textColorHint="@color/text_muted"
+        android:visibility="gone" />
+
+    <Spinner
+        android:id="@+id/reminderTargetTypeSpinner"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_input_dark_round"
+        android:paddingHorizontal="12dp"
+        android:popupBackground="@color/surface_dark_alt" />
+
+    <Spinner
+        android:id="@+id/reminderMemberSpinner"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_input_dark_round"
+        android:paddingHorizontal="12dp"
+        android:popupBackground="@color/surface_dark_alt"
+        android:visibility="gone" />
+
+    <Spinner
+        android:id="@+id/reminderRoomSpinner"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_input_dark_round"
+        android:paddingHorizontal="12dp"
+        android:popupBackground="@color/surface_dark_alt"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/reminderRoomsContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:orientation="vertical"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/addReminderRoomLineBtn"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_tab_default"
+        android:text="Añadir línea de habitación"
+        android:textAllCaps="false"
+        android:textColor="@color/text_light"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/removeReminderRoomLineBtn"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_tab_default"
+        android:text="Eliminar línea de habitación"
+        android:textAllCaps="false"
+        android:textColor="@color/text_light"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/reminderAttachBtn"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_tab_default"
+        android:text="Adjuntar archivo"
+        android:textAllCaps="false"
+        android:textColor="@color/text_light" />
+
+    <TextView
+        android:id="@+id/reminderAttachmentStatusTv"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="Sin adjunto"
+        android:textColor="@color/text_muted"
+        android:textSize="12sp" />
 
 </LinearLayout>

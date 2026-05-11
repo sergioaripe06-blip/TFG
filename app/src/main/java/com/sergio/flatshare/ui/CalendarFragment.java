@@ -89,7 +89,7 @@ public class CalendarFragment extends Fragment {
                         String title = concept == null || concept.isEmpty() ? "Pago pendiente" : concept;
                         String subtitle = (groupName == null ? "Piso" : groupName) + " - Pagar a " + (creditor == null ? "miembro" : creditor);
                         String amountText = (amount == null ? "0.00" : df.format(amount)) + " EUR";
-                        allRows.add(new CalendarRow(title, subtitle, amountText, due.getTime(), doc.getId(), normalizePriority(priority)));
+                        allRows.add(new CalendarRow(title, subtitle, amountText, due.getTime(), doc.getId(), normalizePriority(priority), "none", 0, false));
                         scheduleDeadlineNotifications(title, amountText, due.getTime(), doc.getId());
                     }
                     loadRegisteredPayments(myEmail);
@@ -110,11 +110,11 @@ public class CalendarFragment extends Fragment {
                             .get()
                             .addOnSuccessListener(received -> {
                                 appendPaymentRows(received.getDocuments(), myEmail, df, seen);
-                                applyDateFilter();
+                                loadManualReminders(myEmail);
                             })
-                            .addOnFailureListener(e -> applyDateFilter());
+                            .addOnFailureListener(e -> loadManualReminders(myEmail));
                 })
-                .addOnFailureListener(e -> applyDateFilter());
+                .addOnFailureListener(e -> loadManualReminders(myEmail));
     }
 
     private void appendPaymentRows(List<DocumentSnapshot> docs, String myEmail, DecimalFormat df, Set<String> seen) {
@@ -140,8 +140,67 @@ public class CalendarFragment extends Fragment {
             String state = confirmed ? "Confirmado" : (overdue ? "Vencido" : "Pendiente");
             String subtitle = direction + " - " + state;
             String amountText = (amount == null ? "0.00" : df.format(amount)) + " EUR";
-            allRows.add(new CalendarRow(title, subtitle, amountText, createdAt.getTime(), "payment_" + id, normalizePriority(priority)));
+            allRows.add(new CalendarRow(title, subtitle, amountText, createdAt.getTime(), "payment_" + id, normalizePriority(priority), "none", 0, false));
         }
+    }
+
+    private void loadManualReminders(String myEmail) {
+        db.collection("reminders")
+                .whereArrayContains("targetEmails", myEmail)
+                .get()
+                .addOnSuccessListener(result -> {
+                    for (DocumentSnapshot doc : result.getDocuments()) {
+                        Date startAt = doc.getDate("startAt");
+                        if (startAt == null) continue;
+                        String title = doc.getString("title");
+                        String groupName = doc.getString("groupName");
+                        String targetType = doc.getString("targetType");
+                        String interval = doc.getString("interval");
+                        Long intervalDays = doc.getLong("intervalDays");
+                        String subtitle = (groupName == null || groupName.trim().isEmpty() ? "Piso" : groupName)
+                                + " - "
+                                + buildReminderTargetLabel(targetType, doc);
+                        allRows.add(new CalendarRow(
+                                title == null || title.trim().isEmpty() ? "Recordatorio" : title,
+                                subtitle,
+                                "Recordatorio",
+                                startAt.getTime(),
+                                "reminder_" + doc.getId(),
+                                "media",
+                                interval == null ? "semanal" : interval.toLowerCase(Locale.ROOT),
+                                intervalDays == null ? 0 : intervalDays.intValue(),
+                                true
+                        ));
+                    }
+                    applyDateFilter();
+                })
+                .addOnFailureListener(e -> applyDateFilter());
+    }
+
+    private String buildReminderTargetLabel(@Nullable String targetType, DocumentSnapshot doc) {
+        if ("miembro".equals(targetType)) {
+            String email = doc.getString("targetMemberEmail");
+            return "Miembro: " + (email == null ? "miembro" : email);
+        }
+        if ("habitacion".equals(targetType)) {
+            String room = doc.getString("roomName");
+            return "Habitación: " + (room == null ? "sin nombre" : room);
+        }
+        if ("x_habitacion".equals(targetType)) {
+            List<String> roomNames = castStrings(doc.get("roomNames"));
+            return roomNames.isEmpty() ? "X habitación" : "X habitación: " + String.join(", ", roomNames);
+        }
+        return "Todos los miembros";
+    }
+
+    private List<String> castStrings(Object raw) {
+        List<String> values = new ArrayList<>();
+        if (raw instanceof List<?>) {
+            for (Object item : (List<?>) raw) {
+                if (item != null) values.add(item.toString());
+            }
+        }
+        return values;
     }
 
     private void applyDateFilter() {
@@ -149,14 +208,35 @@ public class CalendarFragment extends Fragment {
         long dayStart = startOfDay(selectedDateMs);
         long dayEnd = dayStart + 24L * 60L * 60L * 1000L - 1L;
         for (CalendarRow row : allRows) {
-            if (row.dueAtMs >= dayStart && row.dueAtMs <= dayEnd) {
+            if (row.isReminder) {
+                if (reminderOccursOnDay(row, dayStart)) {
+                    filteredRows.add(row);
+                }
+            } else if (row.dueAtMs >= dayStart && row.dueAtMs <= dayEnd) {
                 filteredRows.add(row);
             }
         }
         if (filteredRows.isEmpty()) {
-            filteredRows.add(new CalendarRow("Sin pagos para este dia", "No hay vencimientos registrados", "0.00 EUR", dayStart, "empty", ""));
+            filteredRows.add(new CalendarRow("Sin eventos para este día", "No hay pagos ni recordatorios", "-", dayStart, "empty", "", "none", 0, false));
         }
         adapter.notifyDataSetChanged();
+    }
+
+    private boolean reminderOccursOnDay(CalendarRow row, long dayStart) {
+        long startDay = startOfDay(row.dueAtMs);
+        if (dayStart < startDay) return false;
+        long diffDays = (dayStart - startDay) / (24L * 60L * 60L * 1000L);
+        if ("diario".equals(row.intervalType)) return true;
+        if ("semanal".equals(row.intervalType)) return diffDays % 7L == 0L;
+        if ("mensual".equals(row.intervalType)) {
+            Calendar start = Calendar.getInstance();
+            start.setTimeInMillis(startDay);
+            Calendar selected = Calendar.getInstance();
+            selected.setTimeInMillis(dayStart);
+            return selected.get(Calendar.DAY_OF_MONTH) == start.get(Calendar.DAY_OF_MONTH);
+        }
+        int everyDays = row.intervalDays <= 0 ? 1 : row.intervalDays;
+        return diffDays % everyDays == 0L;
     }
 
     private String normalizePriority(@Nullable String priority) {
@@ -197,14 +277,20 @@ public class CalendarFragment extends Fragment {
         final long dueAtMs;
         final String id;
         final String priority;
+        final String intervalType;
+        final int intervalDays;
+        final boolean isReminder;
 
-        CalendarRow(String title, String subtitle, String amount, long dueAtMs, String id, String priority) {
+        CalendarRow(String title, String subtitle, String amount, long dueAtMs, String id, String priority, String intervalType, int intervalDays, boolean isReminder) {
             this.title = title;
             this.subtitle = subtitle;
             this.amount = amount;
             this.dueAtMs = dueAtMs;
             this.id = id;
             this.priority = priority;
+            this.intervalType = intervalType;
+            this.intervalDays = intervalDays;
+            this.isReminder = isReminder;
         }
     }
 

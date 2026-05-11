@@ -6,10 +6,19 @@
     android:paddingTop="8dp"
     android:paddingBottom="4dp">
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Concepto:"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
     <EditText
         android:id="@+id/conceptEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
         android:background="@drawable/bg_input_dark_round"
         android:hint="Concepto"
         android:paddingHorizontal="16dp"
@@ -17,11 +26,20 @@
         android:textColor="@color/text_light"
         android:textColorHint="@color/text_muted" />
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="Importe:"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
     <EditText
         android:id="@+id/amountEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="4dp"
         android:background="@drawable/bg_input_dark_round"
         android:hint="Importe"
         android:inputType="numberDecimal"
@@ -30,20 +48,38 @@
         android:textColor="@color/text_light"
         android:textColorHint="@color/text_muted" />
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="Categoría:"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
     <Spinner
         android:id="@+id/categorySpinner"
         android:layout_width="match_parent"
         android:layout_height="50dp"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="4dp"
         android:background="@drawable/bg_input_dark_round"
         android:paddingHorizontal="12dp"
         android:popupBackground="@color/surface_dark_alt" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="Fecha límite:"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold" />
 
     <EditText
         android:id="@+id/dueDateEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="4dp"
         android:background="@drawable/bg_input_dark_round"
         android:hint="@string/due_date_hint"
         android:clickable="true"
@@ -54,23 +90,61 @@
         android:textColor="@color/text_light"
         android:textColorHint="@color/text_muted" />
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="Prioridad:"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
     <Spinner
         android:id="@+id/expensePrioritySpinner"
         android:layout_width="match_parent"
         android:layout_height="50dp"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="4dp"
         android:background="@drawable/bg_input_dark_round"
         android:paddingHorizontal="12dp"
         android:popupBackground="@color/surface_dark_alt" />
 
-    <Spinner
-        android:id="@+id/roomSpinner"
+    <TextView
         android:layout_width="match_parent"
-        android:layout_height="50dp"
         android:layout_marginTop="10dp"
-        android:background="@drawable/bg_input_dark_round"
-        android:paddingHorizontal="12dp"
-        android:popupBackground="@color/surface_dark_alt" />
+        android:layout_height="wrap_content"
+        android:text="Habitación(es):"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <LinearLayout
+        android:id="@+id/roomSelectorsContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:orientation="vertical" />
+
+    <Button
+        android:id="@+id/addRoomSelectionBtn"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_tab_default"
+        android:text="Añadir habitación"
+        android:textAllCaps="false"
+        android:textColor="@color/text_light"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/removeRoomSelectionBtn"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_tab_default"
+        android:text="Eliminar habitación"
+        android:textAllCaps="false"
+        android:textColor="@color/text_light"
+        android:visibility="gone" />
 
     <TextView
         android:id="@+id/roomMembersHintTv"
@@ -80,6 +154,15 @@
         android:text="Sin habitación: selecciona personas manualmente."
         android:textColor="@color/text_muted"
         android:textSize="12sp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="Ticket:"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold" />
 
     <Button
         android:id="@+id/attachTicketBtn"
@@ -100,11 +183,20 @@
         android:textColor="@color/text_muted"
         android:textSize="12sp" />
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="Tipo de reparto:"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
     <Spinner
         android:id="@+id/splitModeSpinner"
         android:layout_width="match_parent"
         android:layout_height="50dp"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="4dp"
         android:background="@drawable/bg_input_dark_round"
         android:paddingHorizontal="12dp"
         android:popupBackground="@color/surface_dark_alt" />
@@ -122,7 +214,7 @@
         android:layout_height="40dp"
         android:layout_marginTop="10dp"
         android:background="@drawable/bg_tab_default"
-        android:text="Anadir linea"
+        android:text="Añadir línea"
         android:textAllCaps="false"
         android:textColor="@color/text_light" />
 
@@ -132,7 +224,7 @@
         android:layout_height="40dp"
         android:layout_marginTop="8dp"
         android:background="@drawable/bg_tab_default"
-        android:text="Eliminar linea"
+        android:text="Eliminar línea"
         android:textAllCaps="false"
         android:textColor="@color/text_light"
         android:visibility="gone" />

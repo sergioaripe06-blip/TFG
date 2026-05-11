@@ -241,6 +241,17 @@
             android:textAllCaps="false"
             android:textColor="@color/text_light"
             android:visibility="gone" />
+
+        <Button
+            android:id="@+id/deleteGroupBtn"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:layout_marginTop="8dp"
+            android:backgroundTint="@color/status_danger"
+            android:text="Eliminar piso"
+            android:textAllCaps="false"
+            android:textColor="@color/text_light"
+            android:visibility="gone" />
     </LinearLayout>
 
 </FrameLayout>

@@ -23,6 +23,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
@@ -52,6 +54,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
     private final List<RoomItem> rooms = new ArrayList<>();
     private final List<String> groupMembers = new ArrayList<>();
+    private final Map<String, String> memberDisplayNamesByEmail = new HashMap<>();
 
     private RoomsAdapter adapter;
     private TextView roomsTitleTv;
@@ -147,6 +150,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
 
             groupMembers.clear();
             groupMembers.addAll(castEmails(doc.get("memberEmails")));
+            resolveMemberDisplayNames(castStrings(doc.get("members")), groupMembers, this::loadRooms);
 
             roomsTitleTv.setText("Habitaciones de " + groupName);
             roomsSubtitleTv.setText(isOwner
@@ -172,13 +176,19 @@ public class OwnerRoomsActivity extends AppCompatActivity {
                     rooms.clear();
                     for (DocumentSnapshot doc : result.getDocuments()) {
                         String name = doc.getString("name");
+                        Long roomNumber = doc.getLong("roomNumber");
+                        Long capacity = doc.getLong("capacity");
+                        Double monthlyCost = doc.getDouble("monthlyCost");
                         rooms.add(new RoomItem(
                                 doc.getId(),
                                 name == null || name.trim().isEmpty() ? "Habitación" : name,
+                                roomNumber == null ? 0 : roomNumber.intValue(),
+                                capacity == null ? 0 : capacity.intValue(),
+                                monthlyCost == null ? 0.0 : monthlyCost,
                                 castEmails(doc.get("memberEmails"))
                         ));
                     }
-                    Collections.sort(rooms, Comparator.comparing(a -> a.name.toLowerCase(Locale.ROOT)));
+                    Collections.sort(rooms, Comparator.comparingInt(a -> a.roomNumber <= 0 ? Integer.MAX_VALUE : a.roomNumber));
                     adapter.notifyDataSetChanged();
                     emptyRoomsTv.setVisibility(rooms.isEmpty() ? View.VISIBLE : View.GONE);
                 })
@@ -187,39 +197,73 @@ public class OwnerRoomsActivity extends AppCompatActivity {
 
     private void createRoomDialog() {
         if (!isOwner) return;
-        showSingleInputDialog(
-                "Nueva habitación",
-                "Escribe un nombre para la habitación.",
-                "Ejemplo: Habitación Azul",
-                InputType.TYPE_CLASS_TEXT,
-                "Crear",
-                value -> {
-                    String roomName = value.trim();
-                    if (roomName.isEmpty()) {
-                        Toast.makeText(this, "El nombre es obligatorio", Toast.LENGTH_SHORT).show();
-                        return false;
-                    }
-                    String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
-                    Map<String, Object> room = new HashMap<>();
-                    room.put("groupId", groupId);
-                    room.put("name", roomName);
-                    room.put("memberEmails", new ArrayList<String>());
-                    room.put("memberCount", 0);
-                    room.put("createdByUid", uid);
-                    room.put("updatedByUid", uid);
-                    room.put("createdAt", FieldValue.serverTimestamp());
-                    room.put("updatedAt", FieldValue.serverTimestamp());
+        View form = LayoutInflater.from(this).inflate(R.layout.dialog_room_setup, null, false);
+        EditText roomNameEt = form.findViewById(R.id.roomNameEt);
+        EditText roomCapacityEt = form.findViewById(R.id.roomCapacityEt);
+        EditText roomCostEt = form.findViewById(R.id.roomCostEt);
+        roomNameEt.setHint("Ejemplo: Habitación Azul");
 
-                    db.collection("rooms_groups")
-                            .add(room)
-                            .addOnSuccessListener(v -> {
-                                Toast.makeText(this, "Habitación creada", Toast.LENGTH_SHORT).show();
-                                loadRooms();
-                            })
-                            .addOnFailureListener(e -> Toast.makeText(this, "No se pudo crear", Toast.LENGTH_SHORT).show());
-                    return true;
-                }
+        DialogUtils.Shell shell = DialogUtils.buildShell(
+                this,
+                "Nueva habitación",
+                "Indica nombre, capacidad y coste mensual.",
+                form,
+                "Cancelar",
+                "Crear"
         );
+        AlertDialog dialog = DialogUtils.show(this, shell.root);
+        shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+        shell.confirmBtn.setOnClickListener(v -> {
+            String roomName = roomNameEt.getText().toString().trim();
+            String capacityText = roomCapacityEt.getText().toString().trim();
+            String costText = roomCostEt.getText().toString().trim();
+            if (roomName.isEmpty() || capacityText.isEmpty() || costText.isEmpty()) {
+                Toast.makeText(this, "Completa todos los datos de la habitación", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            int roomNumber = rooms.size() + 1;
+            int capacity;
+            double monthlyCost;
+            try {
+                capacity = Integer.parseInt(capacityText);
+                monthlyCost = Double.parseDouble(costText);
+            } catch (NumberFormatException e) {
+                Toast.makeText(this, "Capacidad o coste no válidos", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (capacity <= 0) {
+                Toast.makeText(this, "La capacidad debe ser mayor que 0", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (monthlyCost < 0) {
+                Toast.makeText(this, "El coste no puede ser negativo", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+            Map<String, Object> room = new HashMap<>();
+            room.put("groupId", groupId);
+            room.put("roomNumber", roomNumber);
+            room.put("name", roomName);
+            room.put("capacity", capacity);
+            room.put("monthlyCost", monthlyCost);
+            room.put("memberEmails", new ArrayList<String>());
+            room.put("memberCount", 0);
+            room.put("createdByUid", uid);
+            room.put("updatedByUid", uid);
+            room.put("createdAt", FieldValue.serverTimestamp());
+            room.put("updatedAt", FieldValue.serverTimestamp());
+
+            db.collection("rooms_groups")
+                    .add(room)
+                    .addOnSuccessListener(v2 -> {
+                        Toast.makeText(this, "Habitación creada", Toast.LENGTH_SHORT).show();
+                        loadRooms();
+                        dialog.dismiss();
+                    })
+                    .addOnFailureListener(e -> Toast.makeText(this, "No se pudo crear", Toast.LENGTH_SHORT).show());
+        });
     }
 
     private void showRoomActions(RoomItem room) {
@@ -262,9 +306,10 @@ public class OwnerRoomsActivity extends AppCompatActivity {
             return;
         }
 
-        String[] memberItems = groupMembers.toArray(new String[0]);
+        String[] memberItems = new String[groupMembers.size()];
         boolean[] checkedItems = new boolean[groupMembers.size()];
         for (int i = 0; i < groupMembers.size(); i++) {
+            memberItems[i] = displayNameForEmail(groupMembers.get(i));
             checkedItems[i] = room.memberEmails.contains(groupMembers.get(i));
         }
 
@@ -524,6 +569,63 @@ public class OwnerRoomsActivity extends AppCompatActivity {
         return emails;
     }
 
+    private List<String> castStrings(Object raw) {
+        List<String> values = new ArrayList<>();
+        if (raw instanceof List<?>) {
+            for (Object item : (List<?>) raw) {
+                if (item != null) {
+                    values.add(item.toString());
+                }
+            }
+        }
+        return values;
+    }
+
+    private void resolveMemberDisplayNames(List<String> memberIds, List<String> memberEmails, Runnable onDone) {
+        memberDisplayNamesByEmail.clear();
+        for (String email : memberEmails) {
+            if (email != null && !email.trim().isEmpty()) {
+                memberDisplayNamesByEmail.put(email.toLowerCase(Locale.ROOT), email.toLowerCase(Locale.ROOT));
+            }
+        }
+        List<Task<DocumentSnapshot>> tasks = new ArrayList<>();
+        for (String uid : memberIds) {
+            if (uid != null && !uid.trim().isEmpty()) {
+                tasks.add(db.collection("users").document(uid).get());
+            }
+        }
+        if (tasks.isEmpty()) {
+            onDone.run();
+            return;
+        }
+        Tasks.whenAllComplete(tasks)
+                .addOnSuccessListener(done -> {
+                    for (Task<DocumentSnapshot> task : tasks) {
+                        if (!task.isSuccessful() || task.getResult() == null) continue;
+                        DocumentSnapshot userDoc = task.getResult();
+                        String email = userDoc.getString("email");
+                        if (email == null || email.trim().isEmpty()) continue;
+                        String displayName = userDoc.getString("displayName");
+                        if (displayName == null || displayName.trim().isEmpty()) {
+                            displayName = userDoc.getString("username");
+                        }
+                        memberDisplayNamesByEmail.put(
+                                email.toLowerCase(Locale.ROOT),
+                                (displayName == null || displayName.trim().isEmpty()) ? email.toLowerCase(Locale.ROOT) : displayName.trim()
+                        );
+                    }
+                    onDone.run();
+                })
+                .addOnFailureListener(e -> onDone.run());
+    }
+
+    private String displayNameForEmail(@Nullable String email) {
+        if (email == null || email.trim().isEmpty()) return "";
+        String normalized = email.toLowerCase(Locale.ROOT);
+        String displayName = memberDisplayNamesByEmail.get(normalized);
+        return displayName == null || displayName.trim().isEmpty() ? normalized : displayName;
+    }
+
     private interface SingleInputAction {
         boolean onConfirm(String value);
     }
@@ -531,11 +633,17 @@ public class OwnerRoomsActivity extends AppCompatActivity {
     private static class RoomItem {
         final String id;
         final String name;
+        final int roomNumber;
+        final int capacity;
+        final double monthlyCost;
         final List<String> memberEmails;
 
-        RoomItem(String id, String name, List<String> memberEmails) {
+        RoomItem(String id, String name, int roomNumber, int capacity, double monthlyCost, List<String> memberEmails) {
             this.id = id;
             this.name = name;
+            this.roomNumber = roomNumber;
+            this.capacity = capacity;
+            this.monthlyCost = monthlyCost;
             this.memberEmails = memberEmails;
         }
     }
@@ -566,14 +674,20 @@ public class OwnerRoomsActivity extends AppCompatActivity {
             RoomItem room = rooms.get(position);
             TextView roomNameTv = view.findViewById(R.id.roomNameTv);
             TextView roomMembersTv = view.findViewById(R.id.roomMembersTv);
+            TextView roomMetaTv = view.findViewById(R.id.roomMetaTv);
             TextView roomCountBadgeTv = view.findViewById(R.id.roomCountBadgeTv);
 
-            roomNameTv.setText(room.name);
+            roomNameTv.setText(room.roomNumber > 0 ? "Hab. " + room.roomNumber + " - " + room.name : room.name);
             if (room.memberEmails.isEmpty()) {
                 roomMembersTv.setText("Sin residentes asignados");
             } else {
-                roomMembersTv.setText("Residentes: " + String.join(", ", room.memberEmails));
+                List<String> labels = new ArrayList<>();
+                for (String email : room.memberEmails) {
+                    labels.add(displayNameForEmail(email));
+                }
+                roomMembersTv.setText("Residentes: " + String.join(", ", labels));
             }
+            roomMetaTv.setText("Capacidad: " + room.capacity + " personas | Coste: " + String.format(Locale.ROOT, "%.2f EUR", room.monthlyCost));
             roomCountBadgeTv.setText(room.memberEmails.size() + " residentes");
             return view;
         }

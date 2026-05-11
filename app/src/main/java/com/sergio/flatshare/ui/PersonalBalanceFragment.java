@@ -39,7 +39,6 @@ public class PersonalBalanceFragment extends Fragment {
             Color.parseColor("#78E08F"),
             Color.parseColor("#C3C3C3")
     };
-    private static final String MODE_PERSONAL = "Balance personal";
     private static final String MODE_GROUP = "Balance grupal";
     private static final String GROUP_ALL = "Todos los pisos";
 
@@ -48,11 +47,10 @@ public class PersonalBalanceFragment extends Fragment {
 
     private PieChartView chart;
     private LinearLayout legend;
-    private Button personalModeBtn;
     private Button groupModeBtn;
     private Spinner groupSpinner;
     private TextView titleTv;
-    private boolean groupModeEnabled = false;
+    private boolean groupModeEnabled = true;
 
     @Nullable
     @Override
@@ -60,7 +58,6 @@ public class PersonalBalanceFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_personal_balance, container, false);
         chart = view.findViewById(R.id.personalPieChart);
         legend = view.findViewById(R.id.personalLegendContainer);
-        personalModeBtn = view.findViewById(R.id.personalModeBtn);
         groupModeBtn = view.findViewById(R.id.groupModeBtn);
         groupSpinner = view.findViewById(R.id.groupSelectorSpinner);
         titleTv = view.findViewById(R.id.balanceTitleTv);
@@ -72,11 +69,6 @@ public class PersonalBalanceFragment extends Fragment {
 
     private void setupModeToggle() {
         applyModeUi();
-        personalModeBtn.setOnClickListener(v -> {
-            groupModeEnabled = false;
-            applyModeUi();
-            refreshChart();
-        });
         groupModeBtn.setOnClickListener(v -> {
             groupModeEnabled = true;
             applyModeUi();
@@ -85,12 +77,10 @@ public class PersonalBalanceFragment extends Fragment {
     }
 
     private void applyModeUi() {
-        titleTv.setText(groupModeEnabled ? MODE_GROUP : MODE_PERSONAL);
-        groupSpinner.setVisibility(groupModeEnabled ? View.VISIBLE : View.GONE);
-        personalModeBtn.setBackgroundResource(groupModeEnabled ? R.drawable.bg_tab_default : R.drawable.bg_tab_selected);
-        groupModeBtn.setBackgroundResource(groupModeEnabled ? R.drawable.bg_tab_selected : R.drawable.bg_tab_default);
-        personalModeBtn.setTextColor(requireContext().getColor(groupModeEnabled ? R.color.text_light : R.color.on_primary_green));
-        groupModeBtn.setTextColor(requireContext().getColor(groupModeEnabled ? R.color.on_primary_green : R.color.text_light));
+        titleTv.setText(MODE_GROUP);
+        groupSpinner.setVisibility(View.VISIBLE);
+        groupModeBtn.setBackgroundResource(R.drawable.bg_tab_selected);
+        groupModeBtn.setTextColor(requireContext().getColor(R.color.on_primary_green));
     }
 
     private void loadUserGroupsAndSetupSelector() {
@@ -130,21 +120,6 @@ public class PersonalBalanceFragment extends Fragment {
 
         if (groupOptions.isEmpty()) {
             render(totals);
-            return;
-        }
-
-        if (!groupMode) {
-            GroupOption selected = resolveSelectedGroupOption();
-            String groupId = selected.groupId;
-            if (groupId == null) {
-                String current = SessionStore.getCurrentGroup(requireContext());
-                if (current == null) {
-                    render(totals);
-                    return;
-                }
-                groupId = current;
-            }
-            accumulateForGroup(groupId, true, myEmail, totals, () -> render(totals));
             return;
         }
 

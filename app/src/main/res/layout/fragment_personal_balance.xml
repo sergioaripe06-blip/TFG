@@ -18,7 +18,7 @@
             android:id="@+id/balanceTitleTv"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Balance personal"
+            android:text="Balance grupal"
             android:textColor="@color/text_light"
             android:textSize="22sp"
             android:textStyle="bold" />
@@ -33,25 +33,13 @@
             android:padding="4dp">
 
             <Button
-                android:id="@+id/personalModeBtn"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:background="@drawable/bg_tab_selected"
-                android:text="Personal"
-                android:textAllCaps="false"
-                android:textColor="@color/on_primary_green" />
-
-            <Button
                 android:id="@+id/groupModeBtn"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:layout_marginStart="6dp"
-                android:layout_weight="1"
-                android:background="@drawable/bg_tab_default"
+                android:background="@drawable/bg_tab_selected"
                 android:text="Grupal"
                 android:textAllCaps="false"
-                android:textColor="@color/text_light" />
+                android:textColor="@color/on_primary_green" />
         </LinearLayout>
 
         <Spinner

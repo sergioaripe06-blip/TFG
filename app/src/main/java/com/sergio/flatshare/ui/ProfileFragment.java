@@ -3,6 +3,7 @@ package com.sergio.flatshare.ui;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.app.DatePickerDialog;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -180,6 +181,7 @@ public class ProfileFragment extends Fragment {
         fullNameEt.setText(fullName);
         phoneEt.setText(phone);
         birthDateEt.setText(birthDate);
+        setupBirthDateField(birthDateEt);
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
@@ -224,6 +226,33 @@ public class ProfileFragment extends Fragment {
                     })
                     .addOnFailureListener(e -> Toast.makeText(requireContext(), "No se pudo guardar", Toast.LENGTH_SHORT).show());
         });
+    }
+
+    private void setupBirthDateField(EditText dateField) {
+        dateField.setFocusable(false);
+        dateField.setClickable(true);
+        dateField.setOnClickListener(v -> openBirthDatePicker(dateField));
+    }
+
+    private void openBirthDatePicker(EditText targetField) {
+        Calendar calendar = Calendar.getInstance();
+        String currentValue = targetField.getText() == null ? "" : targetField.getText().toString().trim();
+        if (!currentValue.isEmpty()) {
+            try {
+                SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT);
+                fmt.setLenient(false);
+                calendar.setTime(fmt.parse(currentValue));
+            } catch (Exception ignored) {
+            }
+        }
+        DatePickerDialog dialog = new DatePickerDialog(
+                requireContext(),
+                (view, year, month, dayOfMonth) -> targetField.setText(String.format(Locale.ROOT, "%04d-%02d-%02d", year, month + 1, dayOfMonth)),
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH),
+                calendar.get(Calendar.DAY_OF_MONTH)
+        );
+        dialog.show();
     }
 
     private boolean isAdult(String birthDateIso) {
