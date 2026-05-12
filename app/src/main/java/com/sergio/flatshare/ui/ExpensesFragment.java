@@ -207,7 +207,7 @@ public class ExpensesFragment extends Fragment {
             public void onNothingSelected(AdapterView<?> parent) {
             }
         });
-        addRoomQuickBtn.setOnClickListener(v -> createRoomFromWorkspace());
+        addRoomQuickBtn.setOnClickListener(v -> showRoomQuickActionsDialog());
         openFiltersBtn.setOnClickListener(v -> showFiltersDialog());
         workspaceTitleTv.setOnLongClickListener(v -> {
             if (currentGroupId == null || workspaceMetaCache == null || workspaceMetaCache.trim().isEmpty()) {
@@ -506,6 +506,153 @@ public class ExpensesFragment extends Fragment {
                         .addOnFailureListener(e -> Toast.makeText(requireContext(), "No se pudo crear la habitación", Toast.LENGTH_SHORT).show());
             });
         });
+    }
+
+    private void showRoomQuickActionsDialog() {
+        if (currentGroupId == null) {
+            Toast.makeText(requireContext(), "Selecciona un piso primero", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        ViewGroup content = DialogUtils.createVerticalActions(requireContext());
+        Button infoBtn = DialogUtils.createActionButton(requireContext(), "Información habitación", true);
+        Button editBtn = DialogUtils.createActionButton(requireContext(), "Editar habitación", false);
+        Button deleteBtn = DialogUtils.createActionButton(requireContext(), "Eliminar habitación", false);
+        Button addBtn = DialogUtils.createActionButton(requireContext(), "Añadir habitación", false);
+        content.addView(infoBtn);
+        content.addView(editBtn);
+        content.addView(deleteBtn);
+        content.addView(addBtn);
+
+        DialogUtils.Shell shell = DialogUtils.buildShell(
+                requireContext(),
+                "Gestión de habitaciones",
+                "Gestiona la habitación seleccionada o crea una nueva.",
+                content,
+                "Cerrar",
+                null
+        );
+        AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+        shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+
+        infoBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            showSelectedRoomInfoDialog();
+        });
+        editBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            editSelectedRoomFromFilter();
+        });
+        deleteBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            deleteSelectedRoomFromFilter();
+        });
+        addBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            createRoomFromWorkspace();
+        });
+    }
+
+    private void showSelectedRoomInfoDialog() {
+        if (!hasRoomContext()) {
+            Toast.makeText(requireContext(), "Selecciona una habitación en el desplegable", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        loadRoomRowForCurrentSelection(row -> {
+            if (row == null || row.snapshot == null) return;
+            String name = row.snapshot.getString("name");
+            Long roomNumber = row.snapshot.getLong("roomNumber");
+            Long capacity = row.snapshot.getLong("capacity");
+            Double monthlyCost = row.snapshot.getDouble("monthlyCost");
+            List<String> residents = castEmails(row.snapshot.get("memberEmails"));
+
+            StringBuilder details = new StringBuilder();
+            details.append("Nombre: ").append(name == null || name.trim().isEmpty() ? "Habitación" : name);
+            details.append("\nNúmero: ").append(roomNumber == null ? "-" : roomNumber);
+            details.append("\nCapacidad: ").append(capacity == null ? 0 : capacity);
+            details.append("\nCoste mensual: ").append(monthlyCost == null ? "0.00" : new DecimalFormat("0.00").format(monthlyCost)).append(" EUR");
+            details.append("\nResidentes: ").append(residents.isEmpty() ? "Sin asignar" : residents.size());
+
+            View content = DialogUtils.createMessageView(requireContext(), details.toString());
+            DialogUtils.Shell shell = DialogUtils.buildShell(
+                    requireContext(),
+                    "Información habitación",
+                    "Datos de la habitación seleccionada.",
+                    content,
+                    null,
+                    "Cerrar"
+            );
+            AlertDialog infoDialog = DialogUtils.show(requireContext(), shell.root);
+            shell.confirmBtn.setOnClickListener(v -> infoDialog.dismiss());
+        });
+    }
+
+    private void editSelectedRoomFromFilter() {
+        if (!canManageRooms()) {
+            Toast.makeText(requireContext(), "Solo el propietario puede editar habitaciones", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (!hasRoomContext()) {
+            Toast.makeText(requireContext(), "Selecciona una habitación en el desplegable", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        loadRoomRowForCurrentSelection(row -> {
+            if (row == null) return;
+            editRoomFromWorkspace(row);
+        });
+    }
+
+    private void deleteSelectedRoomFromFilter() {
+        if (!canManageRooms()) {
+            Toast.makeText(requireContext(), "Solo el propietario puede eliminar habitaciones", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (!hasRoomContext()) {
+            Toast.makeText(requireContext(), "Selecciona una habitación en el desplegable", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        loadRoomRowForCurrentSelection(row -> {
+            if (row == null) return;
+            requestRoomDeletion(row);
+        });
+    }
+
+    private void loadRoomRowForCurrentSelection(RoomRowCallback callback) {
+        if (currentRoomId == null || currentRoomId.trim().isEmpty()) {
+            callback.onLoaded(null);
+            return;
+        }
+        db.collection("rooms_groups").document(currentRoomId).get()
+                .addOnSuccessListener(doc -> {
+                    if (!doc.exists()) {
+                        Toast.makeText(requireContext(), "La habitación ya no existe", Toast.LENGTH_SHORT).show();
+                        callback.onLoaded(null);
+                        return;
+                    }
+                    String roomName = doc.getString("name");
+                    Long roomNumber = doc.getLong("roomNumber");
+                    Long capacity = doc.getLong("capacity");
+                    List<String> residents = castEmails(doc.get("memberEmails"));
+                    String title = (roomNumber == null || roomNumber <= 0)
+                            ? (roomName == null || roomName.trim().isEmpty() ? "Habitación" : roomName)
+                            : "Hab. " + roomNumber + " - " + (roomName == null || roomName.trim().isEmpty() ? "Habitación" : roomName);
+                    String subtitle = "Capacidad: " + (capacity == null ? 0 : capacity)
+                            + " | Residentes: " + residents.size();
+                    Double monthlyCost = doc.getDouble("monthlyCost");
+                    WorkspaceRow row = new WorkspaceRow(
+                            doc.getId(),
+                            "room",
+                            title,
+                            subtitle,
+                            (monthlyCost == null ? "0.00" : new DecimalFormat("0.00").format(monthlyCost)) + " EUR",
+                            doc
+                    );
+                    callback.onLoaded(row);
+                })
+                .addOnFailureListener(e -> {
+                    Toast.makeText(requireContext(), "No se pudo cargar la habitación", Toast.LENGTH_SHORT).show();
+                    callback.onLoaded(null);
+                });
     }
 
     private void loadRoomFilterOptions() {
@@ -3342,6 +3489,10 @@ public class ExpensesFragment extends Fragment {
 
     private interface RoomsCallback {
         void onLoaded(List<RoomOption> rooms);
+    }
+
+    private interface RoomRowCallback {
+        void onLoaded(@Nullable WorkspaceRow row);
     }
 
     private static class RoomOption {

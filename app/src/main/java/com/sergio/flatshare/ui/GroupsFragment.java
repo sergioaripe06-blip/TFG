@@ -327,15 +327,35 @@ public class GroupsFragment extends Fragment {
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 "Habitación " + currentNumber + " de " + totalRooms,
-                "Indica nombre, capacidad y coste mensual.",
+                "Completa esta habitación para continuar con la siguiente.",
                 form,
-                "Cancelar",
+                "Cerrar",
                 "Guardar"
         );
         AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+        dialog.setCancelable(false);
+        dialog.setCanceledOnTouchOutside(false);
         shell.cancelBtn.setOnClickListener(v -> {
-            dialog.dismiss();
-            saveInitialRooms(groupId, drafts);
+            View content = DialogUtils.createMessageView(
+                    requireContext(),
+                    "Si sales ahora, se eliminará el piso completo porque no se han terminado las habitaciones."
+            );
+            DialogUtils.Shell confirmShell = DialogUtils.buildShell(
+                    requireContext(),
+                    "Cancelar creación del piso",
+                    "Esta acción no se puede deshacer.",
+                    content,
+                    "Volver",
+                    "Eliminar piso"
+            );
+            AlertDialog confirmDialog = DialogUtils.show(requireContext(), confirmShell.root);
+            confirmShell.cancelBtn.setOnClickListener(v2 -> confirmDialog.dismiss());
+            confirmShell.confirmBtn.setOnClickListener(v2 -> {
+                confirmDialog.dismiss();
+                dialog.dismiss();
+                deleteGroupCascade(groupId);
+                Toast.makeText(requireContext(), "Se canceló la creación y se eliminó el piso", Toast.LENGTH_SHORT).show();
+            });
         });
         shell.confirmBtn.setOnClickListener(v -> {
             String name = roomNameEt.getText().toString().trim();

@@ -14,8 +14,8 @@
     </style>
 
     <style name="Widget.FlatShare.BottomNav.ActiveIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
-        <item name="android:width">96dp</item>
-        <item name="android:height">36dp</item>
+        <item name="android:width">84dp</item>
+        <item name="android:height">34dp</item>
         <item name="android:color">@color/primary_green</item>
         <item name="shapeAppearance">@style/ShapeAppearance.FlatShare.Pill</item>
     </style>

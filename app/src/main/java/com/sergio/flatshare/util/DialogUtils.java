@@ -28,6 +28,7 @@ public final class DialogUtils {
         FrameLayout contentContainer = root.findViewById(R.id.dialogContentContainer);
         Button cancelBtn = root.findViewById(R.id.dialogCancelBtn);
         Button confirmBtn = root.findViewById(R.id.dialogConfirmBtn);
+        TextView closeXBtn = root.findViewById(R.id.dialogCloseXBtn);
 
         titleTv.setText(title);
         if (subtitle == null || subtitle.trim().isEmpty()) {
@@ -59,7 +60,19 @@ public final class DialogUtils {
             confirmBtn.setVisibility(View.VISIBLE);
         }
 
-        return new Shell(root, contentContainer, cancelBtn, confirmBtn);
+        boolean cancelIsClose = isCloseLabel(cancelLabel);
+        boolean confirmIsClose = isCloseLabel(confirmLabel);
+
+        if (cancelIsClose || confirmIsClose) {
+            closeXBtn.setVisibility(View.VISIBLE);
+            if (cancelIsClose) cancelBtn.setVisibility(View.GONE);
+            if (confirmIsClose) confirmBtn.setVisibility(View.GONE);
+        } else {
+            closeXBtn.setVisibility(View.GONE);
+        }
+
+        Button closeProxyBtn = cancelIsClose ? cancelBtn : (confirmIsClose ? confirmBtn : null);
+        return new Shell(root, contentContainer, cancelBtn, confirmBtn, closeXBtn, closeProxyBtn);
     }
 
     public static AlertDialog show(@NonNull Context context, @NonNull View root) {
@@ -67,10 +80,24 @@ public final class DialogUtils {
                 .setView(root)
                 .create();
         dialog.show();
+        TextView closeXBtn = root.findViewById(R.id.dialogCloseXBtn);
+        if (closeXBtn != null && closeXBtn.getVisibility() == View.VISIBLE) {
+            Object closeProxy = closeXBtn.getTag();
+            if (closeProxy instanceof Button) {
+                Button closeProxyBtn = (Button) closeProxy;
+                closeXBtn.setOnClickListener(v -> closeProxyBtn.performClick());
+            } else {
+                closeXBtn.setOnClickListener(v -> dialog.dismiss());
+            }
+        }
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         }
         return dialog;
+    }
+
+    private static boolean isCloseLabel(@Nullable String label) {
+        return label != null && "cerrar".equalsIgnoreCase(label.trim());
     }
 
     public static TextView createMessageView(@NonNull Context context, @NonNull String message) {
@@ -117,12 +144,19 @@ public final class DialogUtils {
         public final FrameLayout contentContainer;
         public final Button cancelBtn;
         public final Button confirmBtn;
+        public final TextView closeXBtn;
+        public final Button closeProxyBtn;
 
-        private Shell(View root, FrameLayout contentContainer, Button cancelBtn, Button confirmBtn) {
+        private Shell(View root, FrameLayout contentContainer, Button cancelBtn, Button confirmBtn, TextView closeXBtn, Button closeProxyBtn) {
             this.root = root;
             this.contentContainer = contentContainer;
             this.cancelBtn = cancelBtn;
             this.confirmBtn = confirmBtn;
+            this.closeXBtn = closeXBtn;
+            this.closeProxyBtn = closeProxyBtn;
+            if (this.closeXBtn != null) {
+                this.closeXBtn.setTag(closeProxyBtn);
+            }
         }
     }
 }

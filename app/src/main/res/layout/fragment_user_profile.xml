@@ -41,7 +41,8 @@
                 android:layout_height="34dp"
                 android:background="@drawable/bg_tab_default"
                 android:contentDescription="Abrir ajustes"
-                android:padding="7dp"
+                android:padding="10dp"
+                android:scaleType="centerInside"
                 android:src="@mipmap/settings_foreground" />
         </LinearLayout>
 
