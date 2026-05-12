@@ -14,17 +14,33 @@
         android:paddingHorizontal="10dp"
         android:popupBackground="@color/surface_dark_alt" />
 
-    <EditText
-        android:id="@+id/memberAmountEt"
+    <LinearLayout
         android:layout_width="120dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
-        android:background="@drawable/bg_input_dark_round"
-        android:hint="0.00"
-        android:inputType="numberDecimal"
-        android:paddingHorizontal="12dp"
-        android:paddingVertical="10dp"
-        android:textColor="@color/text_light"
-        android:textColorHint="@color/text_muted" />
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Porcentaje (%):"
+            android:textColor="@color/text_light"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/memberAmountEt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/bg_input_dark_round"
+            android:hint="Ejemplo: 50"
+            android:inputType="numberDecimal"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="10dp"
+            android:textColor="@color/text_light"
+            android:textColorHint="@color/text_muted" />
+    </LinearLayout>
 
 </LinearLayout>
+

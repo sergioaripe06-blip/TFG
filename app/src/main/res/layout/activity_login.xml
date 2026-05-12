@@ -49,16 +49,25 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:gravity="center"
-                    android:text="Iniciar sesion"
+                    android:text="Iniciar sesi&#243;n"
                     android:textColor="@color/text_light"
                     android:textSize="22sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="22dp"
+                    android:text="Usuario o email:"
+                    android:textColor="@color/text_light"
+                    android:textSize="12sp"
                     android:textStyle="bold" />
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="22dp"
-                    android:hint="Usuario o email"
+                    android:layout_marginTop="4dp"
+                    android:hint="Escribe tu usuario o email"
                     app:boxBackgroundColor="@color/surface_chip"
                     app:boxBackgroundMode="filled"
                     app:boxCornerRadiusBottomEnd="16dp"
@@ -76,11 +85,20 @@
                         android:textColorHint="@color/text_muted" />
                 </com.google.android.material.textfield.TextInputLayout>
 
-                <com.google.android.material.textfield.TextInputLayout
+                <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:hint="Contrase&#241;a"
+                    android:text="Contrase&#241;a:"
+                    android:textColor="@color/text_light"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:hint="Escribe tu contrase&#241;a"
                     app:boxBackgroundColor="@color/surface_chip"
                     app:boxBackgroundMode="filled"
                     app:boxCornerRadiusBottomEnd="16dp"
@@ -105,7 +123,7 @@
                     android:layout_height="46dp"
                     android:layout_marginTop="18dp"
                     android:background="@drawable/bg_button_pill_primary"
-                    android:text="Iniciar sesion"
+                    android:text="Iniciar sesi&#243;n"
                     android:textAllCaps="false"
                     android:textColor="@color/on_primary_green" />
 

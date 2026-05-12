@@ -6,22 +6,40 @@
     android:paddingTop="8dp"
     android:paddingBottom="4dp">
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Concepto:"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
     <EditText
         android:id="@+id/reminderTitleEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
         android:background="@drawable/bg_input_dark_round"
-        android:hint="Concepto (alquiler, luz...)"
+        android:hint="Ejemplo: Pago de luz"
         android:paddingHorizontal="16dp"
         android:paddingVertical="12dp"
         android:textColor="@color/text_light"
         android:textColorHint="@color/text_muted" />
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="Fecha de inicio (AAAA-MM-DD):"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
     <EditText
         android:id="@+id/reminderStartDateEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="4dp"
         android:background="@drawable/bg_input_dark_round"
         android:hint="@string/due_date_hint"
         android:clickable="true"
@@ -41,13 +59,24 @@
         android:paddingHorizontal="12dp"
         android:popupBackground="@color/surface_dark_alt" />
 
+    <TextView
+        android:id="@+id/reminderCustomDaysLabelTv"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="Frecuencia (días):"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
     <EditText
         android:id="@+id/reminderCustomDaysEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:background="@drawable/bg_input_dark_round"
-        android:hint="Cada cuántos días"
+        android:hint="Ejemplo: 15"
         android:inputType="number"
         android:paddingHorizontal="16dp"
         android:paddingVertical="12dp"
@@ -134,3 +163,4 @@
         android:textSize="12sp" />
 
 </LinearLayout>
+

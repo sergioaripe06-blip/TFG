@@ -39,6 +39,8 @@ Campos principales:
 - `memberEmails`
 - `shareCode`
 - `roomCount`
+- `billingModel` (`fixed`, `variable`)
+- `variableSplitMode` (`equal`, `percentage`)
 - `createdAt`
 
 ### `rooms_groups/{roomId}`

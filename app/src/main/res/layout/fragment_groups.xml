@@ -217,7 +217,7 @@
                 android:layout_marginStart="8dp"
                 android:layout_weight="1"
                 android:backgroundTint="@color/surface_chip"
-                android:text="Ver codigo"
+                android:text="Invitar"
                 android:textColor="@color/text_light" />
 
             <Button

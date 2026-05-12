@@ -6,111 +6,256 @@
     android:paddingTop="8dp"
     android:paddingBottom="4dp">
 
-    <EditText
-        android:id="@+id/groupNameEt"
+    <TextView
+        android:id="@+id/createGroupStepIndicatorTv"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="10dp"
-        android:background="@drawable/bg_input_dark_round"
-        android:hint="Nombre del piso"
-        android:inputType="textCapWords"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="12dp"
-        android:textColor="@color/text_light"
-        android:textColorHint="@color/text_muted" />
-
-    <EditText
-        android:id="@+id/roomCountEt"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="10dp"
-        android:background="@drawable/bg_input_dark_round"
-        android:hint="N&#250;mero de habitaciones"
-        android:inputType="number"
-        android:maxLength="2"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="12dp"
-        android:textColor="@color/text_light"
-        android:textColorHint="@color/text_muted" />
-
-    <EditText
-        android:id="@+id/streetEt"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="10dp"
-        android:background="@drawable/bg_input_dark_round"
-        android:hint="Calle"
-        android:inputType="textCapWords"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="12dp"
-        android:textColor="@color/text_light"
-        android:textColorHint="@color/text_muted" />
+        android:text="Paso 1 de 2 · Datos básicos"
+        android:textColor="@color/text_muted"
+        android:textSize="12sp"
+        android:textStyle="bold" />
 
     <LinearLayout
+        android:id="@+id/createGroupStepOneContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="10dp"
-        android:orientation="horizontal">
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Nombre del piso:"
+            android:textColor="@color/text_light"
+            android:textSize="12sp"
+            android:textStyle="bold" />
 
         <EditText
-            android:id="@+id/portalEt"
-            android:layout_width="0dp"
+            android:id="@+id/groupNameEt"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="10dp"
             android:background="@drawable/bg_input_dark_round"
-            android:hint="Portal"
-            android:inputType="textCapCharacters"
+            android:hint="Ejemplo: Piso Centro"
+            android:inputType="textCapWords"
             android:paddingHorizontal="16dp"
             android:paddingVertical="12dp"
             android:textColor="@color/text_light"
             android:textColorHint="@color/text_muted" />
 
-        <EditText
-            android:id="@+id/numberEt"
-            android:layout_width="0dp"
+        <TextView
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:layout_weight="1"
+            android:text="Calle:"
+            android:textColor="@color/text_light"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/streetEt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="10dp"
             android:background="@drawable/bg_input_dark_round"
-            android:hint="N&#250;mero"
-            android:inputType="text"
+            android:hint="Ejemplo: Calle Mayor"
+            android:inputType="textCapWords"
             android:paddingHorizontal="16dp"
             android:paddingVertical="12dp"
             android:textColor="@color/text_light"
             android:textColorHint="@color/text_muted" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Portal:"
+                android:textColor="@color/text_light"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:text="Número:"
+                android:textColor="@color/text_light"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="10dp"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/portalEt"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/bg_input_dark_round"
+                android:hint="Ejemplo: A"
+                android:inputType="textCapCharacters"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="12dp"
+                android:textColor="@color/text_light"
+                android:textColorHint="@color/text_muted" />
+
+            <EditText
+                android:id="@+id/numberEt"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_input_dark_round"
+                android:hint="Ejemplo: 12"
+                android:inputType="text"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="12dp"
+                android:textColor="@color/text_light"
+                android:textColorHint="@color/text_muted" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Código postal:"
+            android:textColor="@color/text_light"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/postalCodeEt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="10dp"
+            android:background="@drawable/bg_input_dark_round"
+            android:hint="Ejemplo: 28001"
+            android:inputType="number"
+            android:maxLength="10"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="12dp"
+            android:textColor="@color/text_light"
+            android:textColorHint="@color/text_muted" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Provincia:"
+            android:textColor="@color/text_light"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <Spinner
+            android:id="@+id/provinceSpinner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="10dp"
+            android:background="@drawable/bg_input_dark_round"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="12dp"
+            android:spinnerMode="dropdown" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Ciudad:"
+            android:textColor="@color/text_light"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <Spinner
+            android:id="@+id/citySpinner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/bg_input_dark_round"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="12dp"
+            android:spinnerMode="dropdown" />
     </LinearLayout>
 
-    <EditText
-        android:id="@+id/postalCodeEt"
+    <LinearLayout
+        android:id="@+id/createGroupStepTwoContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="10dp"
-        android:background="@drawable/bg_input_dark_round"
-        android:hint="C&#243;digo postal"
-        android:inputType="number"
-        android:maxLength="10"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="12dp"
-        android:textColor="@color/text_light"
-        android:textColorHint="@color/text_muted" />
+        android:orientation="vertical"
+        android:visibility="gone">
 
-    <Spinner
-        android:id="@+id/provinceSpinner"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="10dp"
-        android:background="@drawable/bg_input_dark_round"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="12dp"
-        android:spinnerMode="dropdown" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Número de habitaciones:"
+            android:textColor="@color/text_light"
+            android:textSize="12sp"
+            android:textStyle="bold" />
 
-    <Spinner
-        android:id="@+id/citySpinner"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@drawable/bg_input_dark_round"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="12dp"
-        android:spinnerMode="dropdown" />
+        <EditText
+            android:id="@+id/roomCountEt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="10dp"
+            android:background="@drawable/bg_input_dark_round"
+            android:hint="Ejemplo: 4"
+            android:inputType="number"
+            android:maxLength="2"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="12dp"
+            android:textColor="@color/text_light"
+            android:textColorHint="@color/text_muted" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Tipo de alquiler:"
+            android:textColor="@color/text_light"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <Spinner
+            android:id="@+id/rentModeSpinner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="10dp"
+            android:background="@drawable/bg_input_dark_round"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="12dp"
+            android:spinnerMode="dropdown" />
+
+        <TextView
+            android:id="@+id/variableSplitLabelTv"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Reparto del alquiler variable:"
+            android:textColor="@color/text_light"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <Spinner
+            android:id="@+id/variableSplitSpinner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/bg_input_dark_round"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="12dp"
+            android:spinnerMode="dropdown"
+            android:visibility="gone" />
+    </LinearLayout>
 
 </LinearLayout>

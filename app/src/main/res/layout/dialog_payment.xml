@@ -6,25 +6,43 @@
     android:paddingTop="8dp"
     android:paddingBottom="4dp">
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Importe (EUR):"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
     <EditText
         android:id="@+id/paymentAmountEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
         android:background="@drawable/bg_input_dark_round"
-        android:hint="Importe"
+        android:hint="Ejemplo: 45.00"
         android:inputType="numberDecimal"
         android:paddingHorizontal="16dp"
         android:paddingVertical="12dp"
         android:textColor="@color/text_light"
         android:textColorHint="@color/text_muted" />
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="Concepto:"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
     <EditText
         android:id="@+id/paymentConceptEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="4dp"
         android:background="@drawable/bg_input_dark_round"
-        android:hint="Concepto del pago"
+        android:hint="Ejemplo: Pago de alquiler"
         android:inputType="textCapWords"
         android:paddingHorizontal="16dp"
         android:paddingVertical="12dp"
@@ -67,11 +85,20 @@
         android:paddingHorizontal="12dp"
         android:popupBackground="@color/surface_dark_alt" />
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="Fecha (AAAA-MM-DD):"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
     <EditText
         android:id="@+id/paymentDueDateEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="4dp"
         android:background="@drawable/bg_input_dark_round"
         android:hint="@string/due_date_hint"
         android:clickable="true"
@@ -92,3 +119,4 @@
         android:popupBackground="@color/surface_dark_alt" />
 
 </LinearLayout>
+

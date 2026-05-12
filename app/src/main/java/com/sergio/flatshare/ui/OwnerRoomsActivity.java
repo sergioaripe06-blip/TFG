@@ -201,7 +201,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
         EditText roomNameEt = form.findViewById(R.id.roomNameEt);
         EditText roomCapacityEt = form.findViewById(R.id.roomCapacityEt);
         EditText roomCostEt = form.findViewById(R.id.roomCostEt);
-        roomNameEt.setHint("Ejemplo: Habitación Azul");
+        roomNameEt.setHint("Nombre de la habitación:");
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 this,
@@ -456,7 +456,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
         showSingleInputDialog(
                 "Invitar por email",
                 "Envía una invitación directa por correo.",
-                "persona@email.com",
+                "Email del invitado:",
                 InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
                 "Enviar",
                 value -> {
@@ -491,13 +491,15 @@ public class OwnerRoomsActivity extends AppCompatActivity {
         View form = LayoutInflater.from(this).inflate(R.layout.dialog_single_input, null, false);
         TextView titleTv = form.findViewById(R.id.dialogTitleTv);
         TextView subtitleTv = form.findViewById(R.id.dialogSubtitleTv);
+        TextView inputLabelTv = form.findViewById(R.id.dialogInputLabelTv);
         EditText inputEt = form.findViewById(R.id.dialogInputEt);
         Button cancelBtn = form.findViewById(R.id.dialogCancelBtn);
         Button confirmBtn = form.findViewById(R.id.dialogConfirmBtn);
 
         titleTv.setText(title);
         subtitleTv.setText(subtitle);
-        inputEt.setHint(hint);
+        inputLabelTv.setText(hint);
+        inputEt.setHint("");
         inputEt.setInputType(inputType);
         confirmBtn.setText(actionLabel);
 

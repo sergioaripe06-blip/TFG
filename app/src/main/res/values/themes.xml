@@ -54,5 +54,13 @@
     <style name="Widget.FlatShare.DialogButton.Negative" parent="Widget.Material3.Button.TextButton.Dialog">
         <item name="android:textColor">@color/text_muted</item>
     </style>
+
+    <style name="TextAppearance.FlatShare.CalendarDate" parent="@style/TextAppearance.Material3.BodySmall">
+        <item name="android:textColor">@color/calendar_day_text_selector</item>
+    </style>
+
+    <style name="TextAppearance.FlatShare.CalendarWeekday" parent="@style/TextAppearance.Material3.BodySmall">
+        <item name="android:textColor">@color/text_muted</item>
+    </style>
 </resources>
 

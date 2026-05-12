@@ -7,7 +7,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -39,18 +38,14 @@ public class PersonalBalanceFragment extends Fragment {
             Color.parseColor("#78E08F"),
             Color.parseColor("#C3C3C3")
     };
-    private static final String MODE_GROUP = "Balance grupal";
-    private static final String GROUP_ALL = "Todos los pisos";
+    private static final String GROUP_ALL = "Todas las habitaciones";
 
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
     private final List<GroupOption> groupOptions = new ArrayList<>();
 
     private PieChartView chart;
     private LinearLayout legend;
-    private Button groupModeBtn;
     private Spinner groupSpinner;
-    private TextView titleTv;
-    private boolean groupModeEnabled = true;
 
     @Nullable
     @Override
@@ -58,29 +53,9 @@ public class PersonalBalanceFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_personal_balance, container, false);
         chart = view.findViewById(R.id.personalPieChart);
         legend = view.findViewById(R.id.personalLegendContainer);
-        groupModeBtn = view.findViewById(R.id.groupModeBtn);
         groupSpinner = view.findViewById(R.id.groupSelectorSpinner);
-        titleTv = view.findViewById(R.id.balanceTitleTv);
-
-        setupModeToggle();
         loadUserGroupsAndSetupSelector();
         return view;
-    }
-
-    private void setupModeToggle() {
-        applyModeUi();
-        groupModeBtn.setOnClickListener(v -> {
-            groupModeEnabled = true;
-            applyModeUi();
-            refreshChart();
-        });
-    }
-
-    private void applyModeUi() {
-        titleTv.setText(MODE_GROUP);
-        groupSpinner.setVisibility(View.VISIBLE);
-        groupModeBtn.setBackgroundResource(R.drawable.bg_tab_selected);
-        groupModeBtn.setTextColor(requireContext().getColor(R.color.on_primary_green));
     }
 
     private void loadUserGroupsAndSetupSelector() {
@@ -114,7 +89,6 @@ public class PersonalBalanceFragment extends Fragment {
 
     private void refreshChart() {
         if (!isAdded()) return;
-        boolean groupMode = groupModeEnabled;
         String myEmail = FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
         Map<String, Double> totals = createZeroTotals();
 
@@ -210,9 +184,9 @@ public class PersonalBalanceFragment extends Fragment {
             dotShape.setColor(COLORS[i]);
             dot.setBackground(dotShape);
 
-            typeTv.setText("● " + capitalize(type));
+            typeTv.setText(capitalize(type));
             typeTv.setTextColor(COLORS[i]);
-            valueTv.setText(df.format(percentage) + "%  •  " + df.format(value) + " EUR");
+            valueTv.setText(df.format(percentage) + "%  -  " + df.format(value) + " EUR");
             legend.addView(item);
         }
         chart.setSlices(slices);

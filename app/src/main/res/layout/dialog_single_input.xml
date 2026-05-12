@@ -11,7 +11,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:text="Titulo"
+        android:text="Título"
         android:textColor="@color/text_light"
         android:textSize="22sp"
         android:textStyle="bold" />
@@ -22,17 +22,27 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:gravity="center"
-        android:text="Subtitulo"
+        android:text="Subtítulo"
         android:textColor="@color/text_muted"
         android:textSize="13sp" />
+
+    <TextView
+        android:id="@+id/dialogInputLabelTv"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:text="Valor:"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold" />
 
     <EditText
         android:id="@+id/dialogInputEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="18dp"
+        android:layout_marginTop="12dp"
         android:background="@drawable/bg_input_dark_round"
-        android:hint="Valor"
+        android:hint="Valor:"
         android:inputType="text"
         android:paddingHorizontal="16dp"
         android:paddingVertical="12dp"
@@ -71,3 +81,4 @@
     </LinearLayout>
 
 </LinearLayout>
+

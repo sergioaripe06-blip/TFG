@@ -34,64 +34,75 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
-                android:text="Entra desde la pesta&#241;a de pisos para ver gastos, saldos y recordatorios."
+                android:text="Entra desde la pestaña de pisos para ver gastos, saldos y recordatorios."
                 android:textColor="@color/text_muted"
                 android:textSize="13sp"
                 android:visibility="gone" />
 
             <LinearLayout
-                android:id="@+id/tabRow"
+                android:id="@+id/roomSelectorRow"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Habitación:"
+                    android:textColor="@color/text_light"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:orientation="horizontal">
+
+                    <Spinner
+                        android:id="@+id/roomFilterSpinner"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_input_dark_round"
+                        android:paddingHorizontal="12dp"
+                        android:spinnerMode="dropdown" />
+
+                    <Button
+                        android:id="@+id/addRoomQuickBtn"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:layout_marginStart="8dp"
+                        android:background="@drawable/bg_tab_default"
+                        android:paddingHorizontal="12dp"
+                        android:text="Añadir"
+                        android:textAllCaps="false"
+                        android:textColor="@color/text_light" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/tabRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
                 android:orientation="horizontal">
-
-                <Button
-                    android:id="@+id/roomsTabBtn"
-                    android:layout_width="0dp"
-                    android:layout_height="36dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/bg_tab_default"
-                    android:minWidth="0dp"
-                    android:minHeight="0dp"
-                    android:paddingHorizontal="6dp"
-                    android:maxLines="1"
-                    android:textSize="11sp"
-                    android:text="Habitaciones"
-                    android:textAllCaps="false"
-                    android:textColor="@color/text_muted" />
-
-                <Button
-                    android:id="@+id/tenantsTabBtn"
-                    android:layout_width="0dp"
-                    android:layout_height="36dp"
-                    android:layout_marginStart="6dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/bg_tab_default"
-                    android:minWidth="0dp"
-                    android:minHeight="0dp"
-                    android:paddingHorizontal="6dp"
-                    android:maxLines="1"
-                    android:textSize="11sp"
-                    android:text="Inquilinos"
-                    android:textAllCaps="false"
-                    android:textColor="@color/text_muted" />
 
                 <Button
                     android:id="@+id/gastosTabBtn"
                     android:layout_width="0dp"
                     android:layout_height="36dp"
-                    android:layout_marginStart="6dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_tab_selected"
-                    android:minWidth="0dp"
-                    android:minHeight="0dp"
-                    android:paddingHorizontal="6dp"
                     android:maxLines="1"
-                    android:textSize="11sp"
+                    android:minHeight="0dp"
+                    android:minWidth="0dp"
+                    android:paddingHorizontal="6dp"
                     android:text="Gastos"
                     android:textAllCaps="false"
-                    android:textColor="@color/text_light" />
+                    android:textColor="@color/text_light"
+                    android:textSize="11sp" />
 
                 <Button
                     android:id="@+id/saldosTabBtn"
@@ -100,14 +111,14 @@
                     android:layout_marginStart="6dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_tab_default"
-                    android:minWidth="0dp"
-                    android:minHeight="0dp"
-                    android:paddingHorizontal="6dp"
                     android:maxLines="1"
-                    android:textSize="11sp"
+                    android:minHeight="0dp"
+                    android:minWidth="0dp"
+                    android:paddingHorizontal="6dp"
                     android:text="Saldos"
                     android:textAllCaps="false"
-                    android:textColor="@color/text_muted" />
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp" />
 
                 <Button
                     android:id="@+id/remindersTabBtn"
@@ -116,14 +127,30 @@
                     android:layout_marginStart="6dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_tab_default"
-                    android:minWidth="0dp"
-                    android:minHeight="0dp"
-                    android:paddingHorizontal="6dp"
                     android:maxLines="1"
-                    android:textSize="11sp"
+                    android:minHeight="0dp"
+                    android:minWidth="0dp"
+                    android:paddingHorizontal="6dp"
                     android:text="Recordatorios"
                     android:textAllCaps="false"
-                    android:textColor="@color/text_muted" />
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp" />
+
+                <Button
+                    android:id="@+id/tenantsTabBtn"
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_tab_default"
+                    android:maxLines="1"
+                    android:minHeight="0dp"
+                    android:minWidth="0dp"
+                    android:paddingHorizontal="6dp"
+                    android:text="Inquilinos"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp" />
             </LinearLayout>
 
             <LinearLayout
@@ -131,33 +158,48 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
-                android:orientation="horizontal">
+                android:orientation="vertical">
 
-                <EditText
-                    android:id="@+id/expensesSearchEt"
-                    android:layout_width="0dp"
-                    android:layout_height="40dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/bg_input_dark_round"
-                    android:hint="Buscar gasto o pago"
-                    android:imeOptions="actionDone"
-                    android:inputType="text"
-                    android:maxLines="1"
-                    android:singleLine="true"
-                    android:paddingHorizontal="12dp"
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Buscar gasto o pago:"
                     android:textColor="@color/text_light"
-                    android:textColorHint="@color/text_muted" />
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
 
-                <Button
-                    android:id="@+id/openFiltersBtn"
-                    android:layout_width="wrap_content"
-                    android:layout_height="40dp"
-                    android:layout_marginStart="8dp"
-                    android:background="@drawable/bg_tab_default"
-                    android:paddingHorizontal="14dp"
-                    android:text="Filtros"
-                    android:textAllCaps="false"
-                    android:textColor="@color/text_light" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:orientation="horizontal">
+
+                    <EditText
+                        android:id="@+id/expensesSearchEt"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_input_dark_round"
+                        android:hint="Escribe para filtrar"
+                        android:imeOptions="actionDone"
+                        android:inputType="text"
+                        android:maxLines="1"
+                        android:singleLine="true"
+                        android:paddingHorizontal="12dp"
+                        android:textColor="@color/text_light"
+                        android:textColorHint="@color/text_muted" />
+
+                    <Button
+                        android:id="@+id/openFiltersBtn"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:layout_marginStart="8dp"
+                        android:background="@drawable/bg_tab_default"
+                        android:paddingHorizontal="14dp"
+                        android:text="Filtros"
+                        android:textAllCaps="false"
+                        android:textColor="@color/text_light" />
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
 
@@ -206,19 +248,6 @@
             android:layout_weight="1"
             android:layout_marginTop="14dp"
             android:visibility="gone" />
-
-        <ListView
-            android:id="@+id/roomsLv"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:layout_marginTop="14dp"
-            android:clipToPadding="false"
-            android:divider="@android:color/transparent"
-            android:dividerHeight="0dp"
-            android:listSelector="@android:color/transparent"
-            android:paddingBottom="110dp"
-            android:visibility="gone" />
     </LinearLayout>
 
     <LinearLayout
@@ -234,7 +263,7 @@
             android:id="@+id/addExpenseCenterFab"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:contentDescription="Acci&#243;n principal"
+            android:contentDescription="Acción principal"
             app:backgroundTint="@color/primary_green"
             app:srcCompat="@android:drawable/ic_input_add"
             app:tint="@color/on_primary_green" />
@@ -250,5 +279,3 @@
     </LinearLayout>
 
 </FrameLayout>
-
-

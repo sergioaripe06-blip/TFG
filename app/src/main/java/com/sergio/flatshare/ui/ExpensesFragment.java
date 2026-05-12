@@ -83,8 +83,11 @@ public class ExpensesFragment extends Fragment {
     private static final String TAB_EXPENSES = "expenses";
     private static final String TAB_SALDOS = "saldos";
     private static final String TAB_REMINDERS = "reminders";
-    private static final String TAB_ROOMS = "rooms";
     private static final String TAB_TENANTS = "tenants";
+    private static final String BILLING_FIXED = "fixed";
+    private static final String BILLING_VARIABLE = "variable";
+    private static final String VARIABLE_SPLIT_EQUAL = "equal";
+    private static final String VARIABLE_SPLIT_PERCENTAGE = "percentage";
     private static final String ROOM_ALL_LABEL = "Todas las habitaciones";
     private static final String[] SPENDING_TYPES = {"agua", "electricidad", "internet", "alquiler", "comida", "otros"};
     private static final int[] SPENDING_TYPE_COLORS = {
@@ -105,27 +108,26 @@ public class ExpensesFragment extends Fragment {
     private final List<WorkspaceRow> expenseRows = new ArrayList<>();
     private final List<WorkspaceRow> saldoRows = new ArrayList<>();
     private final List<WorkspaceRow> reminderRows = new ArrayList<>();
-    private final List<WorkspaceRow> roomRows = new ArrayList<>();
+    private final List<RoomOption> roomFilterOptions = new ArrayList<>();
 
     private WorkspaceAdapter expensesAdapter;
     private WorkspaceAdapter saldosAdapter;
     private WorkspaceAdapter remindersAdapter;
-    private WorkspaceAdapter roomsAdapter;
 
     private TextView workspaceTitleTv;
     private TextView workspaceMetaTv;
     private ListView expensesLv;
     private ListView saldosLv;
     private ListView remindersLv;
-    private ListView roomsLv;
     private View tenantsContainer;
     private View workspaceCtaLayout;
     private TextView addMainLabelTv;
     private Button gastosTabBtn;
     private Button saldosTabBtn;
     private Button remindersTabBtn;
-    private Button roomsTabBtn;
     private Button tenantsTabBtn;
+    private Spinner roomFilterSpinner;
+    private Button addRoomQuickBtn;
     private View expensesToolsRow;
     private EditText expensesSearchEt;
     private Button openFiltersBtn;
@@ -134,6 +136,8 @@ public class ExpensesFragment extends Fragment {
     private String currentGroupId;
     private String currentGroupName = "Piso";
     private String currentUserRole = "member";
+    private String currentBillingModel = BILLING_VARIABLE;
+    private String currentVariableSplitMode = VARIABLE_SPLIT_EQUAL;
     private String currentRoomId;
     private String currentRoomName;
     private List<String> currentRoomMembers = new ArrayList<>();
@@ -148,6 +152,7 @@ public class ExpensesFragment extends Fragment {
     private String pendingReminderAttachmentUri;
     private TextView pendingReminderAttachmentStatusTv;
     private boolean isRebindingRoomSelectors = false;
+    private boolean isUpdatingRoomFilterSpinner = false;
     private final Map<String, String> memberDisplayNamesByEmail = new HashMap<>();
     private String workspaceMetaCache = "";
 
@@ -166,15 +171,15 @@ public class ExpensesFragment extends Fragment {
         expensesLv = view.findViewById(R.id.expensesLv);
         saldosLv = view.findViewById(R.id.saldosLv);
         remindersLv = view.findViewById(R.id.remindersLv);
-        roomsLv = view.findViewById(R.id.roomsLv);
         tenantsContainer = view.findViewById(R.id.tenantsContainer);
         workspaceCtaLayout = view.findViewById(R.id.workspaceCtaLayout);
         addMainLabelTv = view.findViewById(R.id.addMainLabelTv);
         gastosTabBtn = view.findViewById(R.id.gastosTabBtn);
         saldosTabBtn = view.findViewById(R.id.saldosTabBtn);
         remindersTabBtn = view.findViewById(R.id.remindersTabBtn);
-        roomsTabBtn = view.findViewById(R.id.roomsTabBtn);
         tenantsTabBtn = view.findViewById(R.id.tenantsTabBtn);
+        roomFilterSpinner = view.findViewById(R.id.roomFilterSpinner);
+        addRoomQuickBtn = view.findViewById(R.id.addRoomQuickBtn);
         expensesToolsRow = view.findViewById(R.id.expensesToolsRow);
         expensesSearchEt = view.findViewById(R.id.expensesSearchEt);
         openFiltersBtn = view.findViewById(R.id.openFiltersBtn);
@@ -183,17 +188,26 @@ public class ExpensesFragment extends Fragment {
         expensesAdapter = new WorkspaceAdapter(expenseRows);
         saldosAdapter = new WorkspaceAdapter(saldoRows);
         remindersAdapter = new WorkspaceAdapter(reminderRows);
-        roomsAdapter = new WorkspaceAdapter(roomRows);
         expensesLv.setAdapter(expensesAdapter);
         saldosLv.setAdapter(saldosAdapter);
         remindersLv.setAdapter(remindersAdapter);
-        roomsLv.setAdapter(roomsAdapter);
 
         gastosTabBtn.setOnClickListener(v -> switchTab(TAB_EXPENSES));
         saldosTabBtn.setOnClickListener(v -> switchTab(TAB_SALDOS));
         remindersTabBtn.setOnClickListener(v -> switchTab(TAB_REMINDERS));
-        roomsTabBtn.setOnClickListener(v -> switchTab(TAB_ROOMS));
         tenantsTabBtn.setOnClickListener(v -> switchTab(TAB_TENANTS));
+        roomFilterSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View item, int position, long id) {
+                if (isUpdatingRoomFilterSpinner || !isAdded()) return;
+                onRoomFilterSelected(position);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
+        addRoomQuickBtn.setOnClickListener(v -> createRoomFromWorkspace());
         openFiltersBtn.setOnClickListener(v -> showFiltersDialog());
         workspaceTitleTv.setOnLongClickListener(v -> {
             if (currentGroupId == null || workspaceMetaCache == null || workspaceMetaCache.trim().isEmpty()) {
@@ -233,16 +247,12 @@ public class ExpensesFragment extends Fragment {
         mainFab.setOnClickListener(v -> handleMainAction());
         expensesLv.setOnItemClickListener((parent, v, position, id) -> showRowDetail(expenseRows.get(position)));
         remindersLv.setOnItemClickListener((parent, v, position, id) -> showRowDetail(reminderRows.get(position)));
-        roomsLv.setOnItemClickListener((parent, v, position, id) -> openRoomFromTab(roomRows.get(position)));
-        roomsLv.setOnItemLongClickListener((parent, v, position, id) -> {
-            showRoomActionsFromTab(roomRows.get(position));
-            return true;
-        });
 
         switchTab(TAB_EXPENSES);
         refreshWorkspace();
         return view;
     }
+
     private void refreshWorkspace() {
         currentGroupId = SessionStore.getCurrentGroup(requireContext());
         currentRoomId = SessionStore.getCurrentRoomId(requireContext());
@@ -250,6 +260,8 @@ public class ExpensesFragment extends Fragment {
         currentRoomMembers = new ArrayList<>();
         if (currentGroupId == null) {
             currentGroupName = "Selecciona un piso";
+            currentBillingModel = BILLING_VARIABLE;
+            currentVariableSplitMode = VARIABLE_SPLIT_EQUAL;
             workspaceTitleTv.setText(currentGroupName);
             workspaceMetaCache = "Entra desde la pestaña de pisos para ver gastos, saldos, recordatorios y habitaciones.";
             workspaceMetaTv.setText(workspaceMetaCache);
@@ -257,11 +269,15 @@ public class ExpensesFragment extends Fragment {
             expenseRows.clear();
             saldoRows.clear();
             reminderRows.clear();
-            roomRows.clear();
+            roomFilterOptions.clear();
             expensesAdapter.notifyDataSetChanged();
             saldosAdapter.notifyDataSetChanged();
             remindersAdapter.notifyDataSetChanged();
-            roomsAdapter.notifyDataSetChanged();
+            isUpdatingRoomFilterSpinner = true;
+            roomFilterSpinner.setAdapter(buildLightSpinnerAdapter(new String[]{ROOM_ALL_LABEL}));
+            roomFilterSpinner.setSelection(0);
+            isUpdatingRoomFilterSpinner = false;
+            addRoomQuickBtn.setVisibility(View.GONE);
             workspaceCtaLayout.setVisibility(View.GONE);
             switchTab(currentTab);
             return;
@@ -273,6 +289,9 @@ public class ExpensesFragment extends Fragment {
             if (!isAdded()) return;
             currentGroupName = doc.getString("name") == null ? "Piso actual" : doc.getString("name");
             currentUserRole = resolveCurrentUserRole(doc);
+            currentBillingModel = normalizeBillingModel(doc.getString("billingModel"));
+            currentVariableSplitMode = normalizeVariableSplitMode(doc.getString("variableSplitMode"));
+
             String rawDescription = doc.getString("description");
             final String description = (rawDescription == null || rawDescription.trim().isEmpty())
                     ? "Sin descripción"
@@ -288,12 +307,13 @@ public class ExpensesFragment extends Fragment {
                     memberLabels.add(displayNameForEmail(email));
                 }
                 String membersLabel = memberLabels.isEmpty() ? "Sin datos" : String.join(", ", memberLabels);
+                String billingLabel = BILLING_FIXED.equals(currentBillingModel)
+                        ? "Alquiler fijo"
+                        : ("Alquiler variable (" + (VARIABLE_SPLIT_PERCENTAGE.equals(currentVariableSplitMode) ? "porcentual" : "equitativo") + ")");
                 String meta = "Piso: " + description
                         + "\nPropietario: " + (ownerLabel.isEmpty() ? "Sin datos" : ownerLabel)
+                        + "\nModelo: " + billingLabel
                         + "\nMiembros (" + memberEmails.size() + "): " + membersLabel;
-                if (hasRoomContext()) {
-                    meta += "\nHabitación activa: " + (currentRoomName == null ? "Seleccionada" : currentRoomName);
-                }
                 workspaceTitleTv.setText(currentGroupName);
                 workspaceMetaCache = meta;
                 workspaceMetaTv.setText(meta);
@@ -303,31 +323,30 @@ public class ExpensesFragment extends Fragment {
                     loadExpenses();
                     loadFinancialViews();
                     loadReminders();
-                    loadRoomsOverview();
+                    loadRoomFilterOptions();
                     ensureTenantsFragment();
+                    switchTab(currentTab);
                 });
             });
         });
     }
+
     private void switchTab(String tab) {
         currentTab = tab;
         boolean showExpenses = TAB_EXPENSES.equals(tab);
         boolean showSaldos = TAB_SALDOS.equals(tab);
         boolean showReminders = TAB_REMINDERS.equals(tab);
-        boolean showRooms = TAB_ROOMS.equals(tab);
         boolean showTenants = TAB_TENANTS.equals(tab);
 
         expensesLv.setVisibility(showExpenses ? View.VISIBLE : View.GONE);
         saldosLv.setVisibility(showSaldos ? View.VISIBLE : View.GONE);
         remindersLv.setVisibility(showReminders ? View.VISIBLE : View.GONE);
-        roomsLv.setVisibility(showRooms ? View.VISIBLE : View.GONE);
         tenantsContainer.setVisibility(showTenants ? View.VISIBLE : View.GONE);
         expensesToolsRow.setVisibility(showExpenses && currentGroupId != null ? View.VISIBLE : View.GONE);
 
         updateTabStyle(gastosTabBtn, showExpenses);
         updateTabStyle(saldosTabBtn, showSaldos);
         updateTabStyle(remindersTabBtn, showReminders);
-        updateTabStyle(roomsTabBtn, showRooms);
         updateTabStyle(tenantsTabBtn, showTenants);
 
         if (showExpenses) {
@@ -336,11 +355,9 @@ public class ExpensesFragment extends Fragment {
             addMainLabelTv.setText("Nuevo pago");
         } else if (showReminders) {
             addMainLabelTv.setText("Nuevo recordatorio");
-        } else if (showTenants) {
+        } else {
             addMainLabelTv.setText("Inquilinos");
             ensureTenantsFragment();
-        } else {
-            addMainLabelTv.setText("Habitaciones");
         }
         updateCtaVisibilityForCurrentTab();
     }
@@ -361,7 +378,9 @@ public class ExpensesFragment extends Fragment {
 
     private void updateCtaVisibilityForCurrentTab() {
         if (workspaceCtaLayout == null) return;
-        boolean ctaAllowedTab = TAB_EXPENSES.equals(currentTab) || TAB_SALDOS.equals(currentTab) || TAB_REMINDERS.equals(currentTab);
+        boolean ctaAllowedTab = (TAB_EXPENSES.equals(currentTab) && !BILLING_FIXED.equals(currentBillingModel))
+                || TAB_SALDOS.equals(currentTab)
+                || TAB_REMINDERS.equals(currentTab);
         boolean hideForSearch = TAB_EXPENSES.equals(currentTab) && expensesSearchEt != null && expensesSearchEt.hasFocus();
         boolean visible = currentGroupId != null && ctaAllowedTab && !hideForSearch;
         workspaceCtaLayout.setVisibility(visible ? View.VISIBLE : View.GONE);
@@ -391,6 +410,10 @@ public class ExpensesFragment extends Fragment {
             return;
         }
         if (TAB_EXPENSES.equals(currentTab)) {
+            if (BILLING_FIXED.equals(currentBillingModel)) {
+                Toast.makeText(requireContext(), "Este piso usa alquiler fijo. Registra pagos en la pestaña de saldos.", Toast.LENGTH_LONG).show();
+                return;
+            }
             showExpenseActionDialog();
         } else if (TAB_SALDOS.equals(currentTab)) {
             createPaymentDialog();
@@ -399,62 +422,143 @@ public class ExpensesFragment extends Fragment {
         }
     }
 
-    private void openRoomFromTab(WorkspaceRow row) {
-        if ("all_rooms".equals(row.id)) {
+    private void createRoomFromWorkspace() {
+        if (!canManageRooms()) {
+            Toast.makeText(requireContext(), "Solo el propietario puede crear habitaciones", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (currentGroupId == null) return;
+
+        loadCurrentGroupRooms(rooms -> {
+            int nextRoomNumber = 1;
+            for (RoomOption room : rooms) {
+                if (room.roomNumber >= nextRoomNumber) {
+                    nextRoomNumber = room.roomNumber + 1;
+                }
+            }
+
+            View form = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_room_setup, null, false);
+            EditText roomNameEt = form.findViewById(R.id.roomNameEt);
+            EditText roomCapacityEt = form.findViewById(R.id.roomCapacityEt);
+            EditText roomCostEt = form.findViewById(R.id.roomCostEt);
+            roomNameEt.setHint("Ejemplo: Habitación " + nextRoomNumber);
+
+            DialogUtils.Shell shell = DialogUtils.buildShell(
+                    requireContext(),
+                    "Nueva habitación",
+                    "Indica nombre, capacidad y coste mensual.",
+                    form,
+                    "Cancelar",
+                    "Crear"
+            );
+            AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+            shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+            int roomNumberToSave = nextRoomNumber;
+            shell.confirmBtn.setOnClickListener(v -> {
+                String nameValue = roomNameEt.getText().toString().trim();
+                String capacityValue = roomCapacityEt.getText().toString().trim();
+                String costValue = roomCostEt.getText().toString().trim();
+
+                if (nameValue.isEmpty() || capacityValue.isEmpty() || costValue.isEmpty()) {
+                    Toast.makeText(requireContext(), "Completa todos los datos de la habitación", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                int parsedCapacity;
+                double parsedCost;
+                try {
+                    parsedCapacity = Integer.parseInt(capacityValue);
+                    parsedCost = Double.parseDouble(costValue);
+                } catch (NumberFormatException e) {
+                    Toast.makeText(requireContext(), "Capacidad o coste no válidos", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (parsedCapacity <= 0) {
+                    Toast.makeText(requireContext(), "La capacidad debe ser mayor que 0", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (parsedCost < 0) {
+                    Toast.makeText(requireContext(), "El coste no puede ser negativo", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+                Map<String, Object> roomData = new HashMap<>();
+                roomData.put("groupId", currentGroupId);
+                roomData.put("roomNumber", roomNumberToSave);
+                roomData.put("name", nameValue);
+                roomData.put("capacity", parsedCapacity);
+                roomData.put("monthlyCost", parsedCost);
+                roomData.put("memberEmails", new ArrayList<String>());
+                roomData.put("memberCount", 0);
+                roomData.put("createdByUid", uid);
+                roomData.put("updatedByUid", uid);
+                roomData.put("createdAt", FieldValue.serverTimestamp());
+                roomData.put("updatedAt", FieldValue.serverTimestamp());
+
+                db.collection("rooms_groups")
+                        .add(roomData)
+                        .addOnSuccessListener(done -> {
+                            Toast.makeText(requireContext(), "Habitación creada", Toast.LENGTH_SHORT).show();
+                            refreshWorkspace();
+                            dialog.dismiss();
+                        })
+                        .addOnFailureListener(e -> Toast.makeText(requireContext(), "No se pudo crear la habitación", Toast.LENGTH_SHORT).show());
+            });
+        });
+    }
+
+    private void loadRoomFilterOptions() {
+        if (currentGroupId == null || roomFilterSpinner == null) return;
+        loadCurrentGroupRooms(rooms -> {
+            roomFilterOptions.clear();
+            roomFilterOptions.addAll(rooms);
+
+            String[] labels = new String[roomFilterOptions.size() + 1];
+            labels[0] = ROOM_ALL_LABEL;
+            int selectedPosition = 0;
+            for (int i = 0; i < roomFilterOptions.size(); i++) {
+                RoomOption option = roomFilterOptions.get(i);
+                labels[i + 1] = option.name;
+                if (currentRoomId != null && currentRoomId.equals(option.id)) {
+                    selectedPosition = i + 1;
+                }
+            }
+            if (currentRoomId != null && selectedPosition == 0) {
+                SessionStore.clearCurrentRoom(requireContext());
+                currentRoomId = null;
+                currentRoomName = null;
+                currentRoomMembers = new ArrayList<>();
+            }
+
+            isUpdatingRoomFilterSpinner = true;
+            roomFilterSpinner.setAdapter(buildLightSpinnerAdapter(labels));
+            roomFilterSpinner.setSelection(selectedPosition);
+            isUpdatingRoomFilterSpinner = false;
+            addRoomQuickBtn.setVisibility(canManageRooms() ? View.VISIBLE : View.GONE);
+        });
+    }
+
+    private void onRoomFilterSelected(int position) {
+        if (currentGroupId == null) return;
+        if (position <= 0) {
             SessionStore.clearCurrentRoom(requireContext());
             currentRoomId = null;
             currentRoomName = null;
             currentRoomMembers = new ArrayList<>();
-            switchTab(TAB_EXPENSES);
-            refreshWorkspace();
-            return;
+        } else if (position - 1 < roomFilterOptions.size()) {
+            RoomOption selected = roomFilterOptions.get(position - 1);
+            SessionStore.setCurrentRoom(requireContext(), selected.id, selected.name);
+            currentRoomId = selected.id;
+            currentRoomName = selected.name;
         }
-        SessionStore.setCurrentRoom(requireContext(), row.id, row.title);
-        currentRoomId = row.id;
-        currentRoomName = row.title;
-        switchTab(TAB_EXPENSES);
-        refreshWorkspace();
-    }
 
-    private void loadRoomsOverview() {
-        if (currentGroupId == null) return;
-        roomRows.clear();
-        roomRows.add(new WorkspaceRow(
-                "all_rooms",
-                "room",
-                "Todas las habitaciones",
-                hasRoomContext() ? "Habitación activa: " + (currentRoomName == null ? "Seleccionada" : currentRoomName) : "Ver gastos de todo el piso",
-                "",
-                null
-        ));
-        db.collection("rooms_groups")
-                .whereEqualTo("groupId", currentGroupId)
-                .get()
-                .addOnSuccessListener(result -> {
-                    DecimalFormat df = new DecimalFormat("0.00");
-                    for (DocumentSnapshot doc : result.getDocuments()) {
-                        String roomName = doc.getString("name");
-                        Long roomNumber = doc.getLong("roomNumber");
-                        Long capacity = doc.getLong("capacity");
-                        Double monthlyCost = doc.getDouble("monthlyCost");
-                        List<String> residents = castEmails(doc.get("memberEmails"));
-                        String title = (roomNumber == null || roomNumber <= 0)
-                                ? (roomName == null || roomName.trim().isEmpty() ? "Habitación" : roomName)
-                                : "Hab. " + roomNumber + " - " + (roomName == null || roomName.trim().isEmpty() ? "Habitación" : roomName);
-                        String subtitle = "Capacidad: " + (capacity == null ? 0 : capacity)
-                                + " | Residentes: " + residents.size();
-                        roomRows.add(new WorkspaceRow(
-                                doc.getId(),
-                                "room",
-                                title,
-                                subtitle,
-                                (monthlyCost == null ? "0.00" : df.format(monthlyCost)) + " EUR",
-                                doc
-                        ));
-                    }
-                    roomsAdapter.notifyDataSetChanged();
-                })
-                .addOnFailureListener(e -> roomsAdapter.notifyDataSetChanged());
+        loadRoomContext(() -> {
+            loadExpenses();
+            loadFinancialViews();
+            loadReminders();
+            switchTab(currentTab);
+        });
     }
 
     private void showRoomActionsFromTab(WorkspaceRow row) {
@@ -1185,11 +1289,14 @@ public class ExpensesFragment extends Fragment {
         Spinner intervalSpinner = form.findViewById(R.id.reminderIntervalSpinner);
         intervalSpinner.setAdapter(buildLightSpinnerAdapter(REMINDER_INTERVAL_TYPES));
         intervalSpinner.setSelection(1);
+        TextView customDaysLabelTv = form.findViewById(R.id.reminderCustomDaysLabelTv);
         EditText customDaysEt = form.findViewById(R.id.reminderCustomDaysEt);
         intervalSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                customDaysEt.setVisibility(position == 3 ? View.VISIBLE : View.GONE);
+                int visibility = position == 3 ? View.VISIBLE : View.GONE;
+                customDaysEt.setVisibility(visibility);
+                customDaysLabelTv.setVisibility(visibility);
             }
 
             @Override
@@ -1627,6 +1734,19 @@ public class ExpensesFragment extends Fragment {
         }
         return false;
     }
+
+    private String normalizeBillingModel(@Nullable String raw) {
+        if (raw == null) return BILLING_VARIABLE;
+        return BILLING_FIXED.equalsIgnoreCase(raw.trim()) ? BILLING_FIXED : BILLING_VARIABLE;
+    }
+
+    private String normalizeVariableSplitMode(@Nullable String raw) {
+        if (raw == null) return VARIABLE_SPLIT_EQUAL;
+        return VARIABLE_SPLIT_PERCENTAGE.equalsIgnoreCase(raw.trim())
+                ? VARIABLE_SPLIT_PERCENTAGE
+                : VARIABLE_SPLIT_EQUAL;
+    }
+
     private void loadFinancialViews() {
         if (currentGroupId == null) return;
         db.collection("groups").document(currentGroupId).get().addOnSuccessListener(groupDoc -> {
@@ -1636,47 +1756,145 @@ public class ExpensesFragment extends Fragment {
                 saldosAdapter.notifyDataSetChanged();
                 return;
             }
+            String billingModel = normalizeBillingModel(groupDoc.getString("billingModel"));
+            String variableSplitMode = normalizeVariableSplitMode(groupDoc.getString("variableSplitMode"));
+            currentBillingModel = billingModel;
+            currentVariableSplitMode = variableSplitMode;
 
             Map<String, Double> net = new HashMap<>();
             for (String member : members) {
                 net.put(member, 0.0);
             }
 
-            var expenseQuery = db.collection("expenses").whereEqualTo("groupId", currentGroupId);
-            expenseQuery.get().addOnSuccessListener(expenses -> {
-                for (DocumentSnapshot doc : expenses.getDocuments()) {
-                    double amount = doc.getDouble("amount") == null ? 0.0 : doc.getDouble("amount");
-                    String payerEmail = doc.getString("payerEmail");
-                    String custom = doc.getString("customSplit");
+            if (BILLING_FIXED.equals(billingModel)) {
+                loadFixedRentFinancials(groupDoc, members, net);
+            } else {
+                loadVariableRentFinancials(members, net, VARIABLE_SPLIT_PERCENTAGE.equals(variableSplitMode));
+            }
+        });
+    }
 
-                    if (custom == null || custom.isEmpty()) {
+    private void loadVariableRentFinancials(List<String> members, Map<String, Double> net, boolean percentageMode) {
+        if (!percentageMode) {
+            computeExpenseImpacts(members, net, null);
+            return;
+        }
+
+        loadCurrentGroupRooms(rooms -> {
+            Map<String, Double> memberWeights = computeMemberWeightsFromRooms(members, rooms);
+            computeExpenseImpacts(members, net, memberWeights);
+        });
+    }
+
+    private void computeExpenseImpacts(List<String> members, Map<String, Double> net, @Nullable Map<String, Double> memberWeights) {
+        var expenseQuery = db.collection("expenses").whereEqualTo("groupId", currentGroupId);
+        expenseQuery.get().addOnSuccessListener(expenses -> {
+            for (DocumentSnapshot doc : expenses.getDocuments()) {
+                if (hasRoomContext() && !matchesExpenseWithCurrentRoom(doc)) continue;
+                double amount = doc.getDouble("amount") == null ? 0.0 : doc.getDouble("amount");
+                String payerEmail = doc.getString("payerEmail");
+                String custom = doc.getString("customSplit");
+
+                if (custom == null || custom.isEmpty()) {
+                    if (memberWeights == null) {
                         double part = amount / members.size();
                         for (String member : members) {
                             net.put(member, net.getOrDefault(member, 0.0) - part);
                         }
                     } else {
-                        String[] parts = custom.split(",");
-                        for (String partEntry : parts) {
-                            String[] kv = partEntry.trim().split(":");
-                            if (kv.length != 2) continue;
-                            String email = kv[0].trim().toLowerCase(Locale.ROOT);
-                            double percent = Double.parseDouble(kv[1].trim());
-                            if (net.containsKey(email)) {
-                                net.put(email, net.getOrDefault(email, 0.0) - amount * (percent / 100.0));
-                            }
-                        }
+                        applyWeightedSplit(net, members, memberWeights, amount);
                     }
+                } else {
+                    applyCustomSplit(net, custom, amount);
+                }
 
-                    if (payerEmail != null) {
-                        String normalized = payerEmail.toLowerCase(Locale.ROOT);
-                        if (net.containsKey(normalized)) {
-                            net.put(normalized, net.getOrDefault(normalized, 0.0) + amount);
-                        }
+                if (payerEmail != null) {
+                    String normalized = payerEmail.toLowerCase(Locale.ROOT);
+                    if (net.containsKey(normalized)) {
+                        net.put(normalized, net.getOrDefault(normalized, 0.0) + amount);
                     }
                 }
-                applyPaymentsAndRenderFinancials(net);
-            });
+            }
+            applyPaymentsAndRenderFinancials(net);
         });
+    }
+
+    private void loadFixedRentFinancials(DocumentSnapshot groupDoc, List<String> members, Map<String, Double> net) {
+        String ownerEmail = resolveOwnerEmail(groupDoc, castStrings(groupDoc.get("members")), members);
+        loadCurrentGroupRooms(rooms -> {
+            for (RoomOption room : rooms) {
+                if (hasRoomContext() && !room.id.equals(currentRoomId)) continue;
+                if (room.memberEmails.isEmpty()) continue;
+
+                double roomCost = room.monthlyCost;
+                double perResident = roomCost / room.memberEmails.size();
+                for (String resident : room.memberEmails) {
+                    if (net.containsKey(resident)) {
+                        net.put(resident, net.getOrDefault(resident, 0.0) - perResident);
+                    }
+                }
+                if (ownerEmail != null && !ownerEmail.trim().isEmpty() && net.containsKey(ownerEmail)) {
+                    net.put(ownerEmail, net.getOrDefault(ownerEmail, 0.0) + roomCost);
+                }
+            }
+            applyPaymentsAndRenderFinancials(net);
+        });
+    }
+
+    private void applyCustomSplit(Map<String, Double> net, String custom, double amount) {
+        String[] parts = custom.split(",");
+        for (String partEntry : parts) {
+            String[] kv = partEntry.trim().split(":");
+            if (kv.length != 2) continue;
+            String email = kv[0].trim().toLowerCase(Locale.ROOT);
+            try {
+                double percent = Double.parseDouble(kv[1].trim());
+                if (net.containsKey(email)) {
+                    net.put(email, net.getOrDefault(email, 0.0) - amount * (percent / 100.0));
+                }
+            } catch (NumberFormatException ignored) {
+            }
+        }
+    }
+
+    private void applyWeightedSplit(Map<String, Double> net, List<String> members, Map<String, Double> memberWeights, double amount) {
+        double totalWeight = 0.0;
+        for (String member : members) {
+            totalWeight += memberWeights.getOrDefault(member, 1.0);
+        }
+        if (totalWeight <= 0.0) {
+            double part = amount / members.size();
+            for (String member : members) {
+                net.put(member, net.getOrDefault(member, 0.0) - part);
+            }
+            return;
+        }
+
+        for (String member : members) {
+            double weight = memberWeights.getOrDefault(member, 1.0);
+            double share = amount * (weight / totalWeight);
+            net.put(member, net.getOrDefault(member, 0.0) - share);
+        }
+    }
+
+    private Map<String, Double> computeMemberWeightsFromRooms(List<String> members, List<RoomOption> rooms) {
+        Map<String, Double> weights = new HashMap<>();
+        for (String member : members) {
+            weights.put(member, 1.0);
+        }
+
+        for (RoomOption room : rooms) {
+            if (hasRoomContext() && !room.id.equals(currentRoomId)) continue;
+            if (room.memberEmails.isEmpty()) continue;
+
+            double roomWeight = room.capacity > 0 ? room.capacity : 1.0;
+            double residentWeight = roomWeight / room.memberEmails.size();
+            for (String resident : room.memberEmails) {
+                if (!weights.containsKey(resident)) continue;
+                weights.put(resident, weights.getOrDefault(resident, 1.0) + residentWeight);
+            }
+        }
+        return weights;
     }
 
     private void applyPaymentsAndRenderFinancials(Map<String, Double> net) {
@@ -3384,4 +3602,5 @@ public class ExpensesFragment extends Fragment {
         }
     }
 }
+
 

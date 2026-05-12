@@ -6,12 +6,21 @@
     android:paddingTop="8dp"
     android:paddingBottom="4dp">
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Nombre del piso:"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
     <EditText
         android:id="@+id/editGroupNameEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
         android:background="@drawable/bg_input_dark_round"
-        android:hint="Nombre del grupo"
+        android:hint="Escribe el nombre"
         android:inputType="textPersonName"
         android:maxLines="1"
         android:paddingHorizontal="16dp"
@@ -19,14 +28,23 @@
         android:textColor="@color/text_light"
         android:textColorHint="@color/text_muted" />
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="Descripción:"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
     <EditText
         android:id="@+id/editGroupDescEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="4dp"
         android:background="@drawable/bg_input_dark_round"
         android:gravity="top|start"
-        android:hint="Descripcion"
+        android:hint="Escribe una descripción"
         android:inputType="textMultiLine"
         android:minLines="3"
         android:paddingHorizontal="16dp"

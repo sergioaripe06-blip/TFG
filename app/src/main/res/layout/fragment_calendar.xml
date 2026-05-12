@@ -19,7 +19,10 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
-        android:background="@drawable/bg_input_dark_round" />
+        android:background="@drawable/bg_input_dark_round"
+        android:dateTextAppearance="@style/TextAppearance.FlatShare.CalendarDate"
+        android:weekDayTextAppearance="@style/TextAppearance.FlatShare.CalendarWeekday"
+        android:showWeekNumber="false" />
 
     <TextView
         android:id="@+id/calendarSelectedDateTv"

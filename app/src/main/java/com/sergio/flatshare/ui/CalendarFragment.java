@@ -49,6 +49,8 @@ public class CalendarFragment extends Fragment {
         eventsLv.setAdapter(adapter);
         selectedDateMs = startOfDay(System.currentTimeMillis());
         updateSelectedDateLabel();
+        calendarView.setDateTextAppearance(R.style.TextAppearance_FlatShare_CalendarDate);
+        calendarView.setWeekDayTextAppearance(R.style.TextAppearance_FlatShare_CalendarWeekday);
 
         calendarView.setOnDateChangeListener((v, year, month, dayOfMonth) -> {
             Calendar c = Calendar.getInstance();

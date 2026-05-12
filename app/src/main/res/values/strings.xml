@@ -24,5 +24,5 @@
     <string name="settings_notifications">Notificaciones</string>
     <string name="save">Guardar</string>
     <string name="calendar_title">Calendario de pagos</string>
-    <string name="due_date_hint">Fecha limite (YYYY-MM-DD)</string>
+    <string name="due_date_hint">Fecha (AAAA-MM-DD):</string>
 </resources>

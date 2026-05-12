@@ -61,6 +61,10 @@ public class GroupsFragment extends Fragment {
     private final List<GroupItem> groups = new ArrayList<>();
     private final SparseBooleanArray animatedPositions = new SparseBooleanArray();
     private static final LinkedHashMap<String, List<String>> PROVINCE_CITIES = buildProvinceCityMap();
+    private static final String RENT_MODE_FIXED = "fixed";
+    private static final String RENT_MODE_VARIABLE = "variable";
+    private static final String VARIABLE_SPLIT_EQUAL = "equal";
+    private static final String VARIABLE_SPLIT_PERCENTAGE = "percentage";
 
     private GroupsAdapter adapter;
     private View detailsCard;
@@ -140,43 +144,105 @@ public class GroupsFragment extends Fragment {
         checkInvitations();
         return view;
     }
-
     private void createGroupDialog() {
         View form = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_create_group, null, false);
+        LinearLayout stepOneContainer = form.findViewById(R.id.createGroupStepOneContainer);
+        LinearLayout stepTwoContainer = form.findViewById(R.id.createGroupStepTwoContainer);
+        TextView stepIndicatorTv = form.findViewById(R.id.createGroupStepIndicatorTv);
         EditText groupNameEt = form.findViewById(R.id.groupNameEt);
-        EditText roomCountEt = form.findViewById(R.id.roomCountEt);
         EditText streetEt = form.findViewById(R.id.streetEt);
         EditText portalEt = form.findViewById(R.id.portalEt);
         EditText numberEt = form.findViewById(R.id.numberEt);
         EditText postalCodeEt = form.findViewById(R.id.postalCodeEt);
         Spinner provinceSpinner = form.findViewById(R.id.provinceSpinner);
         Spinner citySpinner = form.findViewById(R.id.citySpinner);
+
+        EditText roomCountEt = form.findViewById(R.id.roomCountEt);
+        TextView variableSplitLabelTv = form.findViewById(R.id.variableSplitLabelTv);
+        Spinner rentModeSpinner = form.findViewById(R.id.rentModeSpinner);
+        Spinner variableSplitSpinner = form.findViewById(R.id.variableSplitSpinner);
+
         setupProvinceCitySpinners(provinceSpinner, citySpinner);
+        setupRentModeSpinners(rentModeSpinner, variableSplitSpinner, variableSplitLabelTv);
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 "Nuevo piso",
-                "Completa los datos del piso y define cuántas habitaciones tendrá.",
+                "Paso 1 de 2: datos del piso.",
                 form,
                 "Cancelar",
-                "Crear"
+                "Siguiente"
         );
 
         AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
-        shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+        final boolean[] inStepTwo = {false};
+
+        Runnable showStepOne = () -> {
+            inStepTwo[0] = false;
+            stepOneContainer.setVisibility(View.VISIBLE);
+            stepTwoContainer.setVisibility(View.GONE);
+            stepIndicatorTv.setText("Paso 1 de 2 · Datos básicos");
+            shell.cancelBtn.setText("Cancelar");
+            shell.confirmBtn.setText("Siguiente");
+        };
+
+        Runnable showStepTwo = () -> {
+            inStepTwo[0] = true;
+            stepOneContainer.setVisibility(View.GONE);
+            stepTwoContainer.setVisibility(View.VISIBLE);
+            stepIndicatorTv.setText("Paso 2 de 2 · Configuración");
+            shell.cancelBtn.setText("Atrás");
+            shell.confirmBtn.setText("Crear");
+        };
+
+        shell.cancelBtn.setOnClickListener(v -> {
+            if (inStepTwo[0]) {
+                showStepOne.run();
+            } else {
+                dialog.dismiss();
+            }
+        });
+
         shell.confirmBtn.setOnClickListener(v -> {
+            if (!inStepTwo[0]) {
+                String name = groupNameEt.getText().toString().trim();
+                String street = streetEt.getText().toString().trim();
+                String portal = portalEt.getText().toString().trim();
+                String number = numberEt.getText().toString().trim();
+                String postalCode = postalCodeEt.getText().toString().trim();
+                String province = getSelectedSpinnerValue(provinceSpinner);
+                String city = getSelectedSpinnerValue(citySpinner);
+
+                if (name.isEmpty() || street.isEmpty() || portal.isEmpty() || number.isEmpty()
+                        || postalCode.isEmpty() || city.isEmpty() || province.isEmpty()) {
+                    Toast.makeText(requireContext(), "Completa todos los datos del piso", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                showStepTwo.run();
+                return;
+            }
+
             String name = groupNameEt.getText().toString().trim();
-            String roomCountText = roomCountEt.getText().toString().trim();
             String street = streetEt.getText().toString().trim();
             String portal = portalEt.getText().toString().trim();
             String number = numberEt.getText().toString().trim();
             String postalCode = postalCodeEt.getText().toString().trim();
             String province = getSelectedSpinnerValue(provinceSpinner);
             String city = getSelectedSpinnerValue(citySpinner);
+            String roomCountText = roomCountEt.getText().toString().trim();
+            int rentModeSelection = rentModeSpinner.getSelectedItemPosition();
+            int splitModeSelection = variableSplitSpinner.getSelectedItemPosition();
 
-            if (name.isEmpty() || roomCountText.isEmpty() || street.isEmpty() || portal.isEmpty() || number.isEmpty()
-                    || postalCode.isEmpty() || city.isEmpty() || province.isEmpty()) {
-                Toast.makeText(requireContext(), "Completa todos los datos del piso", Toast.LENGTH_SHORT).show();
+            if (roomCountText.isEmpty()) {
+                Toast.makeText(requireContext(), "Indica el número de habitaciones", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (rentModeSelection <= 0) {
+                Toast.makeText(requireContext(), "Selecciona el tipo de alquiler", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (rentModeSelection == 2 && splitModeSelection <= 0) {
+                Toast.makeText(requireContext(), "Selecciona el reparto del alquiler variable", Toast.LENGTH_SHORT).show();
                 return;
             }
 
@@ -191,6 +257,9 @@ public class GroupsFragment extends Fragment {
                 Toast.makeText(requireContext(), "Debe haber al menos una habitación", Toast.LENGTH_SHORT).show();
                 return;
             }
+
+            String rentMode = rentModeSelection == 1 ? RENT_MODE_FIXED : RENT_MODE_VARIABLE;
+            String variableSplitMode = splitModeSelection == 2 ? VARIABLE_SPLIT_PERCENTAGE : VARIABLE_SPLIT_EQUAL;
 
             String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
             String email = FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
@@ -213,6 +282,8 @@ public class GroupsFragment extends Fragment {
             group.put("members", java.util.Collections.singletonList(uid));
             group.put("memberEmails", java.util.Collections.singletonList(email));
             group.put("roomCount", roomCount);
+            group.put("billingModel", rentMode);
+            group.put("variableSplitMode", variableSplitMode);
             group.put("createdAt", FieldValue.serverTimestamp());
 
             db.collection("groups").add(group).addOnSuccessListener(doc -> {
@@ -234,6 +305,8 @@ public class GroupsFragment extends Fragment {
                     Toast.makeText(requireContext(), "Error creando piso: " + e.getMessage(), Toast.LENGTH_LONG).show()
             );
         });
+
+        showStepOne.run();
     }
 
     private void startInitialRoomsSetup(String groupId, int roomCount) {
@@ -249,7 +322,7 @@ public class GroupsFragment extends Fragment {
         EditText roomNameEt = form.findViewById(R.id.roomNameEt);
         EditText roomCapacityEt = form.findViewById(R.id.roomCapacityEt);
         EditText roomCostEt = form.findViewById(R.id.roomCostEt);
-        roomNameEt.setHint("Habitación " + currentNumber);
+        roomNameEt.setHint("Nombre de la habitación " + currentNumber + ":");
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
@@ -357,7 +430,7 @@ public class GroupsFragment extends Fragment {
             showSingleInputDialog(
                     "Unirse a un piso",
                     "Escribe el código para entrar en un piso compartido.",
-                    "Código del piso",
+                    "Código del piso:",
                     InputType.TYPE_CLASS_TEXT,
                     "Unirse",
                     value -> {
@@ -402,12 +475,14 @@ public class GroupsFragment extends Fragment {
         View form = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_single_input, null, false);
         TextView titleTv = form.findViewById(R.id.dialogTitleTv);
         TextView subtitleTv = form.findViewById(R.id.dialogSubtitleTv);
+        TextView inputLabelTv = form.findViewById(R.id.dialogInputLabelTv);
         EditText inputEt = form.findViewById(R.id.dialogInputEt);
         Button confirmBtn = form.findViewById(R.id.dialogConfirmBtn);
 
         titleTv.setText(title);
         subtitleTv.setText(subtitle);
-        inputEt.setHint(hint);
+        inputLabelTv.setText(hint);
+        inputEt.setHint("");
         inputEt.setInputType(inputType);
         confirmBtn.setText(actionLabel);
         return form;
@@ -490,7 +565,7 @@ public class GroupsFragment extends Fragment {
         showSingleInputDialog(
                 "Invitar por email",
                 "Comparte el piso por correo con otra persona.",
-                "persona@email.com",
+                "Email del invitado:",
                 InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
                 "Enviar",
                 value -> {
@@ -923,6 +998,41 @@ public class GroupsFragment extends Fragment {
                     cityItems.addAll(cities);
                 }
                 citySpinner.setAdapter(buildDialogSpinnerAdapter(cityItems));
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
+    }
+
+    private void setupRentModeSpinners(Spinner rentModeSpinner, Spinner variableSplitSpinner, TextView variableSplitLabelTv) {
+        List<String> rentModes = Arrays.asList(
+                "Selecciona tipo de alquiler",
+                "Alquiler fijo",
+                "Alquiler variable"
+        );
+        List<String> variableSplitModes = Arrays.asList(
+                "Selecciona reparto",
+                "Equitativo",
+                "Porcentual"
+        );
+
+        rentModeSpinner.setAdapter(buildDialogSpinnerAdapter(rentModes));
+        variableSplitSpinner.setAdapter(buildDialogSpinnerAdapter(variableSplitModes));
+        variableSplitSpinner.setSelection(0);
+        variableSplitSpinner.setVisibility(View.GONE);
+        variableSplitLabelTv.setVisibility(View.GONE);
+
+        rentModeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                boolean isVariable = position == 2;
+                variableSplitLabelTv.setVisibility(isVariable ? View.VISIBLE : View.GONE);
+                variableSplitSpinner.setVisibility(isVariable ? View.VISIBLE : View.GONE);
+                if (!isVariable) {
+                    variableSplitSpinner.setSelection(0);
+                }
             }
 
             @Override

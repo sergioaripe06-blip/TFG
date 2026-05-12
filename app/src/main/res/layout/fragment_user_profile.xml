@@ -42,8 +42,7 @@
                 android:background="@drawable/bg_tab_default"
                 android:contentDescription="Abrir ajustes"
                 android:padding="7dp"
-                android:src="@android:drawable/ic_menu_manage"
-                android:tint="@color/text_light" />
+                android:src="@mipmap/settings_foreground" />
         </LinearLayout>
 
         <FrameLayout
