@@ -1,4 +1,4 @@
-package com.sergio.flatshare.ui;
+package com.sergio.flatshare.features.auth;
 
 import android.app.DatePickerDialog;
 import android.os.Build;
@@ -15,7 +15,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.UserProfileChangeRequest;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.sergio.flatshare.R;
-import com.sergio.flatshare.util.UserSync;
+import com.sergio.flatshare.core.sync.UserSync;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;

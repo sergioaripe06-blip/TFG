@@ -1,4 +1,4 @@
-package com.sergio.flatshare.ui;
+package com.sergio.flatshare.features.workspace;
 
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
@@ -18,11 +18,17 @@ import androidx.fragment.app.Fragment;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.sergio.flatshare.R;
-import com.sergio.flatshare.ui.widget.PieChartView;
+import com.sergio.flatshare.shared.widgets.MonthlyBarChartView;
+import com.sergio.flatshare.shared.widgets.PieChartView;
 
 import java.text.DecimalFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -43,8 +49,10 @@ public class PersonalBalanceFragment extends Fragment {
 
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
     private final List<GroupOption> groupOptions = new ArrayList<>();
+    private static final int MONTHLY_BAR_COUNT = 6;
 
     private PieChartView chart;
+    private MonthlyBarChartView monthlyChart;
     private LinearLayout legend;
     private Spinner groupSpinner;
 
@@ -53,6 +61,7 @@ public class PersonalBalanceFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_personal_balance, container, false);
         chart = view.findViewById(R.id.personalPieChart);
+        monthlyChart = view.findViewById(R.id.monthlyBarChart);
         legend = view.findViewById(R.id.personalLegendContainer);
         groupSpinner = view.findViewById(R.id.groupSelectorSpinner);
         loadUserGroupsAndSetupSelector();
@@ -101,8 +110,10 @@ public class PersonalBalanceFragment extends Fragment {
                 if (opt.groupId != null) allIds.add(opt.groupId);
             }
             accumulateForManyGroups(allIds, false, myEmail, totals, () -> render(totals));
+            refreshMonthlyPaidBars(allIds, myEmail);
         } else {
             accumulateForGroup(selected.groupId, false, myEmail, totals, () -> render(totals));
+            refreshMonthlyPaidBars(java.util.Collections.singletonList(selected.groupId), myEmail);
         }
     }
 
@@ -206,6 +217,118 @@ public class PersonalBalanceFragment extends Fragment {
             legend.addView(item);
         }
         chart.setSlices(slices);
+    }
+
+    private void refreshMonthlyPaidBars(List<String> groupIds, String myEmail) {
+        LinkedHashMap<String, Double> monthlyTotals = createMonthlyBuckets(MONTHLY_BAR_COUNT);
+        if (groupIds == null || groupIds.isEmpty()) {
+            renderMonthlyBars(monthlyTotals);
+            return;
+        }
+        accumulateMonthlyForManyRecursive(groupIds, 0, myEmail, monthlyTotals, () -> renderMonthlyBars(monthlyTotals));
+    }
+
+    private void accumulateMonthlyForManyRecursive(
+            List<String> groupIds,
+            int index,
+            String myEmail,
+            LinkedHashMap<String, Double> monthlyTotals,
+            Runnable done
+    ) {
+        if (index >= groupIds.size()) {
+            done.run();
+            return;
+        }
+        String groupId = groupIds.get(index);
+        accumulateMonthlyForGroup(groupId, myEmail, monthlyTotals,
+                () -> accumulateMonthlyForManyRecursive(groupIds, index + 1, myEmail, monthlyTotals, done));
+    }
+
+    private void accumulateMonthlyForGroup(
+            String groupId,
+            String myEmail,
+            LinkedHashMap<String, Double> monthlyTotals,
+            Runnable done
+    ) {
+        db.collection("expenses")
+                .whereEqualTo("groupId", groupId)
+                .whereEqualTo("payerEmail", myEmail)
+                .get()
+                .addOnSuccessListener(expenses -> {
+                    expenses.forEach(doc -> {
+                        Date date = resolveDocDate(doc);
+                        if (date == null) return;
+                        String key = monthKey(date);
+                        if (!monthlyTotals.containsKey(key)) return;
+                        double amount = doc.getDouble("amount") == null ? 0.0 : doc.getDouble("amount");
+                        monthlyTotals.put(key, monthlyTotals.getOrDefault(key, 0.0) + amount);
+                    });
+
+                    db.collection("payments")
+                            .whereEqualTo("groupId", groupId)
+                            .whereEqualTo("fromEmail", myEmail)
+                            .get()
+                            .addOnSuccessListener(payments -> {
+                                payments.forEach(doc -> {
+                                    String status = doc.getString("status");
+                                    if (!"confirmed".equalsIgnoreCase(status == null ? "" : status)) return;
+                                    Date date = resolveDocDate(doc);
+                                    if (date == null) return;
+                                    String key = monthKey(date);
+                                    if (!monthlyTotals.containsKey(key)) return;
+                                    double amount = doc.getDouble("amount") == null ? 0.0 : doc.getDouble("amount");
+                                    monthlyTotals.put(key, monthlyTotals.getOrDefault(key, 0.0) + amount);
+                                });
+                                done.run();
+                            })
+                            .addOnFailureListener(e -> done.run());
+                })
+                .addOnFailureListener(e -> done.run());
+    }
+
+    private void renderMonthlyBars(LinkedHashMap<String, Double> monthlyTotals) {
+        List<MonthlyBarChartView.Bar> bars = new ArrayList<>();
+        for (Map.Entry<String, Double> entry : monthlyTotals.entrySet()) {
+            bars.add(new MonthlyBarChartView.Bar(monthLabel(entry.getKey()), entry.getValue().floatValue()));
+        }
+        monthlyChart.setBars(bars);
+    }
+
+    private LinkedHashMap<String, Double> createMonthlyBuckets(int count) {
+        LinkedHashMap<String, Double> buckets = new LinkedHashMap<>();
+        Calendar calendar = Calendar.getInstance();
+        calendar.set(Calendar.DAY_OF_MONTH, 1);
+        calendar.add(Calendar.MONTH, -(count - 1));
+        for (int i = 0; i < count; i++) {
+            buckets.put(monthKey(calendar.getTime()), 0.0);
+            calendar.add(Calendar.MONTH, 1);
+        }
+        return buckets;
+    }
+
+    private Date resolveDocDate(com.google.firebase.firestore.DocumentSnapshot doc) {
+        Date created = doc.getDate("createdAt");
+        if (created != null) return created;
+        Date due = doc.getDate("dueAt");
+        if (due != null) return due;
+        return null;
+    }
+
+    private String monthKey(Date date) {
+        return new SimpleDateFormat("yyyy-MM", Locale.ROOT).format(date);
+    }
+
+    private String monthLabel(String key) {
+        SimpleDateFormat parser = new SimpleDateFormat("yyyy-MM", Locale.ROOT);
+        try {
+            Date date = parser.parse(key);
+            if (date == null) return key;
+            String month = new SimpleDateFormat("MMM", new Locale("es", "ES")).format(date);
+            month = month.replace(".", "");
+            return capitalize(month);
+        } catch (ParseException e) {
+            return key;
+        }
     }
 
     private String capitalize(String s) {

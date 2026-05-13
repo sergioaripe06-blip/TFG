@@ -1,4 +1,4 @@
-package com.sergio.flatshare.ui;
+package com.sergio.flatshare.features.profile;
 
 import android.content.Intent;
 import android.net.Uri;
@@ -26,7 +26,8 @@ import com.google.firebase.auth.UserProfileChangeRequest;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.SetOptions;
 import com.sergio.flatshare.R;
-import com.sergio.flatshare.util.DialogUtils;
+import com.sergio.flatshare.features.settings.SettingsFragment;
+import com.sergio.flatshare.shared.ui.DialogUtils;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;

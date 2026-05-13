@@ -9,18 +9,31 @@ La app usa:
 
 - `Firebase Authentication` con `Email/Password`
 - `Cloud Firestore`
-- Colecciones principales:
-  - `users`
-  - `usernames`
-  - `groups`
-  - `group_codes`
-  - `rooms_groups`
-  - `expenses`
-  - `payments`
-  - `payment_deadlines`
-  - `invitations`
-  - `reminders`
-  - `activity_logs`
+
+Colecciones principales:
+
+- `users`
+- `usernames`
+- `groups`
+- `group_codes`
+- `rooms_groups`
+- `expenses`
+- `payments`
+- `payment_deadlines`
+- `invitations`
+- `reminders`
+- `activity_logs`
+
+Nuevas colecciones de gestión de alquiler:
+
+- `rental_contracts`
+- `rent_collections`
+- `maintenance_tickets`
+- `group_documents`
+- `audit_events`
+- `rent_automations`
+- `event_reminder_rules`
+- `event_reminder_jobs`
 
 ## Qué hace cada colección
 
@@ -47,7 +60,7 @@ Campos principales:
 
 Habitaciones de un piso y residentes asignados.
 
-Campos:
+Campos principales:
 
 - `groupId`
 - `roomNumber`
@@ -105,7 +118,7 @@ Campos principales:
 
 ### `reminders/{reminderId}`
 
-Recordatorios del piso (visibles en pestaña de Recordatorios y calendario).
+Recordatorios manuales del piso (visibles en pestaña de Recordatorios y calendario).
 
 Campos principales:
 
@@ -117,7 +130,7 @@ Campos principales:
 - `startAt`
 - `startDateText`
 - `interval` (`diario`, `semanal`, `mensual`, `personalizado`)
-- `intervalDays` (entero, para personalizado)
+- `intervalDays` (entero para personalizado)
 - `targetType` (`todos`, `miembro`, `habitacion`, `x_habitacion`)
 - `targetEmails` (array)
 - `targetMemberEmail` (opcional)
@@ -126,7 +139,170 @@ Campos principales:
 - `roomIds` (array opcional)
 - `roomNames` (array opcional)
 - `attachmentUri` (opcional)
-- `reminderCode` (int, para alarmas locales)
+- `reminderCode` (entero para alarmas locales)
+- `createdAt`
+
+### `rental_contracts/{contractId}`
+
+Contrato de alquiler del piso.
+
+Campos principales:
+
+- `groupId`
+- `startDate` (`YYYY-MM-DD`)
+- `endDate` (`YYYY-MM-DD`)
+- `depositAmount`
+- `extensionMonths`
+- `clauses`
+- `ownerSignerEmail` (obligatorio)
+- `tenantSignerEmail` (obligatorio)
+- `coSignerEmail` (opcional)
+- `guarantorEmail` (opcional)
+- `signers` (array de emails derivado para compatibilidad)
+- `createdAt`
+- `createdByUid`
+- `createdByEmail`
+- `updatedAt`
+- `updatedByUid`
+- `updatedByEmail`
+
+### `rent_collections/{rentId}`
+
+Cobros mensuales de renta.
+
+Campos principales:
+
+- `groupId`
+- `monthKey` (`YYYY-MM`)
+- `roomName`
+- `tenantEmail`
+- `amountBase`
+- `amountPaid`
+- `surcharge`
+- `status` (`pendiente`, `parcial`, `pagado`, `atrasado`)
+- `dueDateText`
+- `dueAt`
+- `uniqueKey` (evita duplicados)
+- `generatedByRuleId` (opcional)
+- `prorated` (boolean opcional)
+- `occupiedDays` (opcional)
+- `daysInMonth` (opcional)
+- `createdAt`
+- `createdByUid`
+- `createdByEmail`
+- `updatedAt`
+- `updatedByUid`
+- `updatedByEmail`
+
+### `maintenance_tickets/{ticketId}`
+
+Incidencias y mantenimiento.
+
+Campos principales:
+
+- `groupId`
+- `title`
+- `description`
+- `roomName`
+- `responsibleEmail`
+- `status` (`abierta`, `en_progreso`, `resuelta`, `cancelada`)
+- `estimatedCost`
+- `finalCost`
+- `history` (array de eventos)
+- `createdAt`
+- `createdByUid`
+- `createdByEmail`
+- `updatedAt`
+- `updatedByUid`
+- `updatedByEmail`
+
+### `group_documents/{docId}`
+
+Documentación del piso: contrato, facturas, inventario, fotos y actas.
+
+Campos principales:
+
+- `groupId`
+- `type` (`contrato`, `factura`, `inventario`, `foto`, `acta`)
+- `title`
+- `documentDate`
+- `referenceUri`
+- `notes`
+- `createdAt`
+- `createdByUid`
+- `createdByEmail`
+- `updatedAt`
+- `updatedByUid`
+- `updatedByEmail`
+
+### `audit_events/{eventId}`
+
+Auditoría de movimientos.
+
+Campos principales:
+
+- `groupId`
+- `module`
+- `action`
+- `details`
+- `entityId`
+- `actorUid`
+- `actorEmail`
+- `createdAt`
+
+### `rent_automations/{ruleId}`
+
+Reglas de rentas recurrentes y prorrateo.
+
+Campos principales:
+
+- `groupId`
+- `roomName`
+- `tenantEmail`
+- `monthlyRent`
+- `billingDay` (1-28)
+- `startDate`
+- `endDate` (opcional)
+- `createdAt`
+- `createdByUid`
+- `createdByEmail`
+- `updatedAt`
+- `updatedByUid`
+- `updatedByEmail`
+
+### `event_reminder_rules/{ruleId}`
+
+Reglas de recordatorios accionables por evento.
+
+Campos principales:
+
+- `groupId`
+- `eventType` (`rent_due`, `rent_overdue`, `contract_ending`, `incident_pending`)
+- `offsetDays` (puede ser negativo)
+- `titleTemplate`
+- `bodyTemplate`
+- `enabled`
+- `createdAt`
+- `createdByUid`
+- `createdByEmail`
+- `updatedAt`
+- `updatedByUid`
+- `updatedByEmail`
+
+### `event_reminder_jobs/{jobId}`
+
+Instancias programadas de reglas push.
+
+Campos principales:
+
+- `groupId`
+- `ruleId`
+- `eventType`
+- `targetEmail`
+- `title`
+- `body`
+- `triggerAt`
+- `reminderCode`
 - `createdAt`
 
 ## Reglas recomendadas
@@ -138,6 +314,13 @@ Resumen:
 - `groups`: solo miembros leen, propietario gestiona.
 - `rooms_groups`: miembros leen, propietario crea/edita/elimina.
 - `expenses`, `payments`, `payment_deadlines`, `reminders`, `activity_logs`: solo miembros del grupo.
+- `rental_contracts`: lectura de miembros, gestión del propietario.
+- `rent_collections`: miembros del grupo pueden leer y actualizar estados/cobros.
+- `maintenance_tickets`: miembros del grupo pueden crear/leer/actualizar.
+- `group_documents`: miembros del grupo pueden crear/leer/actualizar.
+- `audit_events`: miembros leen y crean; no se permite editar ni borrar.
+- `rent_automations` y `event_reminder_rules`: lectura de miembros, gestión del propietario.
+- `event_reminder_jobs`: miembros leen y crean; no se permite editar ni borrar.
 - `invitations`: acceso para quien invita o quien recibe.
 
 ## Cómo aplicarlo en Firebase
@@ -166,4 +349,4 @@ En `Firestore Database`:
 
 ## No hace falta crear colecciones a mano
 
-La app crea los documentos automáticamente al crear piso, habitaciones, gastos, pagos y recordatorios.
+La app crea los documentos automáticamente al crear piso, habitaciones, gastos, pagos, contratos, cobros, incidencias, documentos, automatizaciones y reglas de recordatorio.

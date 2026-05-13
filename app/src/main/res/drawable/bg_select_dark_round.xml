@@ -12,6 +12,9 @@
 
     <item
         android:width="34dp"
+        android:top="1dp"
+        android:bottom="1dp"
+        android:end="1dp"
         android:gravity="end|fill_vertical">
         <shape android:shape="rectangle">
             <corners

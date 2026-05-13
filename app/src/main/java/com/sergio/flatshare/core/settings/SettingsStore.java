@@ -1,4 +1,4 @@
-package com.sergio.flatshare.util;
+package com.sergio.flatshare.core.settings;
 
 import android.content.Context;
 import android.content.SharedPreferences;

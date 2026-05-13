@@ -1,4 +1,4 @@
-package com.sergio.flatshare.util;
+package com.sergio.flatshare.shared.ui;
 
 import android.app.AlertDialog;
 import android.content.Context;
@@ -26,6 +26,7 @@ public final class DialogUtils {
         TextView titleTv = root.findViewById(R.id.dialogTitleTv);
         TextView subtitleTv = root.findViewById(R.id.dialogSubtitleTv);
         FrameLayout contentContainer = root.findViewById(R.id.dialogContentContainer);
+        LinearLayout buttonsRow = root.findViewById(R.id.dialogButtonsRow);
         Button cancelBtn = root.findViewById(R.id.dialogCancelBtn);
         Button confirmBtn = root.findViewById(R.id.dialogConfirmBtn);
         TextView closeXBtn = root.findViewById(R.id.dialogCloseXBtn);
@@ -62,17 +63,16 @@ public final class DialogUtils {
 
         boolean cancelIsClose = isCloseLabel(cancelLabel);
         boolean confirmIsClose = isCloseLabel(confirmLabel);
+        closeXBtn.setVisibility(View.VISIBLE);
+        if (cancelIsClose) cancelBtn.setVisibility(View.GONE);
+        if (confirmIsClose) confirmBtn.setVisibility(View.GONE);
 
-        if (cancelIsClose || confirmIsClose) {
-            closeXBtn.setVisibility(View.VISIBLE);
-            if (cancelIsClose) cancelBtn.setVisibility(View.GONE);
-            if (confirmIsClose) confirmBtn.setVisibility(View.GONE);
-        } else {
-            closeXBtn.setVisibility(View.GONE);
+        if (buttonsRow != null) {
+            boolean hasVisibleAction = cancelBtn.getVisibility() == View.VISIBLE || confirmBtn.getVisibility() == View.VISIBLE;
+            buttonsRow.setVisibility(hasVisibleAction ? View.VISIBLE : View.GONE);
         }
 
-        Button closeProxyBtn = cancelIsClose ? cancelBtn : (confirmIsClose ? confirmBtn : null);
-        return new Shell(root, contentContainer, cancelBtn, confirmBtn, closeXBtn, closeProxyBtn);
+        return new Shell(root, contentContainer, cancelBtn, confirmBtn, closeXBtn);
     }
 
     public static AlertDialog show(@NonNull Context context, @NonNull View root) {
@@ -82,13 +82,7 @@ public final class DialogUtils {
         dialog.show();
         TextView closeXBtn = root.findViewById(R.id.dialogCloseXBtn);
         if (closeXBtn != null && closeXBtn.getVisibility() == View.VISIBLE) {
-            Object closeProxy = closeXBtn.getTag();
-            if (closeProxy instanceof Button) {
-                Button closeProxyBtn = (Button) closeProxy;
-                closeXBtn.setOnClickListener(v -> closeProxyBtn.performClick());
-            } else {
-                closeXBtn.setOnClickListener(v -> dialog.dismiss());
-            }
+            closeXBtn.setOnClickListener(v -> dialog.dismiss());
         }
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
@@ -97,7 +91,9 @@ public final class DialogUtils {
     }
 
     private static boolean isCloseLabel(@Nullable String label) {
-        return label != null && "cerrar".equalsIgnoreCase(label.trim());
+        if (label == null) return false;
+        String normalized = label.trim().toLowerCase();
+        return "cerrar".equals(normalized) || "close".equals(normalized);
     }
 
     public static TextView createMessageView(@NonNull Context context, @NonNull String message) {
@@ -145,18 +141,13 @@ public final class DialogUtils {
         public final Button cancelBtn;
         public final Button confirmBtn;
         public final TextView closeXBtn;
-        public final Button closeProxyBtn;
 
-        private Shell(View root, FrameLayout contentContainer, Button cancelBtn, Button confirmBtn, TextView closeXBtn, Button closeProxyBtn) {
+        private Shell(View root, FrameLayout contentContainer, Button cancelBtn, Button confirmBtn, TextView closeXBtn) {
             this.root = root;
             this.contentContainer = contentContainer;
             this.cancelBtn = cancelBtn;
             this.confirmBtn = confirmBtn;
             this.closeXBtn = closeXBtn;
-            this.closeProxyBtn = closeProxyBtn;
-            if (this.closeXBtn != null) {
-                this.closeXBtn.setTag(closeProxyBtn);
-            }
         }
     }
 }

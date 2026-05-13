@@ -6,15 +6,31 @@
     android:orientation="vertical"
     android:padding="20dp">
 
-    <TextView
-        android:id="@+id/dialogTitleTv"
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:text="Título"
-        android:textColor="@color/text_light"
-        android:textSize="22sp"
-        android:textStyle="bold" />
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:id="@+id/dialogTitleTv"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="Título"
+            android:textColor="@color/text_light"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/dialogCloseXBtn"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_gravity="end|top"
+            android:gravity="center"
+            android:text="&#215;"
+            android:textColor="@color/text_muted"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+    </FrameLayout>
 
     <TextView
         android:id="@+id/dialogSubtitleTv"
@@ -81,4 +97,3 @@
     </LinearLayout>
 
 </LinearLayout>
-

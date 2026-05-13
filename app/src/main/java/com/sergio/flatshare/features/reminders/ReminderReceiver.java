@@ -1,4 +1,4 @@
-package com.sergio.flatshare.ui;
+package com.sergio.flatshare.features.reminders;
 
 import android.app.NotificationManager;
 import android.content.BroadcastReceiver;

@@ -1,4 +1,4 @@
-package com.sergio.flatshare.ui;
+package com.sergio.flatshare.features.workspace;
 
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -13,7 +13,7 @@ import androidx.fragment.app.Fragment;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.sergio.flatshare.R;
-import com.sergio.flatshare.util.SessionStore;
+import com.sergio.flatshare.core.session.SessionStore;
 
 import java.text.DecimalFormat;
 import java.util.HashMap;

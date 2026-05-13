@@ -1,4 +1,4 @@
-package com.sergio.flatshare.util;
+package com.sergio.flatshare.core.sync;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;

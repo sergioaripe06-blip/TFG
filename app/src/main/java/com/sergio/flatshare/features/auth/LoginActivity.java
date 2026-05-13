@@ -1,4 +1,4 @@
-package com.sergio.flatshare.ui;
+package com.sergio.flatshare.features.auth;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -13,7 +13,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.sergio.flatshare.R;
-import com.sergio.flatshare.util.UserSync;
+import com.sergio.flatshare.core.sync.UserSync;
+import com.sergio.flatshare.features.shell.MainActivity;
 
 public class LoginActivity extends AppCompatActivity {
     private EditText emailEt;

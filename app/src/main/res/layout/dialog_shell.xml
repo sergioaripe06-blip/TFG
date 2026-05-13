@@ -26,11 +26,10 @@
             android:layout_height="32dp"
             android:layout_gravity="end|top"
             android:gravity="center"
-            android:text="×"
+            android:text="&#215;"
             android:textColor="@color/text_muted"
             android:textSize="22sp"
-            android:textStyle="bold"
-            android:visibility="gone" />
+            android:textStyle="bold" />
     </FrameLayout>
 
     <TextView

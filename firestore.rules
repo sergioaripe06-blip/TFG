@@ -139,6 +139,92 @@ service cloud.firestore {
         && isGroupMember(resource.data.groupId);
     }
 
+    match /rental_contracts/{contractId} {
+      allow create: if signedIn()
+        && isGroupOwner(request.resource.data.groupId);
+
+      allow read: if signedIn()
+        && isGroupMember(resource.data.groupId);
+
+      allow update, delete: if signedIn()
+        && isGroupOwner(resource.data.groupId);
+    }
+
+    match /rent_collections/{rentId} {
+      allow create: if signedIn()
+        && isGroupMember(request.resource.data.groupId);
+
+      allow read: if signedIn()
+        && isGroupMember(resource.data.groupId);
+
+      allow update, delete: if signedIn()
+        && isGroupMember(resource.data.groupId);
+    }
+
+    match /maintenance_tickets/{ticketId} {
+      allow create: if signedIn()
+        && isGroupMember(request.resource.data.groupId);
+
+      allow read: if signedIn()
+        && isGroupMember(resource.data.groupId);
+
+      allow update, delete: if signedIn()
+        && isGroupMember(resource.data.groupId);
+    }
+
+    match /group_documents/{docId} {
+      allow create: if signedIn()
+        && isGroupMember(request.resource.data.groupId);
+
+      allow read: if signedIn()
+        && isGroupMember(resource.data.groupId);
+
+      allow update, delete: if signedIn()
+        && isGroupMember(resource.data.groupId);
+    }
+
+    match /audit_events/{eventId} {
+      allow create: if signedIn()
+        && isGroupMember(request.resource.data.groupId);
+
+      allow read: if signedIn()
+        && isGroupMember(resource.data.groupId);
+
+      allow update, delete: if false;
+    }
+
+    match /rent_automations/{ruleId} {
+      allow create: if signedIn()
+        && isGroupOwner(request.resource.data.groupId);
+
+      allow read: if signedIn()
+        && isGroupMember(resource.data.groupId);
+
+      allow update, delete: if signedIn()
+        && isGroupOwner(resource.data.groupId);
+    }
+
+    match /event_reminder_rules/{ruleId} {
+      allow create: if signedIn()
+        && isGroupOwner(request.resource.data.groupId);
+
+      allow read: if signedIn()
+        && isGroupMember(resource.data.groupId);
+
+      allow update, delete: if signedIn()
+        && isGroupOwner(resource.data.groupId);
+    }
+
+    match /event_reminder_jobs/{jobId} {
+      allow create: if signedIn()
+        && isGroupMember(request.resource.data.groupId);
+
+      allow read: if signedIn()
+        && isGroupMember(resource.data.groupId);
+
+      allow update, delete: if false;
+    }
+
     match /invitations/{invitationId} {
       allow create: if signedIn()
         && request.resource.data.inviterUid == authUid()

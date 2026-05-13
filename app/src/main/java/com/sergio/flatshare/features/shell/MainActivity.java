@@ -1,7 +1,8 @@
-package com.sergio.flatshare.ui;
+package com.sergio.flatshare.features.shell;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.SystemClock;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatDelegate;
@@ -13,10 +14,18 @@ import androidx.fragment.app.FragmentManager;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.sergio.flatshare.R;
-import com.sergio.flatshare.util.SettingsStore;
+import com.sergio.flatshare.features.auth.LoginActivity;
+import com.sergio.flatshare.features.groups.GroupsFragment;
+import com.sergio.flatshare.features.groups.OwnerRoomsActivity;
+import com.sergio.flatshare.features.profile.ProfileFragment;
+import com.sergio.flatshare.features.workspace.CalendarFragment;
+import com.sergio.flatshare.features.workspace.ExpensesFragment;
+import com.sergio.flatshare.features.workspace.PersonalBalanceFragment;
+import com.sergio.flatshare.core.settings.SettingsStore;
 
 public class MainActivity extends AppCompatActivity {
     private BottomNavigationView nav;
+    private long lastNavTapAtMs = 0L;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,6 +42,14 @@ public class MainActivity extends AppCompatActivity {
 
         nav = findViewById(R.id.bottomNav);
         nav.setOnItemSelectedListener(item -> {
+            long now = SystemClock.elapsedRealtime();
+            if (now - lastNavTapAtMs < 220L) {
+                return false;
+            }
+            lastNavTapAtMs = now;
+            if (getSupportFragmentManager().isStateSaved()) {
+                return false;
+            }
             getSupportFragmentManager().popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
             Fragment f;
             int id = item.getItemId();
@@ -40,7 +57,7 @@ public class MainActivity extends AppCompatActivity {
             else if (id == R.id.menu_personal_balance) f = new PersonalBalanceFragment();
             else if (id == R.id.menu_calendar) f = new CalendarFragment();
             else f = new ProfileFragment();
-            getSupportFragmentManager().beginTransaction().replace(R.id.container, f).commit();
+            getSupportFragmentManager().beginTransaction().replace(R.id.container, f).commitAllowingStateLoss();
             return true;
         });
 
@@ -66,12 +83,16 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void openCurrentGroupWorkspace() {
+        long now = SystemClock.elapsedRealtime();
+        if (now - lastNavTapAtMs < 220L) return;
+        lastNavTapAtMs = now;
+        if (getSupportFragmentManager().isStateSaved()) return;
         if (nav != null) nav.setSelectedItemId(R.id.menu_groups);
         getSupportFragmentManager()
                 .beginTransaction()
                 .replace(R.id.container, new ExpensesFragment())
                 .addToBackStack("workspace")
-                .commit();
+                .commitAllowingStateLoss();
     }
 
     @Override

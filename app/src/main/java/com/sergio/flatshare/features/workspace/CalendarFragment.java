@@ -1,4 +1,4 @@
-package com.sergio.flatshare.ui;
+package com.sergio.flatshare.features.workspace;
 
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -17,7 +17,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.sergio.flatshare.R;
-import com.sergio.flatshare.util.ReminderScheduler;
+import com.sergio.flatshare.core.notifications.ReminderScheduler;
 
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
@@ -147,36 +147,51 @@ public class CalendarFragment extends Fragment {
     }
 
     private void loadManualReminders(String myEmail) {
+        Set<String> seenReminderIds = new HashSet<>();
         db.collection("reminders")
                 .whereArrayContains("targetEmails", myEmail)
                 .get()
                 .addOnSuccessListener(result -> {
-                    for (DocumentSnapshot doc : result.getDocuments()) {
-                        Date startAt = doc.getDate("startAt");
-                        if (startAt == null) continue;
-                        String title = doc.getString("title");
-                        String groupName = doc.getString("groupName");
-                        String targetType = doc.getString("targetType");
-                        String interval = doc.getString("interval");
-                        Long intervalDays = doc.getLong("intervalDays");
-                        String subtitle = (groupName == null || groupName.trim().isEmpty() ? "Piso" : groupName)
-                                + " - "
-                                + buildReminderTargetLabel(targetType, doc);
-                        allRows.add(new CalendarRow(
-                                title == null || title.trim().isEmpty() ? "Recordatorio" : title,
-                                subtitle,
-                                "Recordatorio",
-                                startAt.getTime(),
-                                "reminder_" + doc.getId(),
-                                "media",
-                                interval == null ? "semanal" : interval.toLowerCase(Locale.ROOT),
-                                intervalDays == null ? 0 : intervalDays.intValue(),
-                                true
-                        ));
-                    }
-                    applyDateFilter();
+                    appendReminderRows(result.getDocuments(), seenReminderIds);
+                    db.collection("reminders")
+                            .whereEqualTo("ownerEmail", myEmail)
+                            .get()
+                            .addOnSuccessListener(owned -> {
+                                appendReminderRows(owned.getDocuments(), seenReminderIds);
+                                applyDateFilter();
+                            })
+                            .addOnFailureListener(e -> applyDateFilter());
                 })
                 .addOnFailureListener(e -> applyDateFilter());
+    }
+
+    private void appendReminderRows(List<DocumentSnapshot> docs, Set<String> seenReminderIds) {
+        for (DocumentSnapshot doc : docs) {
+            if (seenReminderIds.contains(doc.getId())) continue;
+            seenReminderIds.add(doc.getId());
+
+            Date startAt = doc.getDate("startAt");
+            if (startAt == null) continue;
+            String title = doc.getString("title");
+            String groupName = doc.getString("groupName");
+            String targetType = doc.getString("targetType");
+            String interval = doc.getString("interval");
+            Long intervalDays = doc.getLong("intervalDays");
+            String subtitle = (groupName == null || groupName.trim().isEmpty() ? "Piso" : groupName)
+                    + " - "
+                    + buildReminderTargetLabel(targetType, doc);
+            allRows.add(new CalendarRow(
+                    title == null || title.trim().isEmpty() ? "Recordatorio" : title,
+                    subtitle,
+                    "Recordatorio",
+                    startAt.getTime(),
+                    "reminder_" + doc.getId(),
+                    "media",
+                    interval == null ? "semanal" : interval.toLowerCase(Locale.ROOT),
+                    intervalDays == null ? 0 : intervalDays.intValue(),
+                    true
+            ));
+        }
     }
 
     private String buildReminderTargetLabel(@Nullable String targetType, DocumentSnapshot doc) {
@@ -232,6 +247,7 @@ public class CalendarFragment extends Fragment {
         long startDay = startOfDay(row.dueAtMs);
         if (dayStart < startDay) return false;
         long diffDays = (dayStart - startDay) / (24L * 60L * 60L * 1000L);
+        if ("unico".equals(row.intervalType)) return diffDays == 0L;
         if ("diario".equals(row.intervalType)) return true;
         if ("semanal".equals(row.intervalType)) return diffDays % 7L == 0L;
         if ("mensual".equals(row.intervalType)) {

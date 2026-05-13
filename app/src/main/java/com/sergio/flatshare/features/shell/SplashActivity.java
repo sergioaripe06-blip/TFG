@@ -1,4 +1,4 @@
-package com.sergio.flatshare.ui;
+package com.sergio.flatshare.features.shell;
 
 import android.Manifest;
 import android.app.NotificationChannel;
@@ -13,6 +13,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.google.firebase.auth.FirebaseAuth;
+import com.sergio.flatshare.features.auth.LoginActivity;
 
 public class SplashActivity extends AppCompatActivity {
     @Override

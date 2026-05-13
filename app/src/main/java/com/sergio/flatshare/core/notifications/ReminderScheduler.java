@@ -1,11 +1,12 @@
-package com.sergio.flatshare.util;
+package com.sergio.flatshare.core.notifications;
 
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 
-import com.sergio.flatshare.ui.ReminderReceiver;
+import com.sergio.flatshare.core.settings.SettingsStore;
+import com.sergio.flatshare.features.reminders.ReminderReceiver;
 
 public class ReminderScheduler {
     public static void schedule(Context context, int reminderId, String title, String body, long triggerAtMillis, long intervalMillis) {

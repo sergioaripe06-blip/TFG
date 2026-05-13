@@ -1,15 +1,20 @@
-package com.sergio.flatshare.ui;
+package com.sergio.flatshare.features.workspace;
 
 import android.app.AlertDialog;
 import android.graphics.Bitmap;
 import android.app.DatePickerDialog;
+import android.content.ActivityNotFoundException;
 import android.content.ContentValues;
+import android.content.Intent;
+import android.location.Address;
+import android.location.Geocoder;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.pdf.PdfDocument;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.SystemClock;
 import android.provider.MediaStore;
 import android.text.Editable;
 import android.text.InputType;
@@ -57,9 +62,9 @@ import com.google.mlkit.vision.common.InputImage;
 import com.google.mlkit.vision.text.TextRecognition;
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
 import com.sergio.flatshare.R;
-import com.sergio.flatshare.util.DialogUtils;
-import com.sergio.flatshare.util.ReminderScheduler;
-import com.sergio.flatshare.util.SessionStore;
+import com.sergio.flatshare.shared.ui.DialogUtils;
+import com.sergio.flatshare.core.notifications.ReminderScheduler;
+import com.sergio.flatshare.core.session.SessionStore;
 
 import java.text.DecimalFormat;
 import java.text.ParseException;
@@ -76,6 +81,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.Hashtable;
+import java.io.IOException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -83,7 +89,7 @@ public class ExpensesFragment extends Fragment {
     private static final String TAB_EXPENSES = "expenses";
     private static final String TAB_SALDOS = "saldos";
     private static final String TAB_REMINDERS = "reminders";
-    private static final String TAB_TENANTS = "tenants";
+    private static final String TAB_MANAGEMENT = "management";
     private static final String BILLING_FIXED = "fixed";
     private static final String BILLING_VARIABLE = "variable";
     private static final String VARIABLE_SPLIT_EQUAL = "equal";
@@ -104,7 +110,7 @@ public class ExpensesFragment extends Fragment {
     };
     private static final String[] PRIORITY_TYPES = {"baja", "media", "alta"};
     private static final String[] PAYMENT_TARGET_TYPES = {"Habitación", "Miembro", "Todos"};
-    private static final String[] REMINDER_INTERVAL_TYPES = {"Diario", "Semanal", "Mensual", "Personalizado"};
+    private static final String[] REMINDER_INTERVAL_TYPES = {"Único", "Diario", "Semanal", "Mensual", "Personalizado"};
     private static final String[] REMINDER_TARGET_TYPES = {"Todos", "Miembro", "Habitación", "X habitación", "X miembros"};
     private static final SimpleDateFormat DUE_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT);
 
@@ -124,12 +130,14 @@ public class ExpensesFragment extends Fragment {
     private ListView saldosLv;
     private ListView remindersLv;
     private View tenantsContainer;
+    private View quickBalancesCard;
+    private LinearLayout quickBalancesContainer;
     private View workspaceCtaLayout;
     private TextView addMainLabelTv;
     private Button gastosTabBtn;
     private Button saldosTabBtn;
     private Button remindersTabBtn;
-    private Button tenantsTabBtn;
+    private Button managementTabBtn;
     private Spinner roomFilterSpinner;
     private Button addRoomQuickBtn;
     private View expensesToolsRow;
@@ -161,6 +169,11 @@ public class ExpensesFragment extends Fragment {
     private boolean isUpdatingRoomFilterSpinner = false;
     private final Map<String, String> memberDisplayNamesByEmail = new HashMap<>();
     private String workspaceMetaCache = "";
+    private String workspaceLocationQueryCache = "";
+    private final List<BalanceMovement> lastBalanceMovements = new ArrayList<>();
+    private long lastTabSwitchAtMs = 0L;
+    private long lastMainActionAtMs = 0L;
+    private boolean expenseActionDialogVisible = false;
 
     private final ActivityResultLauncher<String> ticketPickerLauncher =
             registerForActivityResult(new ActivityResultContracts.GetContent(), this::handleTicketSelected);
@@ -178,12 +191,14 @@ public class ExpensesFragment extends Fragment {
         saldosLv = view.findViewById(R.id.saldosLv);
         remindersLv = view.findViewById(R.id.remindersLv);
         tenantsContainer = view.findViewById(R.id.tenantsContainer);
+        quickBalancesCard = view.findViewById(R.id.quickBalancesCard);
+        quickBalancesContainer = view.findViewById(R.id.quickBalancesContainer);
         workspaceCtaLayout = view.findViewById(R.id.workspaceCtaLayout);
         addMainLabelTv = view.findViewById(R.id.addMainLabelTv);
         gastosTabBtn = view.findViewById(R.id.gastosTabBtn);
         saldosTabBtn = view.findViewById(R.id.saldosTabBtn);
         remindersTabBtn = view.findViewById(R.id.remindersTabBtn);
-        tenantsTabBtn = view.findViewById(R.id.tenantsTabBtn);
+        managementTabBtn = view.findViewById(R.id.tenantsTabBtn);
         roomFilterSpinner = view.findViewById(R.id.roomFilterSpinner);
         addRoomQuickBtn = view.findViewById(R.id.addRoomQuickBtn);
         expensesToolsRow = view.findViewById(R.id.expensesToolsRow);
@@ -198,10 +213,13 @@ public class ExpensesFragment extends Fragment {
         saldosLv.setAdapter(saldosAdapter);
         remindersLv.setAdapter(remindersAdapter);
 
-        gastosTabBtn.setOnClickListener(v -> switchTab(TAB_EXPENSES));
-        saldosTabBtn.setOnClickListener(v -> switchTab(TAB_SALDOS));
-        remindersTabBtn.setOnClickListener(v -> switchTab(TAB_REMINDERS));
-        tenantsTabBtn.setOnClickListener(v -> switchTab(TAB_TENANTS));
+        gastosTabBtn.setOnClickListener(v -> requestTabSwitch(TAB_EXPENSES));
+        if (saldosTabBtn != null) {
+            saldosTabBtn.setVisibility(View.GONE);
+            saldosTabBtn.setOnClickListener(v -> requestTabSwitch(TAB_EXPENSES));
+        }
+        remindersTabBtn.setOnClickListener(v -> requestTabSwitch(TAB_REMINDERS));
+        managementTabBtn.setOnClickListener(v -> requestTabSwitch(TAB_MANAGEMENT));
         roomFilterSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View item, int position, long id) {
@@ -250,7 +268,11 @@ public class ExpensesFragment extends Fragment {
             }
             return false;
         });
-        mainFab.setOnClickListener(v -> handleMainAction());
+        mainFab.setOnClickListener(v -> {
+            if (isFastTap(lastMainActionAtMs, 400)) return;
+            lastMainActionAtMs = SystemClock.elapsedRealtime();
+            handleMainAction();
+        });
         expensesLv.setOnItemClickListener((parent, v, position, id) -> showRowDetail(expenseRows.get(position)));
         remindersLv.setOnItemClickListener((parent, v, position, id) -> showRowDetail(reminderRows.get(position)));
 
@@ -265,14 +287,20 @@ public class ExpensesFragment extends Fragment {
         currentRoomName = SessionStore.getCurrentRoomName(requireContext());
         currentRoomMembers = new ArrayList<>();
         currentGroupMemberEmails = new ArrayList<>();
+        lastBalanceMovements.clear();
+        if (quickBalancesContainer != null) {
+            quickBalancesContainer.removeAllViews();
+        }
+        updateQuickBalancesVisibility();
         if (currentGroupId == null) {
             currentGroupName = "Selecciona un piso";
             currentBillingModel = BILLING_VARIABLE;
             currentVariableSplitMode = VARIABLE_SPLIT_EQUAL;
             workspaceTitleTv.setText(currentGroupName);
-            workspaceMetaCache = "Entra desde la pestaña de pisos para ver gastos, saldos, recordatorios y habitaciones.";
+            workspaceMetaCache = "Entra desde la pestaña de pisos para ver gastos, pagos, recordatorios y gestión del alquiler.";
             workspaceMetaTv.setText(workspaceMetaCache);
             workspaceMetaTv.setVisibility(View.GONE);
+            workspaceLocationQueryCache = "";
             expenseRows.clear();
             saldoRows.clear();
             reminderRows.clear();
@@ -280,6 +308,10 @@ public class ExpensesFragment extends Fragment {
             expensesAdapter.notifyDataSetChanged();
             saldosAdapter.notifyDataSetChanged();
             remindersAdapter.notifyDataSetChanged();
+            lastBalanceMovements.clear();
+            if (quickBalancesContainer != null) {
+                quickBalancesContainer.removeAllViews();
+            }
             isUpdatingRoomFilterSpinner = true;
             roomFilterSpinner.setAdapter(buildLightSpinnerAdapter(new String[]{ROOM_ALL_LABEL}));
             roomFilterSpinner.setSelection(0);
@@ -287,6 +319,7 @@ public class ExpensesFragment extends Fragment {
             addRoomQuickBtn.setVisibility(View.GONE);
             workspaceCtaLayout.setVisibility(View.GONE);
             switchTab(currentTab);
+            updateQuickBalancesVisibility();
             return;
         }
 
@@ -303,6 +336,7 @@ public class ExpensesFragment extends Fragment {
             final String description = (rawDescription == null || rawDescription.trim().isEmpty())
                     ? "Sin descripción"
                     : rawDescription;
+            workspaceLocationQueryCache = buildWorkspaceLocationQuery(doc, description);
             List<String> memberEmails = castEmails(doc.get("memberEmails"));
             List<String> memberIds = castStrings(doc.get("members"));
             currentGroupMemberEmails = new ArrayList<>(memberEmails);
@@ -332,7 +366,7 @@ public class ExpensesFragment extends Fragment {
                     loadFinancialViews();
                     loadReminders();
                     loadRoomFilterOptions();
-                    ensureTenantsFragment();
+                    ensureManagementFragment();
                     switchTab(currentTab);
                 });
             });
@@ -340,34 +374,48 @@ public class ExpensesFragment extends Fragment {
     }
 
     private void switchTab(String tab) {
+        if (TAB_SALDOS.equals(tab)) {
+            tab = TAB_EXPENSES;
+        }
         currentTab = tab;
         boolean showExpenses = TAB_EXPENSES.equals(tab);
-        boolean showSaldos = TAB_SALDOS.equals(tab);
         boolean showReminders = TAB_REMINDERS.equals(tab);
-        boolean showTenants = TAB_TENANTS.equals(tab);
+        boolean showManagement = TAB_MANAGEMENT.equals(tab);
 
         expensesLv.setVisibility(showExpenses ? View.VISIBLE : View.GONE);
-        saldosLv.setVisibility(showSaldos ? View.VISIBLE : View.GONE);
+        saldosLv.setVisibility(View.GONE);
         remindersLv.setVisibility(showReminders ? View.VISIBLE : View.GONE);
-        tenantsContainer.setVisibility(showTenants ? View.VISIBLE : View.GONE);
+        tenantsContainer.setVisibility(showManagement ? View.VISIBLE : View.GONE);
         expensesToolsRow.setVisibility(showExpenses && currentGroupId != null ? View.VISIBLE : View.GONE);
 
         updateTabStyle(gastosTabBtn, showExpenses);
-        updateTabStyle(saldosTabBtn, showSaldos);
+        if (saldosTabBtn != null) {
+            updateTabStyle(saldosTabBtn, false);
+        }
         updateTabStyle(remindersTabBtn, showReminders);
-        updateTabStyle(tenantsTabBtn, showTenants);
+        updateTabStyle(managementTabBtn, showManagement);
 
         if (showExpenses) {
-            addMainLabelTv.setText("Nuevo gasto");
-        } else if (showSaldos) {
-            addMainLabelTv.setText("Nuevo pago");
+            addMainLabelTv.setText(BILLING_FIXED.equals(currentBillingModel) ? "Nuevo pago" : "Nuevo gasto");
         } else if (showReminders) {
             addMainLabelTv.setText("Nuevo recordatorio");
         } else {
-            addMainLabelTv.setText("Inquilinos");
-            ensureTenantsFragment();
+            addMainLabelTv.setText("Gestion");
+            ensureManagementFragment();
         }
+        updateQuickBalancesVisibility();
         updateCtaVisibilityForCurrentTab();
+    }
+
+    private void requestTabSwitch(String tab) {
+        if (isFastTap(lastTabSwitchAtMs, 220)) return;
+        lastTabSwitchAtMs = SystemClock.elapsedRealtime();
+        switchTab(tab);
+    }
+
+    private boolean isFastTap(long lastTapAtMs, long minIntervalMs) {
+        long now = SystemClock.elapsedRealtime();
+        return now - lastTapAtMs < minIntervalMs;
     }
 
     private void showWorkspaceMetaDialog() {
@@ -377,34 +425,106 @@ public class ExpensesFragment extends Fragment {
                 currentGroupName == null || currentGroupName.trim().isEmpty() ? "Datos del piso" : currentGroupName,
                 "Información del piso",
                 content,
-                null,
-                "Cerrar"
+                "Cerrar",
+                "Ver ubicación"
         );
         AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
-        shell.confirmBtn.setOnClickListener(v -> dialog.dismiss());
+        shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+        shell.confirmBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            openWorkspaceLocationInMaps();
+        });
     }
 
+    @NonNull
+    private String buildWorkspaceLocationQuery(@NonNull DocumentSnapshot doc, @NonNull String fallbackDescription) {
+        Object rawLocation = doc.get("location");
+        if (rawLocation instanceof Map<?, ?> map) {
+            List<String> parts = new ArrayList<>();
+            appendLocationPart(parts, map.get("street"));
+            appendLocationPart(parts, map.get("portal"));
+            appendLocationPart(parts, map.get("postalCode"));
+            appendLocationPart(parts, map.get("city"));
+            appendLocationPart(parts, map.get("province"));
+            if (!parts.isEmpty()) {
+                return String.join(", ", parts);
+            }
+        }
+        return fallbackDescription == null ? "" : fallbackDescription.trim();
+    }
+
+    private void appendLocationPart(@NonNull List<String> parts, @Nullable Object value) {
+        if (value == null) return;
+        String text = value.toString().trim();
+        if (!text.isEmpty()) {
+            parts.add(text);
+        }
+    }
+
+    private void openWorkspaceLocationInMaps() {
+        if (!isAdded()) return;
+        String query = workspaceLocationQueryCache == null ? "" : workspaceLocationQueryCache.trim();
+        if (query.isEmpty()) {
+            Toast.makeText(requireContext(), "esa ubi no existe", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (!locationSeemsValid(query)) {
+            Toast.makeText(requireContext(), "esa ubi no existe", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Uri mapsUri = Uri.parse("geo:0,0?q=" + Uri.encode(query));
+        Intent mapsIntent = new Intent(Intent.ACTION_VIEW, mapsUri).setPackage("com.google.android.apps.maps");
+        try {
+            startActivity(mapsIntent);
+            return;
+        } catch (ActivityNotFoundException ignored) {
+        }
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, mapsUri));
+            return;
+        } catch (ActivityNotFoundException ignored) {
+        }
+        try {
+            Uri webUri = Uri.parse("https://www.google.com/maps/search/?api=1&query=" + Uri.encode(query));
+            startActivity(new Intent(Intent.ACTION_VIEW, webUri));
+            return;
+        } catch (ActivityNotFoundException ignored) {
+        }
+        Toast.makeText(requireContext(), "no funciona", Toast.LENGTH_SHORT).show();
+    }
+
+    private boolean locationSeemsValid(@NonNull String query) {
+        Geocoder geocoder = new Geocoder(requireContext(), Locale.getDefault());
+        if (!Geocoder.isPresent()) return true;
+        try {
+            List<Address> results = geocoder.getFromLocationName(query, 1);
+            return results != null && !results.isEmpty();
+        } catch (IOException e) {
+            // Si no hay red o el geocoder falla, no bloqueamos la apertura de Maps.
+            return true;
+        }
+    }
     private void updateCtaVisibilityForCurrentTab() {
         if (workspaceCtaLayout == null) return;
-        boolean ctaAllowedTab = (TAB_EXPENSES.equals(currentTab) && !BILLING_FIXED.equals(currentBillingModel))
-                || TAB_SALDOS.equals(currentTab)
-                || TAB_REMINDERS.equals(currentTab);
+        boolean ctaAllowedTab = TAB_EXPENSES.equals(currentTab) || TAB_REMINDERS.equals(currentTab);
         boolean hideForSearch = TAB_EXPENSES.equals(currentTab) && expensesSearchEt != null && expensesSearchEt.hasFocus();
         boolean visible = currentGroupId != null && ctaAllowedTab && !hideForSearch;
         workspaceCtaLayout.setVisibility(visible ? View.VISIBLE : View.GONE);
     }
 
-    private void ensureTenantsFragment() {
+    private void ensureManagementFragment() {
         if (!isAdded() || tenantsContainer == null) return;
-        Fragment existing = getChildFragmentManager().findFragmentByTag("tenants");
-        if (existing instanceof TenantsFragment) {
-            ((TenantsFragment) existing).refreshTenants();
+        if (getChildFragmentManager().isStateSaved()) return;
+        Fragment existing = getChildFragmentManager().findFragmentByTag("management");
+        if (existing instanceof RentalManagementFragment) {
+            ((RentalManagementFragment) existing).refreshData();
             return;
         }
         getChildFragmentManager()
                 .beginTransaction()
-                .replace(R.id.tenantsContainer, new TenantsFragment(), "tenants")
-                .commit();
+                .replace(R.id.tenantsContainer, new RentalManagementFragment(), "management")
+                .commitAllowingStateLoss();
     }
 
     private void updateTabStyle(Button button, boolean selected) {
@@ -418,12 +538,6 @@ public class ExpensesFragment extends Fragment {
             return;
         }
         if (TAB_EXPENSES.equals(currentTab)) {
-            if (BILLING_FIXED.equals(currentBillingModel)) {
-                Toast.makeText(requireContext(), "Este piso usa alquiler fijo. Registra pagos en la pestaña de saldos.", Toast.LENGTH_LONG).show();
-                return;
-            }
-            showExpenseActionDialog();
-        } else if (TAB_SALDOS.equals(currentTab)) {
             showExpenseActionDialog();
         } else if (TAB_REMINDERS.equals(currentTab)) {
             createReminderDialog();
@@ -522,42 +636,41 @@ public class ExpensesFragment extends Fragment {
             return;
         }
 
-        ViewGroup content = DialogUtils.createVerticalActions(requireContext());
-        Button infoBtn = DialogUtils.createActionButton(requireContext(), "Información habitación", true);
-        Button editBtn = DialogUtils.createActionButton(requireContext(), "Editar habitación", false);
-        Button deleteBtn = DialogUtils.createActionButton(requireContext(), "Eliminar habitación", false);
-        Button addBtn = DialogUtils.createActionButton(requireContext(), "Añadir habitación", false);
-        content.addView(infoBtn);
-        content.addView(editBtn);
-        content.addView(deleteBtn);
-        content.addView(addBtn);
+        LinearLayout content = new LinearLayout(requireContext());
+        content.setOrientation(LinearLayout.VERTICAL);
+        Spinner actionSpinner = new Spinner(requireContext(), Spinner.MODE_DROPDOWN);
+        actionSpinner.setBackgroundResource(R.drawable.bg_select_dark_round);
+        actionSpinner.setPadding(dp(10), 0, dp(10), 0);
+        actionSpinner.setAdapter(buildLightSpinnerAdapter(new String[]{
+                "Ver información",
+                "Editar habitación",
+                "Eliminar habitación",
+                "Añadir habitación"
+        }));
+        content.addView(actionSpinner);
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 "Gestión de habitaciones",
-                "Gestiona la habitación seleccionada o crea una nueva.",
+                "Elige una acción y pulsa continuar.",
                 content,
-                "Cerrar",
-                null
+                "Cancelar",
+                "Continuar"
         );
         AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
         shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
-
-        infoBtn.setOnClickListener(v -> {
+        shell.confirmBtn.setOnClickListener(v -> {
+            String selected = String.valueOf(actionSpinner.getSelectedItem());
             dialog.dismiss();
-            showSelectedRoomInfoDialog();
-        });
-        editBtn.setOnClickListener(v -> {
-            dialog.dismiss();
-            editSelectedRoomFromFilter();
-        });
-        deleteBtn.setOnClickListener(v -> {
-            dialog.dismiss();
-            deleteSelectedRoomFromFilter();
-        });
-        addBtn.setOnClickListener(v -> {
-            dialog.dismiss();
-            createRoomFromWorkspace();
+            if ("Ver información".equals(selected)) {
+                showSelectedRoomInfoDialog();
+            } else if ("Editar habitación".equals(selected)) {
+                editSelectedRoomFromFilter();
+            } else if ("Eliminar habitación".equals(selected)) {
+                deleteSelectedRoomFromFilter();
+            } else {
+                createRoomFromWorkspace();
+            }
         });
     }
 
@@ -730,35 +843,38 @@ public class ExpensesFragment extends Fragment {
             return;
         }
 
-        ViewGroup content = DialogUtils.createVerticalActions(requireContext());
-        Button editRoomBtn = DialogUtils.createActionButton(requireContext(), "Editar habitación", true);
-        Button editResidentsBtn = DialogUtils.createActionButton(requireContext(), "Editar inquilinos", false);
-        Button deleteRoomBtn = DialogUtils.createActionButton(requireContext(), "Eliminar habitación", false);
-        content.addView(editRoomBtn);
-        content.addView(editResidentsBtn);
-        content.addView(deleteRoomBtn);
+        LinearLayout content = new LinearLayout(requireContext());
+        content.setOrientation(LinearLayout.VERTICAL);
+        Spinner actionSpinner = new Spinner(requireContext(), Spinner.MODE_DROPDOWN);
+        actionSpinner.setBackgroundResource(R.drawable.bg_select_dark_round);
+        actionSpinner.setPadding(dp(10), 0, dp(10), 0);
+        actionSpinner.setAdapter(buildLightSpinnerAdapter(new String[]{
+                "Editar habitación",
+                "Editar inquilinos",
+                "Eliminar habitación"
+        }));
+        content.addView(actionSpinner);
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 row.title,
-                "Gestiona esta habitación.",
+                "Selecciona la acción para esta habitación.",
                 content,
-                "Cerrar",
-                null
+                "Cancelar",
+                "Continuar"
         );
         AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
         shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
-        editRoomBtn.setOnClickListener(v -> {
+        shell.confirmBtn.setOnClickListener(v -> {
+            String selected = String.valueOf(actionSpinner.getSelectedItem());
             dialog.dismiss();
-            editRoomFromWorkspace(row);
-        });
-        editResidentsBtn.setOnClickListener(v -> {
-            dialog.dismiss();
-            editRoomResidentsFromWorkspace(row);
-        });
-        deleteRoomBtn.setOnClickListener(v -> {
-            dialog.dismiss();
-            requestRoomDeletion(row);
+            if ("Editar habitación".equals(selected)) {
+                editRoomFromWorkspace(row);
+            } else if ("Editar inquilinos".equals(selected)) {
+                editRoomResidentsFromWorkspace(row);
+            } else {
+                requestRoomDeletion(row);
+            }
         });
     }
 
@@ -908,22 +1024,20 @@ public class ExpensesFragment extends Fragment {
     }
 
     private void showExpenseActionDialog() {
-        ViewGroup content = DialogUtils.createVerticalActions(requireContext());
+        if (expenseActionDialogVisible) return;
+        expenseActionDialogVisible = true;
+        LinearLayout content = new LinearLayout(requireContext());
+        content.setOrientation(LinearLayout.VERTICAL);
         boolean fixedBilling = BILLING_FIXED.equals(currentBillingModel);
-        Button expenseBtn = null;
-        Button paymentBtn;
-        Button pdfBtn = DialogUtils.createActionButton(requireContext(), "Exportar PDF", false);
-        Button qrBtn = DialogUtils.createActionButton(requireContext(), "Mostrar QR", false);
-        if (!fixedBilling) {
-            expenseBtn = DialogUtils.createActionButton(requireContext(), "Nuevo gasto", true);
-            content.addView(expenseBtn);
-            paymentBtn = DialogUtils.createActionButton(requireContext(), "Registrar pago", false);
-        } else {
-            paymentBtn = DialogUtils.createActionButton(requireContext(), "Registrar pago", true);
-        }
-        content.addView(paymentBtn);
-        content.addView(pdfBtn);
-        content.addView(qrBtn);
+        Spinner actionSpinner = new Spinner(requireContext(), Spinner.MODE_DROPDOWN);
+        actionSpinner.setBackgroundResource(R.drawable.bg_select_dark_round);
+        actionSpinner.setPadding(dp(10), 0, dp(10), 0);
+        actionSpinner.setAdapter(buildLightSpinnerAdapter(
+                fixedBilling
+                        ? new String[]{"Registrar pago", "Exportar PDF", "Mostrar QR"}
+                        : new String[]{"Nuevo gasto", "Registrar pago", "Exportar PDF", "Mostrar QR"}
+        ));
+        content.addView(actionSpinner);
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
@@ -932,29 +1046,30 @@ public class ExpensesFragment extends Fragment {
                         ? "Registra pagos, exporta PDF o comparte acceso al piso."
                         : "Crea un gasto, registra un pago o comparte acceso al piso.",
                 content,
-                "Cerrar",
-                null
+                "Cancelar",
+                "Continuar"
         );
         AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
-        shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
-        if (expenseBtn != null) {
-            Button finalExpenseBtn = expenseBtn;
-            finalExpenseBtn.setOnClickListener(v -> {
-                dialog.dismiss();
+        dialog.setOnDismissListener(d -> expenseActionDialogVisible = false);
+        shell.cancelBtn.setOnClickListener(v -> {
+            shell.cancelBtn.setEnabled(false);
+            shell.confirmBtn.setEnabled(false);
+            dialog.dismiss();
+        });
+        shell.confirmBtn.setOnClickListener(v -> {
+            shell.cancelBtn.setEnabled(false);
+            shell.confirmBtn.setEnabled(false);
+            String selected = String.valueOf(actionSpinner.getSelectedItem());
+            dialog.dismiss();
+            if ("Nuevo gasto".equals(selected)) {
                 createExpenseDialog();
-            });
-        }
-        paymentBtn.setOnClickListener(v -> {
-            dialog.dismiss();
-            createPaymentDialog();
-        });
-        pdfBtn.setOnClickListener(v -> {
-            dialog.dismiss();
-            exportMonthlySummaryPdf();
-        });
-        qrBtn.setOnClickListener(v -> {
-            dialog.dismiss();
-            showCurrentGroupQrDialog();
+            } else if ("Registrar pago".equals(selected)) {
+                createPaymentDialog();
+            } else if ("Exportar PDF".equals(selected)) {
+                exportMonthlySummaryPdf();
+            } else if ("Mostrar QR".equals(selected)) {
+                showCurrentGroupQrDialog();
+            }
         });
     }
 
@@ -1486,7 +1601,7 @@ public class ExpensesFragment extends Fragment {
         intervalSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                int visibility = position == 3 ? View.VISIBLE : View.GONE;
+                int visibility = position == 4 ? View.VISIBLE : View.GONE;
                 customDaysEt.setVisibility(visibility);
                 customDaysLabelTv.setVisibility(visibility);
             }
@@ -1778,9 +1893,10 @@ public class ExpensesFragment extends Fragment {
     @Nullable
     private ReminderIntervalConfig resolveReminderInterval(View form) {
         int intervalIndex = ((Spinner) form.findViewById(R.id.reminderIntervalSpinner)).getSelectedItemPosition();
-        if (intervalIndex == 0) return new ReminderIntervalConfig("diario", 1, 24L * 60L * 60L * 1000L);
-        if (intervalIndex == 1) return new ReminderIntervalConfig("semanal", 7, 7L * 24L * 60L * 60L * 1000L);
-        if (intervalIndex == 2) return new ReminderIntervalConfig("mensual", 30, 30L * 24L * 60L * 60L * 1000L);
+        if (intervalIndex == 0) return new ReminderIntervalConfig("unico", 0, 0L);
+        if (intervalIndex == 1) return new ReminderIntervalConfig("diario", 1, 24L * 60L * 60L * 1000L);
+        if (intervalIndex == 2) return new ReminderIntervalConfig("semanal", 7, 7L * 24L * 60L * 60L * 1000L);
+        if (intervalIndex == 3) return new ReminderIntervalConfig("mensual", 30, 30L * 24L * 60L * 60L * 1000L);
 
         String customDaysText = ((EditText) form.findViewById(R.id.reminderCustomDaysEt)).getText().toString().trim();
         if (customDaysText.isEmpty()) {
@@ -1978,13 +2094,16 @@ public class ExpensesFragment extends Fragment {
         }
 
         String intervalLabel = interval == null ? "semanal" : interval;
+        if ("unico".equals(intervalLabel)) {
+            intervalLabel = "único";
+        }
         if ("personalizado".equals(intervalLabel) && intervalDays != null && intervalDays > 0) {
             intervalLabel = "cada " + intervalDays + " días";
         }
         if (startDateText == null || startDateText.trim().isEmpty()) {
-            return who + " · " + intervalLabel;
+            return who + " | " + intervalLabel;
         }
-        return who + " · " + intervalLabel + " · desde " + startDateText;
+        return who + " | " + intervalLabel + " | desde " + startDateText;
     }
     private void loadExpenses() {
         if (currentGroupId == null) return;
@@ -2092,6 +2211,8 @@ public class ExpensesFragment extends Fragment {
             if (members.isEmpty()) {
                 saldoRows.clear();
                 saldosAdapter.notifyDataSetChanged();
+                lastBalanceMovements.clear();
+                renderQuickBalances(Collections.emptyMap());
                 return;
             }
             String billingModel = normalizeBillingModel(groupDoc.getString("billingModel"));
@@ -2275,6 +2396,153 @@ public class ExpensesFragment extends Fragment {
             ));
         }
         saldosAdapter.notifyDataSetChanged();
+        lastBalanceMovements.clear();
+        lastBalanceMovements.addAll(buildBalanceMovements(net));
+        renderQuickBalances(net);
+    }
+
+    private List<BalanceMovement> buildBalanceMovements(Map<String, Double> net) {
+        final double epsilon = 0.01;
+        List<BalanceNode> creditors = new ArrayList<>();
+        List<BalanceNode> debtors = new ArrayList<>();
+
+        for (Map.Entry<String, Double> entry : net.entrySet()) {
+            String email = entry.getKey();
+            double value = entry.getValue();
+            if (value > epsilon) {
+                creditors.add(new BalanceNode(email, value));
+            } else if (value < -epsilon) {
+                debtors.add(new BalanceNode(email, Math.abs(value)));
+            }
+        }
+
+        List<BalanceMovement> movements = new ArrayList<>();
+        int i = 0;
+        int j = 0;
+        while (i < debtors.size() && j < creditors.size()) {
+            BalanceNode debtor = debtors.get(i);
+            BalanceNode creditor = creditors.get(j);
+            double amount = Math.min(debtor.amount, creditor.amount);
+            if (amount > epsilon) {
+                movements.add(new BalanceMovement(debtor.email, creditor.email, amount));
+            }
+            debtor.amount -= amount;
+            creditor.amount -= amount;
+            if (debtor.amount <= epsilon) i++;
+            if (creditor.amount <= epsilon) j++;
+        }
+        return movements;
+    }
+
+    private void renderQuickBalances(Map<String, Double> net) {
+        if (!isAdded() || quickBalancesContainer == null || quickBalancesCard == null) return;
+        quickBalancesContainer.removeAllViews();
+
+        String myEmailRaw = FirebaseAuth.getInstance().getCurrentUser().getEmail();
+        String myEmail = myEmailRaw == null ? "" : myEmailRaw.toLowerCase(Locale.ROOT);
+        boolean isOwner = "admin".equals(currentUserRole);
+
+        Map<String, Double> incomingByPerson = new LinkedHashMap<>();
+        Map<String, Double> outgoingByPerson = new LinkedHashMap<>();
+        for (BalanceMovement movement : lastBalanceMovements) {
+            incomingByPerson.put(movement.toEmail, incomingByPerson.getOrDefault(movement.toEmail, 0.0) + movement.amount);
+            outgoingByPerson.put(movement.fromEmail, outgoingByPerson.getOrDefault(movement.fromEmail, 0.0) + movement.amount);
+        }
+
+        if (isOwner) {
+            List<String> people = new ArrayList<>(net.keySet());
+            Collections.sort(people);
+            for (String email : people) {
+                double teDeben = incomingByPerson.getOrDefault(email, 0.0);
+                double debes = outgoingByPerson.getOrDefault(email, 0.0);
+                if (teDeben <= 0.0 && debes <= 0.0) continue;
+                addQuickBalanceChip(email, teDeben, debes, true);
+            }
+        } else {
+            Map<String, double[]> byCounterparty = new LinkedHashMap<>();
+            for (BalanceMovement movement : lastBalanceMovements) {
+                if (myEmail.equals(movement.toEmail)) {
+                    double[] values = byCounterparty.computeIfAbsent(movement.fromEmail, key -> new double[2]);
+                    values[0] += movement.amount; // te deben
+                } else if (myEmail.equals(movement.fromEmail)) {
+                    double[] values = byCounterparty.computeIfAbsent(movement.toEmail, key -> new double[2]);
+                    values[1] += movement.amount; // debes
+                }
+            }
+            for (Map.Entry<String, double[]> entry : byCounterparty.entrySet()) {
+                double teDeben = entry.getValue()[0];
+                double debes = entry.getValue()[1];
+                if (teDeben <= 0.0 && debes <= 0.0) continue;
+                addQuickBalanceChip(entry.getKey(), teDeben, debes, false);
+            }
+        }
+
+        updateQuickBalancesVisibility();
+    }
+
+    private void addQuickBalanceChip(String personEmail, double teDeben, double debes, boolean ownerView) {
+        Button chip = new Button(requireContext());
+        chip.setAllCaps(false);
+        chip.setMinWidth(0);
+        chip.setBackgroundResource(R.drawable.bg_tab_default);
+        chip.setTextColor(requireContext().getColor(R.color.text_light));
+        chip.setTextSize(11f);
+        chip.setPadding(dp(12), dp(8), dp(12), dp(8));
+        chip.setSingleLine(false);
+        chip.setMaxLines(3);
+
+        String personLabel = displayNameForEmail(personEmail);
+        if (ownerView) {
+            chip.setText(personLabel + "\nTe deben: " + formatCurrency(teDeben) + " | Debe: " + formatCurrency(debes));
+        } else {
+            chip.setText(personLabel + "\nTe deben: " + formatCurrency(teDeben) + " | Debes: " + formatCurrency(debes));
+        }
+
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        params.bottomMargin = dp(6);
+        chip.setLayoutParams(params);
+        chip.setOnClickListener(v -> showQuickBalanceDetail(personEmail, teDeben, debes, ownerView));
+        quickBalancesContainer.addView(chip);
+    }
+
+    private void showQuickBalanceDetail(String personEmail, double teDeben, double debes, boolean ownerView) {
+        String personLabel = displayNameForEmail(personEmail);
+        StringBuilder detail = new StringBuilder();
+        if (ownerView) {
+            detail.append("Resumen global de ").append(personLabel).append("\n\n")
+                    .append("Te deben: ").append(formatCurrency(teDeben)).append("\n")
+                    .append("Debe: ").append(formatCurrency(debes));
+        } else {
+            detail.append("Detalle con ").append(personLabel).append("\n\n")
+                    .append("Te deben: ").append(formatCurrency(teDeben)).append("\n")
+                    .append("Debes: ").append(formatCurrency(debes));
+        }
+
+        View content = DialogUtils.createMessageView(requireContext(), detail.toString());
+        DialogUtils.Shell shell = DialogUtils.buildShell(
+                requireContext(),
+                "Debes / Te deben",
+                ownerView ? "Vista global del propietario" : "Vista personal",
+                content,
+                null,
+                "Cerrar"
+        );
+        AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+        shell.confirmBtn.setOnClickListener(v -> dialog.dismiss());
+    }
+
+    private void updateQuickBalancesVisibility() {
+        if (quickBalancesCard == null || quickBalancesContainer == null) return;
+        boolean visibleTab = TAB_EXPENSES.equals(currentTab) || TAB_REMINDERS.equals(currentTab) || TAB_MANAGEMENT.equals(currentTab);
+        boolean hasRows = quickBalancesContainer.getChildCount() > 0;
+        quickBalancesCard.setVisibility(currentGroupId != null && visibleTab && hasRows ? View.VISIBLE : View.GONE);
+    }
+
+    private String formatCurrency(double value) {
+        return new DecimalFormat("0.00").format(Math.max(0.0, value)) + " EUR";
     }
 
     private boolean hasRoomContext() {
@@ -3818,6 +4086,28 @@ public class ExpensesFragment extends Fragment {
             this.subtitle = subtitle;
             this.amount = amount;
             this.snapshot = snapshot;
+        }
+    }
+
+    private static class BalanceNode {
+        final String email;
+        double amount;
+
+        BalanceNode(String email, double amount) {
+            this.email = email;
+            this.amount = amount;
+        }
+    }
+
+    private static class BalanceMovement {
+        final String fromEmail;
+        final String toEmail;
+        final double amount;
+
+        BalanceMovement(String fromEmail, String toEmail, double amount) {
+            this.fromEmail = fromEmail;
+            this.toEmail = toEmail;
+            this.amount = amount;
         }
     }
 

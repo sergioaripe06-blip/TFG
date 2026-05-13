@@ -1,4 +1,4 @@
-package com.sergio.flatshare.ui;
+package com.sergio.flatshare.features.settings;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -19,7 +19,8 @@ import androidx.fragment.app.Fragment;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.google.firebase.auth.FirebaseAuth;
 import com.sergio.flatshare.R;
-import com.sergio.flatshare.util.SettingsStore;
+import com.sergio.flatshare.core.settings.SettingsStore;
+import com.sergio.flatshare.features.auth.LoginActivity;
 
 public class SettingsFragment extends Fragment {
     @Nullable

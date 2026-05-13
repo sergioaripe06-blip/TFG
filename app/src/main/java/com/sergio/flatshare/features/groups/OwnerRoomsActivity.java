@@ -1,4 +1,4 @@
-package com.sergio.flatshare.ui;
+package com.sergio.flatshare.features.groups;
 
 import android.app.AlertDialog;
 import android.content.Intent;
@@ -35,8 +35,9 @@ import com.google.zxing.MultiFormatWriter;
 import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
 import com.sergio.flatshare.R;
-import com.sergio.flatshare.util.DialogUtils;
-import com.sergio.flatshare.util.SessionStore;
+import com.sergio.flatshare.core.session.SessionStore;
+import com.sergio.flatshare.features.shell.MainActivity;
+import com.sergio.flatshare.shared.ui.DialogUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -77,7 +78,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
 
         groupId = getIntent().getStringExtra(EXTRA_GROUP_ID);
         if (groupId == null || groupId.trim().isEmpty()) {
-            Toast.makeText(this, "No se encontró el piso", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "No se encontrÃ³ el piso", Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
@@ -154,9 +155,9 @@ public class OwnerRoomsActivity extends AppCompatActivity {
 
             roomsTitleTv.setText("Habitaciones de " + groupName);
             roomsSubtitleTv.setText(isOwner
-                    ? "Crea habitaciones, invita residentes y asigna quién vive en cada una."
+                    ? "Crea habitaciones, invita residentes y asigna quiÃ©n vive en cada una."
                     : "Vista de habitaciones del piso compartido.");
-            shareCodeTv.setText("Código: " + shareCode);
+            shareCodeTv.setText("CÃ³digo: " + shareCode);
         }).addOnFailureListener(e ->
                 Toast.makeText(this, "No se pudo cargar el piso", Toast.LENGTH_SHORT).show()
         );
@@ -181,7 +182,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
                         Double monthlyCost = doc.getDouble("monthlyCost");
                         rooms.add(new RoomItem(
                                 doc.getId(),
-                                name == null || name.trim().isEmpty() ? "Habitación" : name,
+                                name == null || name.trim().isEmpty() ? "HabitaciÃ³n" : name,
                                 roomNumber == null ? 0 : roomNumber.intValue(),
                                 capacity == null ? 0 : capacity.intValue(),
                                 monthlyCost == null ? 0.0 : monthlyCost,
@@ -201,11 +202,11 @@ public class OwnerRoomsActivity extends AppCompatActivity {
         EditText roomNameEt = form.findViewById(R.id.roomNameEt);
         EditText roomCapacityEt = form.findViewById(R.id.roomCapacityEt);
         EditText roomCostEt = form.findViewById(R.id.roomCostEt);
-        roomNameEt.setHint("Nombre de la habitación:");
+        roomNameEt.setHint("Nombre de la habitaciÃ³n:");
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 this,
-                "Nueva habitación",
+                "Nueva habitaciÃ³n",
                 "Indica nombre, capacidad y coste mensual.",
                 form,
                 "Cancelar",
@@ -218,7 +219,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
             String capacityText = roomCapacityEt.getText().toString().trim();
             String costText = roomCostEt.getText().toString().trim();
             if (roomName.isEmpty() || capacityText.isEmpty() || costText.isEmpty()) {
-                Toast.makeText(this, "Completa todos los datos de la habitación", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Completa todos los datos de la habitaciÃ³n", Toast.LENGTH_SHORT).show();
                 return;
             }
 
@@ -229,7 +230,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
                 capacity = Integer.parseInt(capacityText);
                 monthlyCost = Double.parseDouble(costText);
             } catch (NumberFormatException e) {
-                Toast.makeText(this, "Capacidad o coste no válidos", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Capacidad o coste no vÃ¡lidos", Toast.LENGTH_SHORT).show();
                 return;
             }
             if (capacity <= 0) {
@@ -258,7 +259,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
             db.collection("rooms_groups")
                     .add(room)
                     .addOnSuccessListener(v2 -> {
-                        Toast.makeText(this, "Habitación creada", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "HabitaciÃ³n creada", Toast.LENGTH_SHORT).show();
                         loadRooms();
                         dialog.dismiss();
                     })
@@ -278,7 +279,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 this,
                 room.name,
-                "Gestiona esta habitación.",
+                "Gestiona esta habitaciÃ³n.",
                 content,
                 "Cerrar",
                 null
@@ -302,7 +303,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
 
     private void showAssignResidentsDialog(RoomItem room) {
         if (groupMembers.isEmpty()) {
-            Toast.makeText(this, "No hay residentes en el piso todavía", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "No hay residentes en el piso todavia", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -313,11 +314,32 @@ public class OwnerRoomsActivity extends AppCompatActivity {
             checkedItems[i] = room.memberEmails.contains(groupMembers.get(i));
         }
 
-        new AlertDialog.Builder(this, R.style.ThemeOverlay_FlatShare_Dialog)
-                .setTitle("Asignar residentes")
-                .setMultiChoiceItems(memberItems, checkedItems, (dialog, which, isChecked) -> checkedItems[which] = isChecked)
+        LinearLayout customTitle = new LinearLayout(this);
+        customTitle.setOrientation(LinearLayout.HORIZONTAL);
+        customTitle.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        customTitle.setPadding(dp(24), dp(16), dp(8), dp(8));
+
+        TextView titleTv = new TextView(this);
+        titleTv.setText("Asignar residentes");
+        titleTv.setTextColor(getColor(R.color.text_light));
+        titleTv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 20);
+        titleTv.setTypeface(titleTv.getTypeface(), android.graphics.Typeface.BOLD);
+        titleTv.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView closeXTv = new TextView(this);
+        closeXTv.setText("\u00D7");
+        closeXTv.setTextColor(getColor(R.color.text_muted));
+        closeXTv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 24);
+        closeXTv.setPadding(dp(12), dp(4), dp(12), dp(4));
+
+        customTitle.addView(titleTv);
+        customTitle.addView(closeXTv);
+
+        AlertDialog dialog = new AlertDialog.Builder(this, R.style.ThemeOverlay_FlatShare_Dialog)
+                .setCustomTitle(customTitle)
+                .setMultiChoiceItems(memberItems, checkedItems, (dialogInterface, which, isChecked) -> checkedItems[which] = isChecked)
                 .setNegativeButton("Cancelar", null)
-                .setPositiveButton("Guardar", (dialog, which) -> {
+                .setPositiveButton("Guardar", (dialogInterface, which) -> {
                     List<String> selected = new ArrayList<>();
                     for (int i = 0; i < checkedItems.length; i++) {
                         if (checkedItems[i]) {
@@ -333,17 +355,19 @@ public class OwnerRoomsActivity extends AppCompatActivity {
                     db.collection("rooms_groups").document(room.id)
                             .update(updates)
                             .addOnSuccessListener(v -> {
-                                Toast.makeText(this, "Habitación actualizada", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(this, "Habitacion actualizada", Toast.LENGTH_SHORT).show();
                                 loadRooms();
                             })
                             .addOnFailureListener(e -> Toast.makeText(this, "No se pudo guardar", Toast.LENGTH_SHORT).show());
                 })
-                .show();
-    }
+                .create();
 
+        closeXTv.setOnClickListener(v -> dialog.dismiss());
+        dialog.show();
+    }
     private void renameRoomDialog(RoomItem room) {
         showSingleInputDialog(
-                "Renombrar habitación",
+                "Renombrar habitaciÃ³n",
                 "Escribe el nuevo nombre.",
                 room.name,
                 InputType.TYPE_CLASS_TEXT,
@@ -372,10 +396,10 @@ public class OwnerRoomsActivity extends AppCompatActivity {
     }
 
     private void deleteRoomDialog(RoomItem room) {
-        View content = DialogUtils.createMessageView(this, "Esta acción eliminará la habitación y su asignación de residentes.");
+        View content = DialogUtils.createMessageView(this, "Esta acciÃ³n eliminarÃ¡ la habitaciÃ³n y su asignaciÃ³n de residentes.");
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 this,
-                "Eliminar habitación",
+                "Eliminar habitaciÃ³n",
                 room.name,
                 content,
                 "Cancelar",
@@ -387,7 +411,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
             db.collection("rooms_groups").document(room.id)
                     .delete()
                     .addOnSuccessListener(v2 -> {
-                        Toast.makeText(this, "Habitación eliminada", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "HabitaciÃ³n eliminada", Toast.LENGTH_SHORT).show();
                         loadRooms();
                     })
                     .addOnFailureListener(e -> Toast.makeText(this, "No se pudo eliminar", Toast.LENGTH_SHORT).show());
@@ -397,7 +421,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
 
     private void showShareOptionsDialog() {
         View content = DialogUtils.createVerticalActions(this);
-        Button codeBtn = DialogUtils.createActionButton(this, "Mostrar código", true);
+        Button codeBtn = DialogUtils.createActionButton(this, "Mostrar cÃ³digo", true);
         Button qrBtn = DialogUtils.createActionButton(this, "Mostrar QR", false);
         ((LinearLayout) content).addView(codeBtn);
         ((LinearLayout) content).addView(qrBtn);
@@ -426,8 +450,8 @@ public class OwnerRoomsActivity extends AppCompatActivity {
         View content = DialogUtils.createMessageView(this, shareCode);
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 this,
-                "Código del piso",
-                "Comparte este código para que se unan al piso.",
+                "CÃ³digo del piso",
+                "Comparte este cÃ³digo para que se unan al piso.",
                 content,
                 null,
                 "Cerrar"
@@ -455,7 +479,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
         if (!isOwner) return;
         showSingleInputDialog(
                 "Invitar por email",
-                "Envía una invitación directa por correo.",
+                "EnvÃ­a una invitaciÃ³n directa por correo.",
                 "Email del invitado:",
                 InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
                 "Enviar",
@@ -472,7 +496,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
                     invitation.put("status", "pending");
                     invitation.put("createdAt", FieldValue.serverTimestamp());
                     db.collection("invitations").add(invitation)
-                            .addOnSuccessListener(v -> Toast.makeText(this, "Invitación enviada", Toast.LENGTH_SHORT).show())
+                            .addOnSuccessListener(v -> Toast.makeText(this, "InvitaciÃ³n enviada", Toast.LENGTH_SHORT).show())
                             .addOnFailureListener(e -> Toast.makeText(this, "No se pudo enviar", Toast.LENGTH_SHORT).show());
                     return true;
                 }
@@ -492,6 +516,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
         TextView titleTv = form.findViewById(R.id.dialogTitleTv);
         TextView subtitleTv = form.findViewById(R.id.dialogSubtitleTv);
         TextView inputLabelTv = form.findViewById(R.id.dialogInputLabelTv);
+        TextView closeXBtn = form.findViewById(R.id.dialogCloseXBtn);
         EditText inputEt = form.findViewById(R.id.dialogInputEt);
         Button cancelBtn = form.findViewById(R.id.dialogCancelBtn);
         Button confirmBtn = form.findViewById(R.id.dialogConfirmBtn);
@@ -507,6 +532,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
                 .setView(form)
                 .create();
 
+        closeXBtn.setOnClickListener(v -> dialog.dismiss());
         cancelBtn.setOnClickListener(v -> dialog.dismiss());
         confirmBtn.setOnClickListener(v -> {
             boolean close = action.onConfirm(inputEt.getText().toString());

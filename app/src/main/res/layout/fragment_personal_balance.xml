@@ -35,7 +35,7 @@
             android:popupBackground="@color/surface_dark_alt"
             android:visibility="visible" />
 
-        <com.sergio.flatshare.ui.widget.PieChartView
+        <com.sergio.flatshare.shared.widgets.PieChartView
             android:id="@+id/personalPieChart"
             android:layout_width="match_parent"
             android:layout_height="270dp"
@@ -49,6 +49,32 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:orientation="vertical" />
+
+        <TextView
+            android:id="@+id/monthlyChartTitleTv"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Pagado por mes"
+            android:textColor="@color/text_light"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Has pagado (EUR)"
+            android:textColor="@color/text_muted"
+            android:textSize="12sp" />
+
+        <com.sergio.flatshare.shared.widgets.MonthlyBarChartView
+            android:id="@+id/monthlyBarChart"
+            android:layout_width="match_parent"
+            android:layout_height="250dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_group_row"
+            android:padding="10dp" />
 
     </LinearLayout>
 

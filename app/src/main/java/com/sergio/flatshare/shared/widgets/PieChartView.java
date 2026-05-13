@@ -1,4 +1,4 @@
-package com.sergio.flatshare.ui.widget;
+package com.sergio.flatshare.shared.widgets;
 
 import android.content.Context;
 import android.graphics.Canvas;

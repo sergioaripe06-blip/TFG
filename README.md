@@ -1,4 +1,4 @@
-﻿# FlatShare (Android Studio + Java)
+# FlatShare (Android Studio + Java)
 
 Proyecto base funcional para TFG, en Android nativo con Java:
 - Registro e inicio de sesión (Firebase Auth)
@@ -21,4 +21,5 @@ Proyecto base funcional para TFG, en Android nativo con Java:
 ## Notas
 - La estructura está lista para ampliar invitaciones por email, reparto avanzado por porcentajes y recordatorios periódicos.
 - Si Android Studio pide actualización de Gradle/AGP, acepta la migración automática.
+- Arquitectura modular actual documentada en `ARCHITECTURE.md` (features/core/shared).
 

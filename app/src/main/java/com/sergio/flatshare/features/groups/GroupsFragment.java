@@ -1,4 +1,4 @@
-package com.sergio.flatshare.ui;
+package com.sergio.flatshare.features.groups;
 
 import android.app.AlertDialog;
 import android.graphics.Bitmap;
@@ -10,7 +10,9 @@ import android.util.SparseBooleanArray;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.AdapterView;
+import android.widget.AutoCompleteTextView;
 import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.Button;
@@ -43,8 +45,9 @@ import com.google.zxing.common.BitMatrix;
 import com.journeyapps.barcodescanner.ScanContract;
 import com.journeyapps.barcodescanner.ScanOptions;
 import com.sergio.flatshare.R;
-import com.sergio.flatshare.util.DialogUtils;
-import com.sergio.flatshare.util.SessionStore;
+import com.sergio.flatshare.features.shell.MainActivity;
+import com.sergio.flatshare.core.session.SessionStore;
+import com.sergio.flatshare.shared.ui.DialogUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -154,15 +157,15 @@ public class GroupsFragment extends Fragment {
         EditText portalEt = form.findViewById(R.id.portalEt);
         EditText numberEt = form.findViewById(R.id.numberEt);
         EditText postalCodeEt = form.findViewById(R.id.postalCodeEt);
-        Spinner provinceSpinner = form.findViewById(R.id.provinceSpinner);
-        Spinner citySpinner = form.findViewById(R.id.citySpinner);
+        AutoCompleteTextView provinceInput = form.findViewById(R.id.provinceInput);
+        EditText cityInput = form.findViewById(R.id.cityInput);
 
         EditText roomCountEt = form.findViewById(R.id.roomCountEt);
         TextView variableSplitLabelTv = form.findViewById(R.id.variableSplitLabelTv);
         Spinner rentModeSpinner = form.findViewById(R.id.rentModeSpinner);
         Spinner variableSplitSpinner = form.findViewById(R.id.variableSplitSpinner);
 
-        setupProvinceCitySpinners(provinceSpinner, citySpinner);
+        setupProvinceAutocomplete(provinceInput);
         setupRentModeSpinners(rentModeSpinner, variableSplitSpinner, variableSplitLabelTv);
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
@@ -175,6 +178,9 @@ public class GroupsFragment extends Fragment {
         );
 
         AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        }
         final boolean[] inStepTwo = {false};
 
         Runnable showStepOne = () -> {
@@ -210,12 +216,15 @@ public class GroupsFragment extends Fragment {
                 String portal = portalEt.getText().toString().trim();
                 String number = numberEt.getText().toString().trim();
                 String postalCode = postalCodeEt.getText().toString().trim();
-                String province = getSelectedSpinnerValue(provinceSpinner);
-                String city = getSelectedSpinnerValue(citySpinner);
+                String province = getSelectedProvinceValue(provinceInput);
+                String city = getInputValue(cityInput);
 
-                if (name.isEmpty() || street.isEmpty() || portal.isEmpty() || number.isEmpty()
-                        || postalCode.isEmpty() || city.isEmpty() || province.isEmpty()) {
+                if (name.isEmpty() || street.isEmpty() || portal.isEmpty() || number.isEmpty() || postalCode.isEmpty() || city.isEmpty()) {
                     Toast.makeText(requireContext(), "Completa todos los datos del piso", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (province.isEmpty()) {
+                    Toast.makeText(requireContext(), "Selecciona una provincia de la lista", Toast.LENGTH_SHORT).show();
                     return;
                 }
                 showStepTwo.run();
@@ -227,8 +236,8 @@ public class GroupsFragment extends Fragment {
             String portal = portalEt.getText().toString().trim();
             String number = numberEt.getText().toString().trim();
             String postalCode = postalCodeEt.getText().toString().trim();
-            String province = getSelectedSpinnerValue(provinceSpinner);
-            String city = getSelectedSpinnerValue(citySpinner);
+            String province = getSelectedProvinceValue(provinceInput);
+            String city = getInputValue(cityInput);
             String roomCountText = roomCountEt.getText().toString().trim();
             int rentModeSelection = rentModeSpinner.getSelectedItemPosition();
             int splitModeSelection = variableSplitSpinner.getSelectedItemPosition();
@@ -470,6 +479,7 @@ public class GroupsFragment extends Fragment {
     private void showSingleInputDialog(String title, String subtitle, String hint, int inputType, String actionLabel, SingleInputAction action) {
         View form = buildSingleInputDialog(title, subtitle, hint, inputType, actionLabel);
         EditText inputEt = form.findViewById(R.id.dialogInputEt);
+        TextView closeXBtn = form.findViewById(R.id.dialogCloseXBtn);
         Button cancelBtn = form.findViewById(R.id.dialogCancelBtn);
         Button confirmBtn = form.findViewById(R.id.dialogConfirmBtn);
 
@@ -477,6 +487,7 @@ public class GroupsFragment extends Fragment {
                 .setView(form)
                 .create();
 
+        closeXBtn.setOnClickListener(v -> dialog.dismiss());
         cancelBtn.setOnClickListener(v -> dialog.dismiss());
         confirmBtn.setOnClickListener(v -> {
             boolean shouldClose = action.onConfirm(inputEt.getText().toString());
@@ -996,34 +1007,20 @@ public class GroupsFragment extends Fragment {
                 ).show());
     }
 
-    private void setupProvinceCitySpinners(Spinner provinceSpinner, Spinner citySpinner) {
-        List<String> provinces = new ArrayList<>();
-        provinces.add("Selecciona provincia");
-        provinces.addAll(PROVINCE_CITIES.keySet());
-        provinceSpinner.setAdapter(buildDialogSpinnerAdapter(provinces));
-        citySpinner.setAdapter(buildDialogSpinnerAdapter(Collections.singletonList("Selecciona ciudad")));
+    private void setupProvinceAutocomplete(AutoCompleteTextView provinceInput) {
+        List<String> provinces = new ArrayList<>(PROVINCE_CITIES.keySet());
+        provinceInput.setAdapter(buildDialogAutocompleteAdapter(provinces));
+        provinceInput.setThreshold(1);
 
-        provinceSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                if (position <= 0) {
-                    citySpinner.setAdapter(buildDialogSpinnerAdapter(Collections.singletonList("Selecciona ciudad")));
-                    return;
-                }
-                String province = provinces.get(position);
-                List<String> cities = PROVINCE_CITIES.get(province);
-                List<String> cityItems = new ArrayList<>();
-                cityItems.add("Selecciona ciudad");
-                if (cities != null) {
-                    cityItems.addAll(cities);
-                }
-                citySpinner.setAdapter(buildDialogSpinnerAdapter(cityItems));
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
+        provinceInput.setOnClickListener(v -> provinceInput.showDropDown());
+        provinceInput.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                provinceInput.post(provinceInput::showDropDown);
             }
         });
+        provinceInput.setOnItemClickListener((parent, view, position, id) ->
+                provinceInput.post(provinceInput::dismissDropDown)
+        );
     }
 
     private void setupRentModeSpinners(Spinner rentModeSpinner, Spinner variableSplitSpinner, TextView variableSplitLabelTv) {
@@ -1061,11 +1058,45 @@ public class GroupsFragment extends Fragment {
         });
     }
 
-    private String getSelectedSpinnerValue(Spinner spinner) {
-        if (spinner == null || spinner.getSelectedItem() == null) return "";
-        int position = spinner.getSelectedItemPosition();
-        if (position <= 0) return "";
-        return spinner.getSelectedItem().toString().trim();
+    private String getSelectedProvinceValue(AutoCompleteTextView provinceInput) {
+        String typedProvince = getInputValue(provinceInput);
+        if (typedProvince.isEmpty()) return "";
+        for (String province : PROVINCE_CITIES.keySet()) {
+            if (province.equalsIgnoreCase(typedProvince)) {
+                return province;
+            }
+        }
+        return "";
+    }
+
+    private String getInputValue(TextView input) {
+        return input == null ? "" : input.getText().toString().trim();
+    }
+
+    private ArrayAdapter<String> buildDialogAutocompleteAdapter(List<String> items) {
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_dropdown_item_1line, items) {
+            @Override
+            public @NonNull View getView(int position, View convertView, @NonNull ViewGroup parent) {
+                View view = super.getView(position, convertView, parent);
+                if (view instanceof TextView) {
+                    ((TextView) view).setTextColor(requireContext().getColor(R.color.text_light));
+                }
+                return view;
+            }
+
+            @Override
+            public View getDropDownView(int position, View convertView, @NonNull ViewGroup parent) {
+                View view = super.getDropDownView(position, convertView, parent);
+                if (view instanceof TextView) {
+                    TextView tv = (TextView) view;
+                    tv.setTextColor(requireContext().getColor(R.color.text_light));
+                    tv.setBackgroundColor(requireContext().getColor(R.color.surface_dark_alt));
+                }
+                return view;
+            }
+        };
+        adapter.setDropDownViewResource(android.R.layout.simple_dropdown_item_1line);
+        return adapter;
     }
 
     private ArrayAdapter<String> buildDialogSpinnerAdapter(List<String> items) {
@@ -1232,5 +1263,6 @@ public class GroupsFragment extends Fragment {
         }
     }
 }
+
 
 
