@@ -110,15 +110,6 @@
                 android:textSize="16sp" />
         </LinearLayout>
 
-        <Button
-            android:id="@+id/logoutBtn"
-            android:layout_width="match_parent"
-            android:layout_height="44dp"
-            android:layout_marginTop="20dp"
-            android:background="@drawable/bg_button_pill_secondary"
-            android:text="@string/logout"
-            android:textAllCaps="false"
-            android:textColor="@color/text_light" />
     </LinearLayout>
 
 </FrameLayout>

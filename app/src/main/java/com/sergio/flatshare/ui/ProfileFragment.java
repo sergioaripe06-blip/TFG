@@ -66,7 +66,6 @@ public class ProfileFragment extends Fragment {
         ImageButton changePhotoBtn = view.findViewById(R.id.changePhotoBtn);
         ImageButton openSettingsBtn = view.findViewById(R.id.openSettingsBtn);
         Button editProfileBtn = view.findViewById(R.id.editProfileBtn);
-        Button logoutBtn = view.findViewById(R.id.logoutBtn);
 
         changePhotoBtn.setOnClickListener(v -> pickPhotoLauncher.launch(new String[]{"image/*"}));
         openSettingsBtn.setOnClickListener(v -> {
@@ -78,12 +77,6 @@ public class ProfileFragment extends Fragment {
                     .commit();
         });
         editProfileBtn.setOnClickListener(v -> showEditProfileDialog());
-        logoutBtn.setOnClickListener(v -> {
-            FirebaseAuth.getInstance().signOut();
-            startActivity(new Intent(requireContext(), LoginActivity.class));
-            requireActivity().finish();
-        });
-
         loadProfileData();
         return view;
     }

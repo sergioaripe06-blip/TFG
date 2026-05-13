@@ -9,86 +9,100 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Categoría:"
+        android:text="Filtrar por"
         android:textColor="@color/text_light"
         android:textSize="12sp"
         android:textStyle="bold" />
 
-    <EditText
-        android:id="@+id/filterCategoryEt"
+    <Spinner
+        android:id="@+id/filterModeSpinner"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="40dp"
         android:layout_marginTop="4dp"
-        android:background="@drawable/bg_input_dark_round"
-        android:hint="Ejemplo: Agua"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="12dp"
-        android:textColor="@color/text_light"
-        android:textColorHint="@color/text_muted" />
+        android:background="@drawable/bg_select_dark_round"
+        android:paddingHorizontal="12dp"
+        android:spinnerMode="dropdown" />
 
-    <TextView
+    <LinearLayout
+        android:id="@+id/filterCategoryRow"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:text="Persona (email):"
-        android:textColor="@color/text_light"
-        android:textSize="12sp"
-        android:textStyle="bold" />
+        android:layout_marginTop="12dp"
+        android:orientation="vertical">
 
-    <EditText
-        android:id="@+id/filterPersonEt"
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Categoria"
+            android:textColor="@color/text_light"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <Spinner
+            android:id="@+id/filterCategorySpinner"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/bg_select_dark_round"
+            android:paddingHorizontal="12dp"
+            android:spinnerMode="dropdown" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/filterPersonRow"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:background="@drawable/bg_input_dark_round"
-        android:hint="Ejemplo: nombre@email.com"
-        android:inputType="textEmailAddress"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="12dp"
-        android:textColor="@color/text_light"
-        android:textColorHint="@color/text_muted" />
+        android:layout_marginTop="12dp"
+        android:orientation="vertical"
+        android:visibility="gone">
 
-    <TextView
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Persona"
+            android:textColor="@color/text_light"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <Spinner
+            android:id="@+id/filterPersonSpinner"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/bg_select_dark_round"
+            android:paddingHorizontal="12dp"
+            android:spinnerMode="dropdown" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/filterDateRow"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:text="Desde (AAAA-MM-DD):"
-        android:textColor="@color/text_light"
-        android:textSize="12sp"
-        android:textStyle="bold" />
+        android:layout_marginTop="12dp"
+        android:orientation="vertical"
+        android:visibility="gone">
 
-    <EditText
-        android:id="@+id/filterFromDateEt"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:background="@drawable/bg_input_dark_round"
-        android:hint="Ejemplo: 2026-01-01"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="12dp"
-        android:textColor="@color/text_light"
-        android:textColorHint="@color/text_muted" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Fecha (AAAA-MM-DD)"
+            android:textColor="@color/text_light"
+            android:textSize="12sp"
+            android:textStyle="bold" />
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:text="Hasta (AAAA-MM-DD):"
-        android:textColor="@color/text_light"
-        android:textSize="12sp"
-        android:textStyle="bold" />
-
-    <EditText
-        android:id="@+id/filterToDateEt"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:background="@drawable/bg_input_dark_round"
-        android:hint="Ejemplo: 2026-12-31"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="12dp"
-        android:textColor="@color/text_light"
-        android:textColorHint="@color/text_muted" />
+        <EditText
+            android:id="@+id/filterDateEt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/bg_input_dark_round"
+            android:focusable="false"
+            android:hint="Ejemplo: 2026-05-13"
+            android:inputType="date"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="12dp"
+            android:textColor="@color/text_light"
+            android:textColorHint="@color/text_muted" />
+    </LinearLayout>
 
 </LinearLayout>
-

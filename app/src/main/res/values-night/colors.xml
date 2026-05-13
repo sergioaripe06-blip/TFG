@@ -1,18 +1,18 @@
 <resources>
-    <color name="seed">#B9F35A</color>
-    <color name="primary_green">#B9F35A</color>
-    <color name="primary_green_bright">#C7F75D</color>
-    <color name="on_primary_green">#10170B</color>
-    <color name="bg_deep_green">#0B170E</color>
-    <color name="bg_deep_green_2">#0F2212</color>
-    <color name="bg_deep_green_3">#152C17</color>
-    <color name="surface_dark">#111A13</color>
-    <color name="surface_dark_alt">#1A2A1D</color>
-    <color name="surface_chip">#1B251E</color>
-    <color name="text_light">#EAF4E8</color>
-    <color name="text_muted">#A7B5A6</color>
-    <color name="divider_soft">#29402C</color>
-    <color name="status_success">#67D38C</color>
-    <color name="status_warning">#F2BE5C</color>
-    <color name="status_danger">#FF8A80</color>
+    <color name="seed">#5EEAD4</color>
+    <color name="primary_green">#2DD4BF</color>
+    <color name="primary_green_bright">#5EEAD4</color>
+    <color name="on_primary_green">#052E2B</color>
+    <color name="bg_deep_green">#0B1220</color>
+    <color name="bg_deep_green_2">#111A2B</color>
+    <color name="bg_deep_green_3">#172438</color>
+    <color name="surface_dark">#111827</color>
+    <color name="surface_dark_alt">#1B2638</color>
+    <color name="surface_chip">#223145</color>
+    <color name="text_light">#E5EEF8</color>
+    <color name="text_muted">#93A4B8</color>
+    <color name="divider_soft">#30465F</color>
+    <color name="status_success">#34D399</color>
+    <color name="status_warning">#FBBF24</color>
+    <color name="status_danger">#F87171</color>
 </resources>

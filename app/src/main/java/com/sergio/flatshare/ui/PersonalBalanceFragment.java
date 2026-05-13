@@ -19,7 +19,6 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.sergio.flatshare.R;
 import com.sergio.flatshare.ui.widget.PieChartView;
-import com.sergio.flatshare.util.SessionStore;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -29,6 +28,8 @@ import java.util.Locale;
 import java.util.Map;
 
 public class PersonalBalanceFragment extends Fragment {
+    private static final String BILLING_FIXED = "fixed";
+    private static final String CATEGORY_RENT = "alquiler";
     private static final String[] TYPES = {"agua", "electricidad", "internet", "alquiler", "comida", "otros"};
     private static final int[] COLORS = {
             Color.parseColor("#44D4FF"),
@@ -63,15 +64,11 @@ public class PersonalBalanceFragment extends Fragment {
         db.collection("groups").whereArrayContains("members", uid).get().addOnSuccessListener(result -> {
             groupOptions.clear();
             groupOptions.add(new GroupOption(GROUP_ALL, null));
-            String currentGroup = SessionStore.getCurrentGroup(requireContext());
             int currentIdx = 0;
-            int idx = 1;
             for (var doc : result.getDocuments()) {
                 String id = doc.getId();
                 String name = doc.getString("name");
                 groupOptions.add(new GroupOption(name == null ? "Piso" : name, id));
-                if (currentGroup != null && currentGroup.equals(id)) currentIdx = idx;
-                idx++;
             }
             List<String> labels = new ArrayList<>();
             for (GroupOption opt : groupOptions) labels.add(opt.label);
@@ -127,24 +124,43 @@ public class PersonalBalanceFragment extends Fragment {
     }
 
     private void accumulateForGroup(String groupId, boolean personal, String myEmail, Map<String, Double> totals, Runnable done) {
-        var expensesQuery = db.collection("expenses").whereEqualTo("groupId", groupId);
-        if (personal) expensesQuery = expensesQuery.whereEqualTo("payerEmail", myEmail);
-        expensesQuery.get().addOnSuccessListener(expenses -> {
-            expenses.forEach(doc -> {
-                String c = normalizeType(doc.getString("category"));
-                double a = doc.getDouble("amount") == null ? 0.0 : doc.getDouble("amount");
-                totals.put(c, totals.getOrDefault(c, 0.0) + a);
-            });
+        db.collection("groups").document(groupId).get().addOnSuccessListener(groupDoc -> {
+            boolean fixedBilling = BILLING_FIXED.equalsIgnoreCase(groupDoc.getString("billingModel"));
+            final var paymentsQuery = personal
+                    ? db.collection("payments").whereEqualTo("groupId", groupId).whereEqualTo("fromEmail", myEmail)
+                    : db.collection("payments").whereEqualTo("groupId", groupId);
+            if (fixedBilling) {
+                paymentsQuery.get().addOnSuccessListener(payments -> {
+                    payments.forEach(doc -> {
+                        String rawCategory = doc.getString("category");
+                        if (rawCategory == null || !CATEGORY_RENT.equalsIgnoreCase(rawCategory.trim())) return;
+                        String c = normalizeType(rawCategory);
+                        double a = doc.getDouble("amount") == null ? 0.0 : doc.getDouble("amount");
+                        totals.put(c, totals.getOrDefault(c, 0.0) + a);
+                    });
+                    done.run();
+                }).addOnFailureListener(e -> done.run());
+                return;
+            }
 
-            var paymentsQuery = db.collection("payments").whereEqualTo("groupId", groupId);
-            if (personal) paymentsQuery = paymentsQuery.whereEqualTo("fromEmail", myEmail);
-            paymentsQuery.get().addOnSuccessListener(payments -> {
-                payments.forEach(doc -> {
+            final var expensesQuery = personal
+                    ? db.collection("expenses").whereEqualTo("groupId", groupId).whereEqualTo("payerEmail", myEmail)
+                    : db.collection("expenses").whereEqualTo("groupId", groupId);
+            expensesQuery.get().addOnSuccessListener(expenses -> {
+                expenses.forEach(doc -> {
                     String c = normalizeType(doc.getString("category"));
                     double a = doc.getDouble("amount") == null ? 0.0 : doc.getDouble("amount");
                     totals.put(c, totals.getOrDefault(c, 0.0) + a);
                 });
-                done.run();
+
+                paymentsQuery.get().addOnSuccessListener(payments -> {
+                    payments.forEach(doc -> {
+                        String c = normalizeType(doc.getString("category"));
+                        double a = doc.getDouble("amount") == null ? 0.0 : doc.getDouble("amount");
+                        totals.put(c, totals.getOrDefault(c, 0.0) + a);
+                    });
+                    done.run();
+                }).addOnFailureListener(e -> done.run());
             }).addOnFailureListener(e -> done.run());
         }).addOnFailureListener(e -> done.run());
     }

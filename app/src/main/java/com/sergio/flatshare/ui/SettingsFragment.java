@@ -1,10 +1,12 @@
 package com.sergio.flatshare.ui;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.Spinner;
 import android.widget.TextView;
 
@@ -15,6 +17,7 @@ import androidx.core.os.LocaleListCompat;
 import androidx.fragment.app.Fragment;
 
 import com.google.android.material.switchmaterial.SwitchMaterial;
+import com.google.firebase.auth.FirebaseAuth;
 import com.sergio.flatshare.R;
 import com.sergio.flatshare.util.SettingsStore;
 
@@ -26,6 +29,7 @@ public class SettingsFragment extends Fragment {
         SwitchMaterial themeSwitch = view.findViewById(R.id.themeSwitch);
         SwitchMaterial notificationsSwitch = view.findViewById(R.id.notificationsSwitch);
         Spinner languageSpinner = view.findViewById(R.id.languageSpinner);
+        Button settingsLogoutBtn = view.findViewById(R.id.settingsLogoutBtn);
 
         boolean darkModeEnabled = SettingsStore.isDarkModeEnabled(requireContext());
         themeSwitch.setChecked(darkModeEnabled);
@@ -82,6 +86,12 @@ public class SettingsFragment extends Fragment {
             @Override
             public void onNothingSelected(android.widget.AdapterView<?> parent) {
             }
+        });
+
+        settingsLogoutBtn.setOnClickListener(v -> {
+            FirebaseAuth.getInstance().signOut();
+            startActivity(new Intent(requireContext(), LoginActivity.class));
+            requireActivity().finish();
         });
 
         return view;

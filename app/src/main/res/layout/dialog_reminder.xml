@@ -55,7 +55,7 @@
         android:layout_width="match_parent"
         android:layout_height="50dp"
         android:layout_marginTop="10dp"
-        android:background="@drawable/bg_input_dark_round"
+        android:background="@drawable/bg_select_dark_round"
         android:paddingHorizontal="12dp"
         android:popupBackground="@color/surface_dark_alt" />
 
@@ -89,7 +89,7 @@
         android:layout_width="match_parent"
         android:layout_height="50dp"
         android:layout_marginTop="10dp"
-        android:background="@drawable/bg_input_dark_round"
+        android:background="@drawable/bg_select_dark_round"
         android:paddingHorizontal="12dp"
         android:popupBackground="@color/surface_dark_alt" />
 
@@ -98,7 +98,7 @@
         android:layout_width="match_parent"
         android:layout_height="50dp"
         android:layout_marginTop="10dp"
-        android:background="@drawable/bg_input_dark_round"
+        android:background="@drawable/bg_select_dark_round"
         android:paddingHorizontal="12dp"
         android:popupBackground="@color/surface_dark_alt"
         android:visibility="gone" />
@@ -108,7 +108,7 @@
         android:layout_width="match_parent"
         android:layout_height="50dp"
         android:layout_marginTop="10dp"
-        android:background="@drawable/bg_input_dark_round"
+        android:background="@drawable/bg_select_dark_round"
         android:paddingHorizontal="12dp"
         android:popupBackground="@color/surface_dark_alt"
         android:visibility="gone" />
@@ -143,6 +143,36 @@
         android:textColor="@color/text_light"
         android:visibility="gone" />
 
+    <LinearLayout
+        android:id="@+id/reminderMembersContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:orientation="vertical"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/addReminderMemberLineBtn"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_tab_default"
+        android:text="Añadir línea de miembro"
+        android:textAllCaps="false"
+        android:textColor="@color/text_light"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/removeReminderMemberLineBtn"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_tab_default"
+        android:text="Eliminar línea de miembro"
+        android:textAllCaps="false"
+        android:textColor="@color/text_light"
+        android:visibility="gone" />
+
     <Button
         android:id="@+id/reminderAttachBtn"
         android:layout_width="match_parent"
@@ -163,4 +193,3 @@
         android:textSize="12sp" />
 
 </LinearLayout>
-

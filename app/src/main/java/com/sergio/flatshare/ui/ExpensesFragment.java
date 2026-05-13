@@ -89,6 +89,10 @@ public class ExpensesFragment extends Fragment {
     private static final String VARIABLE_SPLIT_EQUAL = "equal";
     private static final String VARIABLE_SPLIT_PERCENTAGE = "percentage";
     private static final String ROOM_ALL_LABEL = "Todas las habitaciones";
+    private static final String FILTER_MODE_CATEGORY = "category";
+    private static final String FILTER_MODE_PERSON = "person";
+    private static final String FILTER_MODE_DATE = "date";
+    private static final String CATEGORY_RENT = "alquiler";
     private static final String[] SPENDING_TYPES = {"agua", "electricidad", "internet", "alquiler", "comida", "otros"};
     private static final int[] SPENDING_TYPE_COLORS = {
             Color.parseColor("#44D4FF"),
@@ -101,7 +105,7 @@ public class ExpensesFragment extends Fragment {
     private static final String[] PRIORITY_TYPES = {"baja", "media", "alta"};
     private static final String[] PAYMENT_TARGET_TYPES = {"Habitación", "Miembro", "Todos"};
     private static final String[] REMINDER_INTERVAL_TYPES = {"Diario", "Semanal", "Mensual", "Personalizado"};
-    private static final String[] REMINDER_TARGET_TYPES = {"Todos", "Miembro", "Habitación", "X habitación"};
+    private static final String[] REMINDER_TARGET_TYPES = {"Todos", "Miembro", "Habitación", "X habitación", "X miembros"};
     private static final SimpleDateFormat DUE_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT);
 
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
@@ -141,11 +145,13 @@ public class ExpensesFragment extends Fragment {
     private String currentRoomId;
     private String currentRoomName;
     private List<String> currentRoomMembers = new ArrayList<>();
+    private List<String> currentGroupMemberEmails = new ArrayList<>();
     private String filterPersonEmail;
     private String filterCategory;
     private String filterSearchQuery;
     private Long filterFromMs;
     private Long filterToMs;
+    private String filterDateIso;
     private String pendingTicketUri;
     private EditText pendingTicketAmountEt;
     private TextView pendingTicketStatusTv;
@@ -258,6 +264,7 @@ public class ExpensesFragment extends Fragment {
         currentRoomId = SessionStore.getCurrentRoomId(requireContext());
         currentRoomName = SessionStore.getCurrentRoomName(requireContext());
         currentRoomMembers = new ArrayList<>();
+        currentGroupMemberEmails = new ArrayList<>();
         if (currentGroupId == null) {
             currentGroupName = "Selecciona un piso";
             currentBillingModel = BILLING_VARIABLE;
@@ -298,6 +305,7 @@ public class ExpensesFragment extends Fragment {
                     : rawDescription;
             List<String> memberEmails = castEmails(doc.get("memberEmails"));
             List<String> memberIds = castStrings(doc.get("members"));
+            currentGroupMemberEmails = new ArrayList<>(memberEmails);
             resolveMemberDisplayNames(memberIds, memberEmails, () -> {
                 if (!isAdded()) return;
                 String ownerEmail = resolveOwnerEmail(doc, memberIds, memberEmails);
@@ -416,7 +424,7 @@ public class ExpensesFragment extends Fragment {
             }
             showExpenseActionDialog();
         } else if (TAB_SALDOS.equals(currentTab)) {
-            createPaymentDialog();
+            showExpenseActionDialog();
         } else if (TAB_REMINDERS.equals(currentTab)) {
             createReminderDialog();
         }
@@ -663,15 +671,13 @@ public class ExpensesFragment extends Fragment {
 
             String[] labels = new String[roomFilterOptions.size() + 1];
             labels[0] = ROOM_ALL_LABEL;
-            int selectedPosition = 0;
             for (int i = 0; i < roomFilterOptions.size(); i++) {
                 RoomOption option = roomFilterOptions.get(i);
                 labels[i + 1] = option.name;
-                if (currentRoomId != null && currentRoomId.equals(option.id)) {
-                    selectedPosition = i + 1;
-                }
             }
-            if (currentRoomId != null && selectedPosition == 0) {
+
+            boolean hadRoomContext = hasRoomContext();
+            if (hadRoomContext) {
                 SessionStore.clearCurrentRoom(requireContext());
                 currentRoomId = null;
                 currentRoomName = null;
@@ -680,9 +686,18 @@ public class ExpensesFragment extends Fragment {
 
             isUpdatingRoomFilterSpinner = true;
             roomFilterSpinner.setAdapter(buildLightSpinnerAdapter(labels));
-            roomFilterSpinner.setSelection(selectedPosition);
+            roomFilterSpinner.setSelection(0);
             isUpdatingRoomFilterSpinner = false;
             addRoomQuickBtn.setVisibility(canManageRooms() ? View.VISIBLE : View.GONE);
+
+            if (hadRoomContext) {
+                loadRoomContext(() -> {
+                    loadExpenses();
+                    loadFinancialViews();
+                    loadReminders();
+                    switchTab(currentTab);
+                });
+            }
         });
     }
 
@@ -894,11 +909,18 @@ public class ExpensesFragment extends Fragment {
 
     private void showExpenseActionDialog() {
         ViewGroup content = DialogUtils.createVerticalActions(requireContext());
-        Button expenseBtn = DialogUtils.createActionButton(requireContext(), "Nuevo gasto", true);
-        Button paymentBtn = DialogUtils.createActionButton(requireContext(), "Registrar pago", false);
+        boolean fixedBilling = BILLING_FIXED.equals(currentBillingModel);
+        Button expenseBtn = null;
+        Button paymentBtn;
         Button pdfBtn = DialogUtils.createActionButton(requireContext(), "Exportar PDF", false);
         Button qrBtn = DialogUtils.createActionButton(requireContext(), "Mostrar QR", false);
-        content.addView(expenseBtn);
+        if (!fixedBilling) {
+            expenseBtn = DialogUtils.createActionButton(requireContext(), "Nuevo gasto", true);
+            content.addView(expenseBtn);
+            paymentBtn = DialogUtils.createActionButton(requireContext(), "Registrar pago", false);
+        } else {
+            paymentBtn = DialogUtils.createActionButton(requireContext(), "Registrar pago", true);
+        }
         content.addView(paymentBtn);
         content.addView(pdfBtn);
         content.addView(qrBtn);
@@ -906,17 +928,22 @@ public class ExpensesFragment extends Fragment {
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 "Nueva acción",
-                "Crea un gasto, registra un pago o comparte acceso al piso.",
+                fixedBilling
+                        ? "Registra pagos, exporta PDF o comparte acceso al piso."
+                        : "Crea un gasto, registra un pago o comparte acceso al piso.",
                 content,
                 "Cerrar",
                 null
         );
         AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
         shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
-        expenseBtn.setOnClickListener(v -> {
-            dialog.dismiss();
-            createExpenseDialog();
-        });
+        if (expenseBtn != null) {
+            Button finalExpenseBtn = expenseBtn;
+            finalExpenseBtn.setOnClickListener(v -> {
+                dialog.dismiss();
+                createExpenseDialog();
+            });
+        }
         paymentBtn.setOnClickListener(v -> {
             dialog.dismiss();
             createPaymentDialog();
@@ -1001,6 +1028,10 @@ public class ExpensesFragment extends Fragment {
     }
 
     private void createExpenseDialog() {
+        if (BILLING_FIXED.equals(currentBillingModel)) {
+            Toast.makeText(requireContext(), "En alquiler fijo no se registran gastos de suministros.", Toast.LENGTH_LONG).show();
+            return;
+        }
         loadCurrentGroupMembers(members -> {
             if (members.isEmpty()) {
                 Toast.makeText(requireContext(), "No hay miembros para repartir", Toast.LENGTH_SHORT).show();
@@ -1053,6 +1084,10 @@ public class ExpensesFragment extends Fragment {
     }
 
     private boolean saveExpense(View form, @Nullable String documentId, List<String> members, List<RoomOption> rooms) {
+        if (BILLING_FIXED.equals(currentBillingModel)) {
+            Toast.makeText(requireContext(), "Este piso usa alquiler fijo. No se pueden guardar gastos.", Toast.LENGTH_LONG).show();
+            return false;
+        }
         String concept = ((EditText) form.findViewById(R.id.conceptEt)).getText().toString().trim();
         String amountStr = ((EditText) form.findViewById(R.id.amountEt)).getText().toString().trim();
         String category = ((Spinner) form.findViewById(R.id.categorySpinner)).getSelectedItem().toString();
@@ -1168,7 +1203,14 @@ public class ExpensesFragment extends Fragment {
             }
             loadCurrentGroupRooms(rooms -> {
                 View form = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_payment, null, false);
-                setupTypeSpinner((Spinner) form.findViewById(R.id.paymentCategorySpinner), null);
+                Spinner paymentCategorySpinner = form.findViewById(R.id.paymentCategorySpinner);
+                if (BILLING_FIXED.equals(currentBillingModel)) {
+                    paymentCategorySpinner.setAdapter(buildLightSpinnerAdapter(new String[]{capitalizeTypeLabel(CATEGORY_RENT)}));
+                    paymentCategorySpinner.setSelection(0);
+                    paymentCategorySpinner.setEnabled(false);
+                } else {
+                    setupTypeSpinner(paymentCategorySpinner, null);
+                }
                 setupPrioritySpinner((Spinner) form.findViewById(R.id.paymentPrioritySpinner), "media");
                 setupDateField(form.findViewById(R.id.paymentDueDateEt));
                 setupPaymentTargetSelectors(form, members, rooms, hasRoomContext() ? currentRoomId : null);
@@ -1258,6 +1300,9 @@ public class ExpensesFragment extends Fragment {
         }
 
         String fromEmail = FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
+        String normalizedCategory = BILLING_FIXED.equals(currentBillingModel)
+                ? CATEGORY_RENT
+                : (category == null || category.trim().isEmpty() ? "otros" : category.trim().toLowerCase(Locale.ROOT));
         List<PaymentTarget> targets = resolvePaymentTargets(targetType, members, rooms, memberIndex, roomIndex, fromEmail);
         if (targets.isEmpty()) {
             Toast.makeText(requireContext(), "No hay destinatarios válidos para este pago", Toast.LENGTH_SHORT).show();
@@ -1275,7 +1320,7 @@ public class ExpensesFragment extends Fragment {
             data.put("amount", splitAmount);
             data.put("fromEmail", fromEmail);
             data.put("toEmail", target.toEmail);
-            data.put("category", category);
+            data.put("category", normalizedCategory);
             data.put("priority", safePriority);
             data.put("status", "pending");
             data.put("createdAt", FieldValue.serverTimestamp());
@@ -1466,6 +1511,9 @@ public class ExpensesFragment extends Fragment {
         LinearLayout roomsContainer = form.findViewById(R.id.reminderRoomsContainer);
         Button addLineBtn = form.findViewById(R.id.addReminderRoomLineBtn);
         Button removeLineBtn = form.findViewById(R.id.removeReminderRoomLineBtn);
+        LinearLayout membersContainer = form.findViewById(R.id.reminderMembersContainer);
+        Button addMemberLineBtn = form.findViewById(R.id.addReminderMemberLineBtn);
+        Button removeMemberLineBtn = form.findViewById(R.id.removeReminderMemberLineBtn);
 
         targetTypeSpinner.setAdapter(buildLightSpinnerAdapter(REMINDER_TARGET_TYPES));
 
@@ -1497,6 +1545,22 @@ public class ExpensesFragment extends Fragment {
             updateReminderTargetSection(form, targetTypeSpinner.getSelectedItemPosition());
         });
 
+        rebindReminderMemberLines(form, members, null);
+        addMemberLineBtn.setOnClickListener(v -> {
+            List<String> currentKeys = collectReminderMemberLineKeys(membersContainer);
+            currentKeys.add(firstAvailableMemberKey(members, currentKeys));
+            rebindReminderMemberLines(form, members, currentKeys);
+            updateReminderTargetSection(form, targetTypeSpinner.getSelectedItemPosition());
+        });
+        removeMemberLineBtn.setOnClickListener(v -> {
+            List<String> currentKeys = collectReminderMemberLineKeys(membersContainer);
+            if (currentKeys.size() > 1) {
+                currentKeys.remove(currentKeys.size() - 1);
+            }
+            rebindReminderMemberLines(form, members, currentKeys);
+            updateReminderTargetSection(form, targetTypeSpinner.getSelectedItemPosition());
+        });
+
         targetTypeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -1522,16 +1586,23 @@ public class ExpensesFragment extends Fragment {
         LinearLayout roomsContainer = form.findViewById(R.id.reminderRoomsContainer);
         Button addLineBtn = form.findViewById(R.id.addReminderRoomLineBtn);
         Button removeLineBtn = form.findViewById(R.id.removeReminderRoomLineBtn);
+        LinearLayout membersContainer = form.findViewById(R.id.reminderMembersContainer);
+        Button addMemberLineBtn = form.findViewById(R.id.addReminderMemberLineBtn);
+        Button removeMemberLineBtn = form.findViewById(R.id.removeReminderMemberLineBtn);
 
         boolean showMember = targetTypePosition == 1;
         boolean showRoom = targetTypePosition == 2;
         boolean showRoomLines = targetTypePosition == 3;
+        boolean showMemberLines = targetTypePosition == 4;
 
         memberSpinner.setVisibility(showMember ? View.VISIBLE : View.GONE);
         roomSpinner.setVisibility(showRoom ? View.VISIBLE : View.GONE);
         roomsContainer.setVisibility(showRoomLines ? View.VISIBLE : View.GONE);
         addLineBtn.setVisibility(showRoomLines ? View.VISIBLE : View.GONE);
         removeLineBtn.setVisibility(showRoomLines && roomsContainer.getChildCount() > 1 ? View.VISIBLE : View.GONE);
+        membersContainer.setVisibility(showMemberLines ? View.VISIBLE : View.GONE);
+        addMemberLineBtn.setVisibility(showMemberLines ? View.VISIBLE : View.GONE);
+        removeMemberLineBtn.setVisibility(showMemberLines && membersContainer.getChildCount() > 1 ? View.VISIBLE : View.GONE);
     }
 
     private void rebindReminderRoomLines(View form, List<RoomOption> rooms, @Nullable List<String> seedKeys) {
@@ -1568,7 +1639,7 @@ public class ExpensesFragment extends Fragment {
             String selectedKey
     ) {
         Spinner spinner = new Spinner(requireContext(), Spinner.MODE_DROPDOWN);
-        spinner.setBackgroundResource(R.drawable.bg_input_dark_round);
+        spinner.setBackgroundResource(R.drawable.bg_select_dark_round);
         spinner.setPadding(dp(12), 0, dp(12), 0);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -1606,6 +1677,91 @@ public class ExpensesFragment extends Fragment {
     }
 
     private List<String> collectReminderRoomLineKeys(LinearLayout container) {
+        List<String> keys = new ArrayList<>();
+        for (int i = 0; i < container.getChildCount(); i++) {
+            View child = container.getChildAt(i);
+            if (!(child instanceof Spinner spinner)) continue;
+            @SuppressWarnings("unchecked")
+            List<String> optionKeys = (List<String>) spinner.getTag();
+            int selected = spinner.getSelectedItemPosition();
+            if (optionKeys == null || selected < 0 || selected >= optionKeys.size()) continue;
+            keys.add(optionKeys.get(selected));
+        }
+        return keys;
+    }
+
+    private void rebindReminderMemberLines(View form, List<String> members, @Nullable List<String> seedKeys) {
+        LinearLayout container = form.findViewById(R.id.reminderMembersContainer);
+        List<String> selectedKeys = seedKeys == null ? collectReminderMemberLineKeys(container) : new ArrayList<>(seedKeys);
+        if (selectedKeys.isEmpty()) {
+            selectedKeys.add(firstAvailableMemberKey(members, Collections.emptyList()));
+        }
+        selectedKeys = deduplicateStringKeys(selectedKeys);
+        container.removeAllViews();
+
+        for (int i = 0; i < selectedKeys.size(); i++) {
+            Spinner spinner = buildReminderMemberLineSpinner(members, selectedKeys, i, selectedKeys.get(i));
+            spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                    rebindReminderMemberLines(form, members, null);
+                    Spinner targetTypeSpinner = form.findViewById(R.id.reminderTargetTypeSpinner);
+                    updateReminderTargetSection(form, targetTypeSpinner.getSelectedItemPosition());
+                }
+
+                @Override
+                public void onNothingSelected(AdapterView<?> parent) {
+                }
+            });
+            container.addView(spinner);
+        }
+    }
+
+    private Spinner buildReminderMemberLineSpinner(
+            List<String> members,
+            List<String> selectedKeys,
+            int spinnerIndex,
+            String selectedKey
+    ) {
+        Spinner spinner = new Spinner(requireContext(), Spinner.MODE_DROPDOWN);
+        spinner.setBackgroundResource(R.drawable.bg_select_dark_round);
+        spinner.setPadding(dp(12), 0, dp(12), 0);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(50)
+        );
+        if (spinnerIndex > 0) params.topMargin = dp(8);
+        spinner.setLayoutParams(params);
+
+        List<String> optionKeys = new ArrayList<>();
+        List<String> optionLabels = new ArrayList<>();
+        for (String member : members) {
+            boolean selectedElsewhere = false;
+            for (int i = 0; i < selectedKeys.size(); i++) {
+                if (i == spinnerIndex) continue;
+                if (member.equals(selectedKeys.get(i))) {
+                    selectedElsewhere = true;
+                    break;
+                }
+            }
+            if (!selectedElsewhere || member.equals(selectedKey)) {
+                optionKeys.add(member);
+                optionLabels.add(displayNameForEmail(member));
+            }
+        }
+        if (optionKeys.isEmpty() && !members.isEmpty()) {
+            optionKeys.add(members.get(0));
+            optionLabels.add(displayNameForEmail(members.get(0)));
+        }
+
+        spinner.setTag(optionKeys);
+        spinner.setAdapter(buildLightSpinnerAdapter(optionLabels.toArray(new String[0])));
+        int selectedIndex = optionKeys.indexOf(selectedKey);
+        spinner.setSelection(selectedIndex >= 0 ? selectedIndex : 0);
+        return spinner;
+    }
+
+    private List<String> collectReminderMemberLineKeys(LinearLayout container) {
         List<String> keys = new ArrayList<>();
         for (int i = 0; i < container.getChildCount(); i++) {
             View child = container.getChildAt(i);
@@ -1672,29 +1828,47 @@ public class ExpensesFragment extends Fragment {
                     ""
             );
         }
-
-        LinearLayout linesContainer = form.findViewById(R.id.reminderRoomsContainer);
-        List<String> selectedRoomKeys = collectReminderRoomLineKeys(linesContainer);
-        if (selectedRoomKeys.isEmpty()) return null;
-        Set<String> targetEmails = new HashSet<>();
-        List<String> roomIds = new ArrayList<>();
-        List<String> roomNames = new ArrayList<>();
-        for (String roomKey : selectedRoomKeys) {
-            for (RoomOption room : rooms) {
-                if (!room.id.equals(roomKey)) continue;
-                roomIds.add(room.id);
-                roomNames.add(room.name);
-                targetEmails.addAll(room.memberEmails);
-                break;
+        if (targetTypeIndex == 3) {
+            LinearLayout linesContainer = form.findViewById(R.id.reminderRoomsContainer);
+            List<String> selectedRoomKeys = collectReminderRoomLineKeys(linesContainer);
+            if (selectedRoomKeys.isEmpty()) return null;
+            Set<String> targetEmails = new HashSet<>();
+            List<String> roomIds = new ArrayList<>();
+            List<String> roomNames = new ArrayList<>();
+            for (String roomKey : selectedRoomKeys) {
+                for (RoomOption room : rooms) {
+                    if (!room.id.equals(roomKey)) continue;
+                    roomIds.add(room.id);
+                    roomNames.add(room.name);
+                    targetEmails.addAll(room.memberEmails);
+                    break;
+                }
             }
+            return new ReminderTargetConfig(
+                    "x_habitacion",
+                    new ArrayList<>(targetEmails),
+                    roomIds.isEmpty() ? "" : roomIds.get(0),
+                    roomNames.isEmpty() ? "" : roomNames.get(0),
+                    roomIds,
+                    roomNames,
+                    ""
+            );
+        }
+
+        LinearLayout memberLinesContainer = form.findViewById(R.id.reminderMembersContainer);
+        List<String> selectedMemberEmails = collectReminderMemberLineKeys(memberLinesContainer);
+        if (selectedMemberEmails.isEmpty()) return null;
+        List<String> normalizedMembers = new ArrayList<>();
+        for (String email : deduplicateStringKeys(selectedMemberEmails)) {
+            normalizedMembers.add(email.toLowerCase(Locale.ROOT));
         }
         return new ReminderTargetConfig(
-                "x_habitacion",
-                new ArrayList<>(targetEmails),
-                roomIds.isEmpty() ? "" : roomIds.get(0),
-                roomNames.isEmpty() ? "" : roomNames.get(0),
-                roomIds,
-                roomNames,
+                "x_miembro",
+                normalizedMembers,
+                "",
+                "",
+                new ArrayList<>(),
+                new ArrayList<>(),
                 ""
         );
     }
@@ -1782,6 +1956,17 @@ public class ExpensesFragment extends Fragment {
         String who;
         if ("miembro".equals(targetType)) {
             who = "Miembro: " + displayNameForEmail(doc.getString("targetMemberEmail"));
+        } else if ("x_miembro".equals(targetType)) {
+            List<String> memberEmails = castEmails(doc.get("targetEmails"));
+            if (memberEmails.isEmpty()) {
+                who = "X miembros";
+            } else {
+                List<String> memberNames = new ArrayList<>();
+                for (String email : memberEmails) {
+                    memberNames.add(displayNameForEmail(email));
+                }
+                who = "X miembros: " + String.join(", ", memberNames);
+            }
         } else if ("habitacion".equals(targetType)) {
             String roomName = doc.getString("roomName");
             who = "Habitación: " + (roomName == null || roomName.trim().isEmpty() ? "Sin nombre" : roomName);
@@ -1810,6 +1995,7 @@ public class ExpensesFragment extends Fragment {
 
         expenseQuery.get().addOnSuccessListener(result -> {
             for (DocumentSnapshot doc : result.getDocuments()) {
+                if (BILLING_FIXED.equals(currentBillingModel)) continue;
                 if (hasRoomContext() && !matchesExpenseWithCurrentRoom(doc)) continue;
                 Double amountValue = doc.getDouble("amount");
                 String concept = doc.getString("concept");
@@ -1843,6 +2029,11 @@ public class ExpensesFragment extends Fragment {
                     Double amountValue = doc.getDouble("amount");
                     String concept = doc.getString("concept");
                     String roomName = doc.getString("roomName");
+                    String category = doc.getString("category");
+                    if (BILLING_FIXED.equals(currentBillingModel)
+                            && (category == null || !CATEGORY_RENT.equalsIgnoreCase(category.trim()))) {
+                        continue;
+                    }
                     String status = doc.getString("status");
                     Date dueAt = doc.getDate("dueAt");
                     String dueDateText = doc.getString("dueDateText");
@@ -1853,7 +2044,7 @@ public class ExpensesFragment extends Fragment {
                             + (roomName == null || roomName.trim().isEmpty() ? "" : " - hab. " + roomName)
                             + " - " + statusLabel
                             + (dueDateText == null || dueDateText.isEmpty() ? "" : " - vence " + dueDateText);
-                    if (!passesFiltersPayment(doc)) continue;
+                    if (!passesFiltersPayment(doc, category)) continue;
                     expenseRows.add(new WorkspaceRow(
                             doc.getId(),
                             "payment",
@@ -2590,7 +2781,7 @@ public class ExpensesFragment extends Fragment {
             String selectedKey
     ) {
         Spinner spinner = new Spinner(requireContext(), Spinner.MODE_DROPDOWN);
-        spinner.setBackgroundResource(R.drawable.bg_input_dark_round);
+        spinner.setBackgroundResource(R.drawable.bg_select_dark_round);
         spinner.setPadding(dp(12), 0, dp(12), 0);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -2642,12 +2833,16 @@ public class ExpensesFragment extends Fragment {
         return keys;
     }
 
-    private List<String> deduplicateRoomKeys(List<String> keys) {
+    private List<String> deduplicateStringKeys(List<String> keys) {
         List<String> unique = new ArrayList<>();
         for (String key : keys) {
             if (!unique.contains(key)) unique.add(key);
         }
         return unique;
+    }
+
+    private List<String> deduplicateRoomKeys(List<String> keys) {
+        return deduplicateStringKeys(keys);
     }
 
     private String firstAvailableRoomKey(List<RoomOption> rooms, List<String> selectedKeys) {
@@ -2657,6 +2852,12 @@ public class ExpensesFragment extends Fragment {
         return rooms.isEmpty() ? ROOM_ALL_LABEL : rooms.get(0).id;
     }
 
+    private String firstAvailableMemberKey(List<String> members, List<String> selectedKeys) {
+        for (String member : members) {
+            if (!selectedKeys.contains(member)) return member;
+        }
+        return members.isEmpty() ? "" : members.get(0);
+    }
     private int findRoomIndexById(List<RoomOption> rooms, @Nullable String roomId) {
         if (roomId == null || roomId.trim().isEmpty()) return -1;
         for (int i = 0; i < rooms.size(); i++) {
@@ -2989,22 +3190,75 @@ public class ExpensesFragment extends Fragment {
 
     private void showFiltersDialog() {
         View form = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_filters, null, false);
-        EditText categoryEt = form.findViewById(R.id.filterCategoryEt);
-        EditText personEt = form.findViewById(R.id.filterPersonEt);
-        EditText fromDateEt = form.findViewById(R.id.filterFromDateEt);
-        EditText toDateEt = form.findViewById(R.id.filterToDateEt);
-        setupDateField(fromDateEt);
-        setupDateField(toDateEt);
-        categoryEt.setText(filterCategory == null ? "" : filterCategory);
-        personEt.setText(filterPersonEmail == null ? "" : filterPersonEmail);
-        SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT);
-        if (filterFromMs != null) fromDateEt.setText(fmt.format(new Date(filterFromMs)));
-        if (filterToMs != null) toDateEt.setText(fmt.format(new Date(filterToMs)));
+        Spinner modeSpinner = form.findViewById(R.id.filterModeSpinner);
+        View categoryRow = form.findViewById(R.id.filterCategoryRow);
+        Spinner categorySpinner = form.findViewById(R.id.filterCategorySpinner);
+        View personRow = form.findViewById(R.id.filterPersonRow);
+        Spinner personSpinner = form.findViewById(R.id.filterPersonSpinner);
+        View dateRow = form.findViewById(R.id.filterDateRow);
+        EditText dateEt = form.findViewById(R.id.filterDateEt);
+
+        String[] modeLabels = new String[]{"Categoría", "Persona", "Fecha"};
+        modeSpinner.setAdapter(buildLightSpinnerAdapter(modeLabels));
+
+        List<String> categoryValues = new ArrayList<>();
+        List<String> categoryLabels = new ArrayList<>();
+        categoryValues.add("");
+        categoryLabels.add("Selecciona categoría");
+        if (BILLING_FIXED.equals(currentBillingModel)) {
+            categoryValues.add(CATEGORY_RENT);
+            categoryLabels.add(capitalizeTypeLabel(CATEGORY_RENT));
+        } else {
+            for (String type : SPENDING_TYPES) {
+                categoryValues.add(type);
+                categoryLabels.add(capitalizeTypeLabel(type));
+            }
+        }
+        categorySpinner.setAdapter(buildLightSpinnerAdapter(categoryLabels.toArray(new String[0])));
+
+        List<String> personValues = new ArrayList<>();
+        List<String> personLabels = new ArrayList<>();
+        personValues.add("");
+        personLabels.add("Selecciona persona");
+        for (String memberEmail : currentGroupMemberEmails) {
+            if (memberEmail == null || memberEmail.trim().isEmpty()) continue;
+            String normalized = memberEmail.trim().toLowerCase(Locale.ROOT);
+            String displayName = displayNameForEmail(normalized);
+            if (displayName.equalsIgnoreCase(normalized)) {
+                personLabels.add(normalized);
+            } else {
+                personLabels.add(displayName + " (" + normalized + ")");
+            }
+            personValues.add(normalized);
+        }
+        personSpinner.setAdapter(buildLightSpinnerAdapter(personLabels.toArray(new String[0])));
+
+        setupDateField(dateEt);
+        if (FILTER_MODE_DATE.equals(resolveActiveFilterMode()) && filterDateIso != null) {
+            dateEt.setText(filterDateIso);
+        }
+
+        String activeMode = resolveActiveFilterMode();
+        modeSpinner.setSelection(filterModeToIndex(activeMode));
+        selectSpinnerValue(categorySpinner, categoryValues, filterCategory);
+        selectSpinnerValue(personSpinner, personValues, filterPersonEmail);
+        updateFilterModeRows(activeMode, categoryRow, personRow, dateRow);
+        modeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                String mode = filterModeFromIndex(position);
+                updateFilterModeRows(mode, categoryRow, personRow, dateRow);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 "Filtros",
-                "Filtra por categoria, persona y rango de fechas.",
+                "Aplica un solo filtro: categoría, persona o fecha.",
                 form,
                 "Limpiar",
                 "Aplicar"
@@ -3015,36 +3269,116 @@ public class ExpensesFragment extends Fragment {
             filterPersonEmail = null;
             filterFromMs = null;
             filterToMs = null;
+            filterDateIso = null;
             loadExpenses();
             dialog.dismiss();
         });
         shell.confirmBtn.setOnClickListener(v -> {
-            String category = categoryEt.getText().toString().trim().toLowerCase(Locale.ROOT);
-            String person = personEt.getText().toString().trim().toLowerCase(Locale.ROOT);
-            String from = fromDateEt.getText().toString().trim();
-            String to = toDateEt.getText().toString().trim();
-            filterCategory = category.isEmpty() ? null : category;
-            filterPersonEmail = person.isEmpty() ? null : person;
-            try {
-                filterFromMs = from.isEmpty() ? null : fmt.parse(from).getTime();
-                if (to.isEmpty()) {
-                    filterToMs = null;
-                } else {
+            String selectedMode = filterModeFromIndex(modeSpinner.getSelectedItemPosition());
+            filterCategory = null;
+            filterPersonEmail = null;
+            filterFromMs = null;
+            filterToMs = null;
+            filterDateIso = null;
+
+            if (FILTER_MODE_CATEGORY.equals(selectedMode)) {
+                int selectedIndex = categorySpinner.getSelectedItemPosition();
+                String selectedCategory = selectedIndex >= 0 && selectedIndex < categoryValues.size()
+                        ? categoryValues.get(selectedIndex)
+                        : "";
+                if (selectedCategory == null || selectedCategory.trim().isEmpty()) {
+                    Toast.makeText(requireContext(), "Selecciona una categoría", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                filterCategory = selectedCategory.trim().toLowerCase(Locale.ROOT);
+            } else if (FILTER_MODE_PERSON.equals(selectedMode)) {
+                int selectedIndex = personSpinner.getSelectedItemPosition();
+                String selectedPerson = selectedIndex >= 0 && selectedIndex < personValues.size()
+                        ? personValues.get(selectedIndex)
+                        : "";
+                if (selectedPerson == null || selectedPerson.trim().isEmpty()) {
+                    Toast.makeText(requireContext(), "Selecciona una persona", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                filterPersonEmail = selectedPerson.trim().toLowerCase(Locale.ROOT);
+            } else {
+                String dateText = dateEt.getText().toString().trim();
+                if (dateText.isEmpty()) {
+                    Toast.makeText(requireContext(), "Selecciona una fecha", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                try {
+                    Date selectedDate = DUE_DATE_FORMAT.parse(dateText);
+                    if (selectedDate == null) {
+                        Toast.makeText(requireContext(), "Formato de fecha no válido (YYYY-MM-DD)", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    Calendar startDay = Calendar.getInstance();
+                    startDay.setTime(selectedDate);
+                    startDay.set(Calendar.HOUR_OF_DAY, 0);
+                    startDay.set(Calendar.MINUTE, 0);
+                    startDay.set(Calendar.SECOND, 0);
+                    startDay.set(Calendar.MILLISECOND, 0);
+
                     Calendar endDay = Calendar.getInstance();
-                    endDay.setTime(fmt.parse(to));
+                    endDay.setTime(selectedDate);
                     endDay.set(Calendar.HOUR_OF_DAY, 23);
                     endDay.set(Calendar.MINUTE, 59);
                     endDay.set(Calendar.SECOND, 59);
                     endDay.set(Calendar.MILLISECOND, 999);
+
+                    filterFromMs = startDay.getTimeInMillis();
                     filterToMs = endDay.getTimeInMillis();
+                    filterDateIso = dateText;
+                } catch (ParseException e) {
+                    Toast.makeText(requireContext(), "Formato de fecha no válido (YYYY-MM-DD)", Toast.LENGTH_SHORT).show();
+                    return;
                 }
-            } catch (ParseException e) {
-                Toast.makeText(requireContext(), "Formato de fecha no válido (YYYY-MM-DD)", Toast.LENGTH_SHORT).show();
-                return;
             }
             loadExpenses();
             dialog.dismiss();
         });
+    }
+
+    private String resolveActiveFilterMode() {
+        if (filterCategory != null && !filterCategory.trim().isEmpty()) return FILTER_MODE_CATEGORY;
+        if (filterPersonEmail != null && !filterPersonEmail.trim().isEmpty()) return FILTER_MODE_PERSON;
+        if (filterFromMs != null || filterToMs != null) return FILTER_MODE_DATE;
+        return FILTER_MODE_CATEGORY;
+    }
+
+    private int filterModeToIndex(String mode) {
+        if (FILTER_MODE_PERSON.equals(mode)) return 1;
+        if (FILTER_MODE_DATE.equals(mode)) return 2;
+        return 0;
+    }
+
+    private String filterModeFromIndex(int index) {
+        if (index == 1) return FILTER_MODE_PERSON;
+        if (index == 2) return FILTER_MODE_DATE;
+        return FILTER_MODE_CATEGORY;
+    }
+
+    private void updateFilterModeRows(String mode, View categoryRow, View personRow, View dateRow) {
+        categoryRow.setVisibility(FILTER_MODE_CATEGORY.equals(mode) ? View.VISIBLE : View.GONE);
+        personRow.setVisibility(FILTER_MODE_PERSON.equals(mode) ? View.VISIBLE : View.GONE);
+        dateRow.setVisibility(FILTER_MODE_DATE.equals(mode) ? View.VISIBLE : View.GONE);
+    }
+
+    private void selectSpinnerValue(Spinner spinner, List<String> values, @Nullable String selectedValue) {
+        if (selectedValue == null || selectedValue.trim().isEmpty()) {
+            spinner.setSelection(0);
+            return;
+        }
+        String normalized = selectedValue.trim().toLowerCase(Locale.ROOT);
+        for (int i = 0; i < values.size(); i++) {
+            String option = values.get(i);
+            if (option != null && option.trim().equalsIgnoreCase(normalized)) {
+                spinner.setSelection(i);
+                return;
+            }
+        }
+        spinner.setSelection(0);
     }
 
     private boolean passesFiltersExpense(
@@ -3072,13 +3406,16 @@ public class ExpensesFragment extends Fragment {
         return passesDateFilter(doc);
     }
 
-    private boolean passesFiltersPayment(DocumentSnapshot doc) {
+    private boolean passesFiltersPayment(DocumentSnapshot doc, @Nullable String category) {
         if (filterPersonEmail != null) {
             String from = doc.getString("fromEmail");
             String to = doc.getString("toEmail");
             boolean match = (from != null && from.equalsIgnoreCase(filterPersonEmail))
                     || (to != null && to.equalsIgnoreCase(filterPersonEmail));
             if (!match) return false;
+        }
+        if (filterCategory != null && (category == null || !category.toLowerCase(Locale.ROOT).contains(filterCategory))) {
+            return false;
         }
         if (filterSearchQuery != null) {
             String concept = doc.getString("concept");
@@ -3088,7 +3425,8 @@ public class ExpensesFragment extends Fragment {
             String combined = (concept == null ? "" : concept) + " "
                     + (from == null ? "" : from) + " "
                     + (to == null ? "" : to) + " "
-                    + (roomName == null ? "" : roomName);
+                    + (roomName == null ? "" : roomName) + " "
+                    + (category == null ? "" : category);
             if (!combined.toLowerCase(Locale.ROOT).contains(filterSearchQuery)) {
                 return false;
             }

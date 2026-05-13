@@ -184,6 +184,10 @@ public class CalendarFragment extends Fragment {
             String email = doc.getString("targetMemberEmail");
             return "Miembro: " + (email == null ? "miembro" : email);
         }
+        if ("x_miembro".equals(targetType)) {
+            List<String> members = castStrings(doc.get("targetEmails"));
+            return members.isEmpty() ? "X miembros" : "X miembros: " + String.join(", ", members);
+        }
         if ("habitacion".equals(targetType)) {
             String room = doc.getString("roomName");
             return "Habitación: " + (room == null ? "sin nombre" : room);

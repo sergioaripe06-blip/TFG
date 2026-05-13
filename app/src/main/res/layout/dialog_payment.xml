@@ -54,7 +54,7 @@
         android:layout_width="match_parent"
         android:layout_height="50dp"
         android:layout_marginTop="10dp"
-        android:background="@drawable/bg_input_dark_round"
+        android:background="@drawable/bg_select_dark_round"
         android:paddingHorizontal="12dp"
         android:popupBackground="@color/surface_dark_alt" />
 
@@ -63,7 +63,7 @@
         android:layout_width="match_parent"
         android:layout_height="50dp"
         android:layout_marginTop="10dp"
-        android:background="@drawable/bg_input_dark_round"
+        android:background="@drawable/bg_select_dark_round"
         android:paddingHorizontal="12dp"
         android:popupBackground="@color/surface_dark_alt" />
 
@@ -72,7 +72,7 @@
         android:layout_width="match_parent"
         android:layout_height="50dp"
         android:layout_marginTop="10dp"
-        android:background="@drawable/bg_input_dark_round"
+        android:background="@drawable/bg_select_dark_round"
         android:paddingHorizontal="12dp"
         android:popupBackground="@color/surface_dark_alt" />
 
@@ -81,7 +81,7 @@
         android:layout_width="match_parent"
         android:layout_height="50dp"
         android:layout_marginTop="10dp"
-        android:background="@drawable/bg_input_dark_round"
+        android:background="@drawable/bg_select_dark_round"
         android:paddingHorizontal="12dp"
         android:popupBackground="@color/surface_dark_alt" />
 
@@ -114,7 +114,7 @@
         android:layout_width="match_parent"
         android:layout_height="50dp"
         android:layout_marginTop="10dp"
-        android:background="@drawable/bg_input_dark_round"
+        android:background="@drawable/bg_select_dark_round"
         android:paddingHorizontal="12dp"
         android:popupBackground="@color/surface_dark_alt" />
 
