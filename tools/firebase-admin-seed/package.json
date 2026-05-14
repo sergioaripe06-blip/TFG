@@ -1,0 +1,13 @@
+{
+  "name": "flatshare-firebase-admin-seed",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Seeder temporal para crear cuentas reales (Auth) y datos base (Firestore) en FlatShare",
+  "main": "seed.js",
+  "scripts": {
+    "seed": "node seed.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  }
+}

@@ -63,7 +63,8 @@ service cloud.firestore {
       allow read: if signedIn();
       allow create, update: if signedIn()
         && request.resource.data.ownerId == authUid();
-      allow delete: if false;
+      allow delete: if signedIn()
+        && resource.data.ownerId == authUid();
     }
 
     match /groups/{groupId} {
@@ -233,13 +234,15 @@ service cloud.firestore {
       allow read: if signedIn()
         && (
           resource.data.inviterUid == authUid() ||
-          resource.data.invitedEmail == authEmail()
+          resource.data.invitedEmail == authEmail() ||
+          isGroupOwner(resource.data.groupId)
         );
 
       allow update, delete: if signedIn()
         && (
           resource.data.inviterUid == authUid() ||
-          resource.data.invitedEmail == authEmail()
+          resource.data.invitedEmail == authEmail() ||
+          isGroupOwner(resource.data.groupId)
         );
     }
   }

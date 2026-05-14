@@ -13,9 +13,12 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
+import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QuerySnapshot;
 import com.sergio.flatshare.R;
 import com.sergio.flatshare.core.notifications.ReminderScheduler;
 
@@ -95,7 +98,8 @@ public class CalendarFragment extends Fragment {
                         scheduleDeadlineNotifications(title, amountText, due.getTime(), doc.getId());
                     }
                     loadRegisteredPayments(myEmail);
-                });
+                })
+                .addOnFailureListener(e -> loadRegisteredPayments(myEmail));
     }
 
     private void loadRegisteredPayments(String myEmail) {
@@ -147,17 +151,34 @@ public class CalendarFragment extends Fragment {
     }
 
     private void loadManualReminders(String myEmail) {
+        if (FirebaseAuth.getInstance().getCurrentUser() == null) {
+            applyDateFilter();
+            return;
+        }
+        String myUid = FirebaseAuth.getInstance().getCurrentUser().getUid();
         Set<String> seenReminderIds = new HashSet<>();
-        db.collection("reminders")
-                .whereArrayContains("targetEmails", myEmail)
+        db.collection("groups")
+                .whereArrayContains("members", myUid)
                 .get()
-                .addOnSuccessListener(result -> {
-                    appendReminderRows(result.getDocuments(), seenReminderIds);
-                    db.collection("reminders")
-                            .whereEqualTo("ownerEmail", myEmail)
-                            .get()
-                            .addOnSuccessListener(owned -> {
-                                appendReminderRows(owned.getDocuments(), seenReminderIds);
+                .addOnSuccessListener(groups -> {
+                    List<Task<QuerySnapshot>> reminderTasks = new ArrayList<>();
+                    for (DocumentSnapshot groupDoc : groups.getDocuments()) {
+                        reminderTasks.add(
+                                db.collection("reminders")
+                                        .whereEqualTo("groupId", groupDoc.getId())
+                                        .get()
+                        );
+                    }
+                    if (reminderTasks.isEmpty()) {
+                        applyDateFilter();
+                        return;
+                    }
+                    Tasks.whenAllComplete(reminderTasks)
+                            .addOnSuccessListener(done -> {
+                                for (Task<QuerySnapshot> task : reminderTasks) {
+                                    if (!task.isSuccessful() || task.getResult() == null) continue;
+                                    appendReminderRows(task.getResult().getDocuments(), seenReminderIds, myEmail);
+                                }
                                 applyDateFilter();
                             })
                             .addOnFailureListener(e -> applyDateFilter());
@@ -165,10 +186,23 @@ public class CalendarFragment extends Fragment {
                 .addOnFailureListener(e -> applyDateFilter());
     }
 
-    private void appendReminderRows(List<DocumentSnapshot> docs, Set<String> seenReminderIds) {
+    private void appendReminderRows(List<DocumentSnapshot> docs, Set<String> seenReminderIds, String myEmail) {
+        String normalizedMyEmail = myEmail == null ? "" : myEmail.toLowerCase(Locale.ROOT);
         for (DocumentSnapshot doc : docs) {
             if (seenReminderIds.contains(doc.getId())) continue;
             seenReminderIds.add(doc.getId());
+
+            String ownerEmail = doc.getString("ownerEmail");
+            boolean isOwner = ownerEmail != null && normalizedMyEmail.equals(ownerEmail.toLowerCase(Locale.ROOT));
+            List<String> targetEmails = castStrings(doc.get("targetEmails"));
+            boolean isTarget = false;
+            for (String email : targetEmails) {
+                if (normalizedMyEmail.equals(email == null ? "" : email.toLowerCase(Locale.ROOT))) {
+                    isTarget = true;
+                    break;
+                }
+            }
+            if (!isOwner && !isTarget) continue;
 
             Date startAt = doc.getDate("startAt");
             if (startAt == null) continue;
@@ -210,6 +244,9 @@ public class CalendarFragment extends Fragment {
         if ("x_habitacion".equals(targetType)) {
             List<String> roomNames = castStrings(doc.get("roomNames"));
             return roomNames.isEmpty() ? "X habitación" : "X habitación: " + String.join(", ", roomNames);
+        }
+        if ("todos_inquilinos".equals(targetType)) {
+            return "Todos los inquilinos";
         }
         return "Todos los miembros";
     }

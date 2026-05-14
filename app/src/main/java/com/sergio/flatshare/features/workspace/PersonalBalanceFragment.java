@@ -3,6 +3,7 @@ package com.sergio.flatshare.features.workspace;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -71,6 +72,7 @@ public class PersonalBalanceFragment extends Fragment {
     private void loadUserGroupsAndSetupSelector() {
         String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
         db.collection("groups").whereArrayContains("members", uid).get().addOnSuccessListener(result -> {
+            if (!isAdded() || groupSpinner == null) return;
             groupOptions.clear();
             groupOptions.add(new GroupOption(GROUP_ALL, null));
             int currentIdx = 0;
@@ -90,7 +92,10 @@ public class PersonalBalanceFragment extends Fragment {
                 }
             });
             refreshChart();
-        }).addOnFailureListener(e -> refreshChart());
+        }).addOnFailureListener(e -> {
+            if (!isAdded()) return;
+            refreshChart();
+        });
     }
 
     private void refreshChart() {
@@ -189,6 +194,9 @@ public class PersonalBalanceFragment extends Fragment {
     }
 
     private void render(Map<String, Double> totals) {
+        if (!isAdded() || legend == null || chart == null) return;
+        Context context = getContext();
+        if (context == null) return;
         List<PieChartView.Slice> slices = new ArrayList<>();
         legend.removeAllViews();
         DecimalFormat df = new DecimalFormat("0.00");
@@ -201,7 +209,7 @@ public class PersonalBalanceFragment extends Fragment {
             slices.add(new PieChartView.Slice(COLORS[i], value));
 
             double percentage = total <= 0.0 ? 0.0 : (value * 100.0 / total);
-            View item = LayoutInflater.from(requireContext()).inflate(R.layout.item_balance_legend, legend, false);
+            View item = LayoutInflater.from(context).inflate(R.layout.item_balance_legend, legend, false);
             View dot = item.findViewById(R.id.legendColorDot);
             TextView typeTv = item.findViewById(R.id.legendTypeTv);
             TextView valueTv = item.findViewById(R.id.legendValueTv);
@@ -287,6 +295,7 @@ public class PersonalBalanceFragment extends Fragment {
     }
 
     private void renderMonthlyBars(LinkedHashMap<String, Double> monthlyTotals) {
+        if (!isAdded() || monthlyChart == null) return;
         List<MonthlyBarChartView.Bar> bars = new ArrayList<>();
         for (Map.Entry<String, Double> entry : monthlyTotals.entrySet()) {
             bars.add(new MonthlyBarChartView.Bar(monthLabel(entry.getKey()), entry.getValue().floatValue()));

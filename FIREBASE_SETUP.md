@@ -129,16 +129,17 @@ Campos principales:
 - `title`
 - `startAt`
 - `startDateText`
-- `interval` (`diario`, `semanal`, `mensual`, `personalizado`)
+- `endAt` (opcional)
+- `endDateText` (opcional)
+- `interval` (`unico`, `diario`, `semanal`, `mensual`, `personalizado`)
 - `intervalDays` (entero para personalizado)
-- `targetType` (`todos`, `miembro`, `habitacion`, `x_habitacion`)
+- `targetType` (`x_miembro`, `x_habitacion`, `todos_inquilinos`)
 - `targetEmails` (array)
 - `targetMemberEmail` (opcional)
 - `roomId` (opcional)
 - `roomName` (opcional)
 - `roomIds` (array opcional)
 - `roomNames` (array opcional)
-- `attachmentUri` (opcional)
 - `reminderCode` (entero para alarmas locales)
 - `createdAt`
 
@@ -350,3 +351,29 @@ En `Firestore Database`:
 ## No hace falta crear colecciones a mano
 
 La app crea los documentos automáticamente al crear piso, habitaciones, gastos, pagos, contratos, cobros, incidencias, documentos, automatizaciones y reglas de recordatorio.
+
+## Seed de cuentas reales (Auth + Firestore)
+
+Para pruebas multiusuario reales puedes usar el seeder admin:
+
+- Ruta: `tools/firebase-admin-seed`
+- Script: `seed.js`
+
+Qué crea:
+
+- Usuarios reales en `Firebase Authentication` (email/password)
+- Documentos en `users`
+- Documentos en `usernames`
+- Pisos en `groups` con tu cuenta como `ownerId`
+- Códigos en `group_codes`
+- Habitaciones en `rooms_groups`
+
+Uso rápido:
+
+1. Coloca una service account JSON en local (no la subas al repo).
+2. Ejecuta:
+   - `cd tools/firebase-admin-seed`
+   - `npm install`
+   - `node seed.js --service-account ./service-account.json --owner-email TU_EMAIL --owner-password TU_PASSWORD --users 12 --groups 4 --rooms 3 --members-per-group 4`
+3. Revisa el archivo de salida de credenciales en:
+   - `tools/firebase-admin-seed/output/seed-users-YYYYMMDD-HHMMSS.json`

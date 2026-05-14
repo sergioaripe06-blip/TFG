@@ -23,6 +23,6 @@
     <string name="settings_language">Language</string>
     <string name="settings_notifications">Notifications</string>
     <string name="save">Save</string>
-    <string name="calendar_title">Payment calendar</string>
+    <string name="calendar_title">Calendar</string>
     <string name="due_date_hint">Due date (YYYY-MM-DD)</string>
 </resources>

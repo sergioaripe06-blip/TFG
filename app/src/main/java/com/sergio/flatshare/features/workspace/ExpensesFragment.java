@@ -26,6 +26,7 @@ import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.widget.ArrayAdapter;
 import android.widget.AdapterView;
+import android.widget.AutoCompleteTextView;
 import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -110,8 +111,8 @@ public class ExpensesFragment extends Fragment {
     };
     private static final String[] PRIORITY_TYPES = {"baja", "media", "alta"};
     private static final String[] PAYMENT_TARGET_TYPES = {"Habitación", "Miembro", "Todos"};
-    private static final String[] REMINDER_INTERVAL_TYPES = {"Único", "Diario", "Semanal", "Mensual", "Personalizado"};
-    private static final String[] REMINDER_TARGET_TYPES = {"Todos", "Miembro", "Habitación", "X habitación", "X miembros"};
+    private static final String[] REMINDER_INTERVAL_TYPES = {"Una sola vez", "Cada día", "Cada semana", "Cada mes", "Personalizado"};
+    private static final String[] REMINDER_TARGET_TYPES = {"Inquilinos seleccionados", "Habitaciones seleccionadas", "Todos los inquilinos"};
     private static final SimpleDateFormat DUE_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT);
 
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
@@ -163,8 +164,6 @@ public class ExpensesFragment extends Fragment {
     private String pendingTicketUri;
     private EditText pendingTicketAmountEt;
     private TextView pendingTicketStatusTv;
-    private String pendingReminderAttachmentUri;
-    private TextView pendingReminderAttachmentStatusTv;
     private boolean isRebindingRoomSelectors = false;
     private boolean isUpdatingRoomFilterSpinner = false;
     private final Map<String, String> memberDisplayNamesByEmail = new HashMap<>();
@@ -177,8 +176,6 @@ public class ExpensesFragment extends Fragment {
 
     private final ActivityResultLauncher<String> ticketPickerLauncher =
             registerForActivityResult(new ActivityResultContracts.GetContent(), this::handleTicketSelected);
-    private final ActivityResultLauncher<String> reminderAttachmentPickerLauncher =
-            registerForActivityResult(new ActivityResultContracts.GetContent(), this::handleReminderAttachmentSelected);
 
     @Nullable
     @Override
@@ -636,41 +633,41 @@ public class ExpensesFragment extends Fragment {
             return;
         }
 
-        LinearLayout content = new LinearLayout(requireContext());
-        content.setOrientation(LinearLayout.VERTICAL);
-        Spinner actionSpinner = new Spinner(requireContext(), Spinner.MODE_DROPDOWN);
-        actionSpinner.setBackgroundResource(R.drawable.bg_select_dark_round);
-        actionSpinner.setPadding(dp(10), 0, dp(10), 0);
-        actionSpinner.setAdapter(buildLightSpinnerAdapter(new String[]{
-                "Ver información",
-                "Editar habitación",
-                "Eliminar habitación",
-                "Añadir habitación"
-        }));
-        content.addView(actionSpinner);
+        LinearLayout content = DialogUtils.createVerticalActions(requireContext());
+        Button infoBtn = DialogUtils.createActionButton(requireContext(), "Ver información", true);
+        Button editBtn = DialogUtils.createActionButton(requireContext(), "Editar habitación", false);
+        Button deleteBtn = DialogUtils.createActionButton(requireContext(), "Eliminar habitación", false);
+        Button addBtn = DialogUtils.createActionButton(requireContext(), "Añadir habitación", false);
+        content.addView(infoBtn);
+        content.addView(editBtn);
+        content.addView(deleteBtn);
+        content.addView(addBtn);
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 "Gestión de habitaciones",
-                "Elige una acción y pulsa continuar.",
+                "Elige una acción.",
                 content,
-                "Cancelar",
-                "Continuar"
+                "Cerrar",
+                null
         );
         AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
         shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
-        shell.confirmBtn.setOnClickListener(v -> {
-            String selected = String.valueOf(actionSpinner.getSelectedItem());
+        infoBtn.setOnClickListener(v -> {
             dialog.dismiss();
-            if ("Ver información".equals(selected)) {
-                showSelectedRoomInfoDialog();
-            } else if ("Editar habitación".equals(selected)) {
-                editSelectedRoomFromFilter();
-            } else if ("Eliminar habitación".equals(selected)) {
-                deleteSelectedRoomFromFilter();
-            } else {
-                createRoomFromWorkspace();
-            }
+            showSelectedRoomInfoDialog();
+        });
+        editBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            editSelectedRoomFromFilter();
+        });
+        deleteBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            deleteSelectedRoomFromFilter();
+        });
+        addBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            createRoomFromWorkspace();
         });
     }
 
@@ -843,38 +840,35 @@ public class ExpensesFragment extends Fragment {
             return;
         }
 
-        LinearLayout content = new LinearLayout(requireContext());
-        content.setOrientation(LinearLayout.VERTICAL);
-        Spinner actionSpinner = new Spinner(requireContext(), Spinner.MODE_DROPDOWN);
-        actionSpinner.setBackgroundResource(R.drawable.bg_select_dark_round);
-        actionSpinner.setPadding(dp(10), 0, dp(10), 0);
-        actionSpinner.setAdapter(buildLightSpinnerAdapter(new String[]{
-                "Editar habitación",
-                "Editar inquilinos",
-                "Eliminar habitación"
-        }));
-        content.addView(actionSpinner);
+        LinearLayout content = DialogUtils.createVerticalActions(requireContext());
+        Button editRoomBtn = DialogUtils.createActionButton(requireContext(), "Editar habitación", true);
+        Button editTenantsBtn = DialogUtils.createActionButton(requireContext(), "Editar inquilinos", false);
+        Button deleteRoomBtn = DialogUtils.createActionButton(requireContext(), "Eliminar habitación", false);
+        content.addView(editRoomBtn);
+        content.addView(editTenantsBtn);
+        content.addView(deleteRoomBtn);
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 row.title,
                 "Selecciona la acción para esta habitación.",
                 content,
-                "Cancelar",
-                "Continuar"
+                "Cerrar",
+                null
         );
         AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
         shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
-        shell.confirmBtn.setOnClickListener(v -> {
-            String selected = String.valueOf(actionSpinner.getSelectedItem());
+        editRoomBtn.setOnClickListener(v -> {
             dialog.dismiss();
-            if ("Editar habitación".equals(selected)) {
-                editRoomFromWorkspace(row);
-            } else if ("Editar inquilinos".equals(selected)) {
-                editRoomResidentsFromWorkspace(row);
-            } else {
-                requestRoomDeletion(row);
-            }
+            editRoomFromWorkspace(row);
+        });
+        editTenantsBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            editRoomResidentsFromWorkspace(row);
+        });
+        deleteRoomBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            requestRoomDeletion(row);
         });
     }
 
@@ -1026,18 +1020,19 @@ public class ExpensesFragment extends Fragment {
     private void showExpenseActionDialog() {
         if (expenseActionDialogVisible) return;
         expenseActionDialogVisible = true;
-        LinearLayout content = new LinearLayout(requireContext());
-        content.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout content = DialogUtils.createVerticalActions(requireContext());
         boolean fixedBilling = BILLING_FIXED.equals(currentBillingModel);
-        Spinner actionSpinner = new Spinner(requireContext(), Spinner.MODE_DROPDOWN);
-        actionSpinner.setBackgroundResource(R.drawable.bg_select_dark_round);
-        actionSpinner.setPadding(dp(10), 0, dp(10), 0);
-        actionSpinner.setAdapter(buildLightSpinnerAdapter(
-                fixedBilling
-                        ? new String[]{"Registrar pago", "Exportar PDF", "Mostrar QR"}
-                        : new String[]{"Nuevo gasto", "Registrar pago", "Exportar PDF", "Mostrar QR"}
-        ));
-        content.addView(actionSpinner);
+        Button expenseBtn = null;
+        if (!fixedBilling) {
+            expenseBtn = DialogUtils.createActionButton(requireContext(), "Nuevo gasto", true);
+            content.addView(expenseBtn);
+        }
+        Button paymentBtn = DialogUtils.createActionButton(requireContext(), "Registrar pago", fixedBilling);
+        Button exportPdfBtn = DialogUtils.createActionButton(requireContext(), "Exportar PDF", false);
+        Button showQrBtn = DialogUtils.createActionButton(requireContext(), "Mostrar QR", false);
+        content.addView(paymentBtn);
+        content.addView(exportPdfBtn);
+        content.addView(showQrBtn);
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
@@ -1046,30 +1041,29 @@ public class ExpensesFragment extends Fragment {
                         ? "Registra pagos, exporta PDF o comparte acceso al piso."
                         : "Crea un gasto, registra un pago o comparte acceso al piso.",
                 content,
-                "Cancelar",
-                "Continuar"
+                "Cerrar",
+                null
         );
         AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
         dialog.setOnDismissListener(d -> expenseActionDialogVisible = false);
-        shell.cancelBtn.setOnClickListener(v -> {
-            shell.cancelBtn.setEnabled(false);
-            shell.confirmBtn.setEnabled(false);
-            dialog.dismiss();
-        });
-        shell.confirmBtn.setOnClickListener(v -> {
-            shell.cancelBtn.setEnabled(false);
-            shell.confirmBtn.setEnabled(false);
-            String selected = String.valueOf(actionSpinner.getSelectedItem());
-            dialog.dismiss();
-            if ("Nuevo gasto".equals(selected)) {
+        shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+        if (expenseBtn != null) {
+            expenseBtn.setOnClickListener(v -> {
+                dialog.dismiss();
                 createExpenseDialog();
-            } else if ("Registrar pago".equals(selected)) {
-                createPaymentDialog();
-            } else if ("Exportar PDF".equals(selected)) {
-                exportMonthlySummaryPdf();
-            } else if ("Mostrar QR".equals(selected)) {
-                showCurrentGroupQrDialog();
-            }
+            });
+        }
+        paymentBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            createPaymentDialog();
+        });
+        exportPdfBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            exportMonthlySummaryPdf();
+        });
+        showQrBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            showCurrentGroupQrDialog();
         });
     }
 
@@ -1319,11 +1313,15 @@ public class ExpensesFragment extends Fragment {
             loadCurrentGroupRooms(rooms -> {
                 View form = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_payment, null, false);
                 Spinner paymentCategorySpinner = form.findViewById(R.id.paymentCategorySpinner);
+                TextView paymentCategoryFixedTv = form.findViewById(R.id.paymentCategoryFixedTv);
                 if (BILLING_FIXED.equals(currentBillingModel)) {
-                    paymentCategorySpinner.setAdapter(buildLightSpinnerAdapter(new String[]{capitalizeTypeLabel(CATEGORY_RENT)}));
-                    paymentCategorySpinner.setSelection(0);
-                    paymentCategorySpinner.setEnabled(false);
+                    paymentCategorySpinner.setVisibility(View.GONE);
+                    paymentCategoryFixedTv.setVisibility(View.VISIBLE);
+                    paymentCategoryFixedTv.setText(capitalizeTypeLabel(CATEGORY_RENT));
+                    setupFixedPaymentConceptSuggestions(form);
                 } else {
+                    paymentCategoryFixedTv.setVisibility(View.GONE);
+                    paymentCategorySpinner.setVisibility(View.VISIBLE);
                     setupTypeSpinner(paymentCategorySpinner, null);
                 }
                 setupPrioritySpinner((Spinner) form.findViewById(R.id.paymentPrioritySpinner), "media");
@@ -1346,6 +1344,60 @@ public class ExpensesFragment extends Fragment {
                 });
             });
         });
+    }
+
+    private void setupFixedPaymentConceptSuggestions(View form) {
+        if (!BILLING_FIXED.equals(currentBillingModel) || currentGroupId == null) return;
+        AutoCompleteTextView conceptInput = form.findViewById(R.id.paymentConceptEt);
+        if (conceptInput == null) return;
+
+        db.collection("payments")
+                .whereEqualTo("groupId", currentGroupId)
+                .get()
+                .addOnSuccessListener(result -> {
+                    List<DocumentSnapshot> docs = new ArrayList<>(result.getDocuments());
+                    docs.sort((a, b) -> {
+                        Date da = a.getDate("createdAt");
+                        Date dbDate = b.getDate("createdAt");
+                        if (da == null && dbDate == null) return 0;
+                        if (da == null) return 1;
+                        if (dbDate == null) return -1;
+                        return dbDate.compareTo(da);
+                    });
+
+                    LinkedHashMap<String, String> uniqueByLower = new LinkedHashMap<>();
+                    for (DocumentSnapshot doc : docs) {
+                        String category = doc.getString("category");
+                        if (category == null || !CATEGORY_RENT.equalsIgnoreCase(category.trim())) continue;
+                        String concept = doc.getString("concept");
+                        if (concept == null) continue;
+                        String clean = concept.trim();
+                        if (clean.isEmpty()) continue;
+                        String key = clean.toLowerCase(Locale.ROOT);
+                        if (!uniqueByLower.containsKey(key)) {
+                            uniqueByLower.put(key, clean);
+                        }
+                        if (uniqueByLower.size() >= 8) break;
+                    }
+
+                    List<String> suggestions = new ArrayList<>(uniqueByLower.values());
+                    if (suggestions.isEmpty()) return;
+
+                    conceptInput.setAdapter(new ArrayAdapter<>(
+                            requireContext(),
+                            android.R.layout.simple_dropdown_item_1line,
+                            suggestions
+                    ));
+                    conceptInput.setThreshold(1);
+                    conceptInput.setOnClickListener(v -> conceptInput.showDropDown());
+                    conceptInput.setOnFocusChangeListener((v, hasFocus) -> {
+                        if (hasFocus) conceptInput.post(conceptInput::showDropDown);
+                    });
+
+                    if (conceptInput.getText().toString().trim().isEmpty()) {
+                        conceptInput.setHint("Sugerido: " + suggestions.get(0));
+                    }
+                });
     }
 
     private void setupPaymentTargetSelectors(View form, List<String> members, List<RoomOption> rooms, @Nullable String defaultRoomId) {
@@ -1387,7 +1439,11 @@ public class ExpensesFragment extends Fragment {
         if (currentGroupId == null) return false;
         String amountStr = ((EditText) form.findViewById(R.id.paymentAmountEt)).getText().toString().trim();
         String concept = ((EditText) form.findViewById(R.id.paymentConceptEt)).getText().toString().trim();
-        String category = ((Spinner) form.findViewById(R.id.paymentCategorySpinner)).getSelectedItem().toString();
+        String category = "";
+        if (!BILLING_FIXED.equals(currentBillingModel)) {
+            Object selectedCategory = ((Spinner) form.findViewById(R.id.paymentCategorySpinner)).getSelectedItem();
+            category = selectedCategory == null ? "" : selectedCategory.toString();
+        }
         String priority = ((Spinner) form.findViewById(R.id.paymentPrioritySpinner)).getSelectedItem().toString();
         String dueDateText = ((EditText) form.findViewById(R.id.paymentDueDateEt)).getText().toString().trim();
         String targetType = ((Spinner) form.findViewById(R.id.paymentTargetTypeSpinner)).getSelectedItem().toString();
@@ -1426,7 +1482,19 @@ public class ExpensesFragment extends Fragment {
 
         double splitAmount = amount / targets.size();
         String safePriority = priority == null || priority.trim().isEmpty() ? "media" : priority.toLowerCase(Locale.ROOT);
-        String safeConcept = concept.isEmpty() ? "Pago directo" : concept;
+        String suggestedConcept = "";
+        if (BILLING_FIXED.equals(currentBillingModel)) {
+            CharSequence hint = ((EditText) form.findViewById(R.id.paymentConceptEt)).getHint();
+            if (hint != null) {
+                String hintText = hint.toString().trim();
+                if (hintText.startsWith("Sugerido:")) {
+                    suggestedConcept = hintText.substring("Sugerido:".length()).trim();
+                }
+            }
+        }
+        String safeConcept = concept.isEmpty()
+                ? (suggestedConcept.isEmpty() ? "Pago directo" : suggestedConcept)
+                : concept;
         WriteBatch batch = db.batch();
         List<Map<String, Object>> createdPayments = new ArrayList<>();
         for (PaymentTarget target : targets) {
@@ -1517,20 +1585,19 @@ public class ExpensesFragment extends Fragment {
             }
             loadCurrentGroupRooms(rooms -> {
                 View form = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_reminder, null, false);
-                pendingReminderAttachmentUri = null;
                 setupDateField(form.findViewById(R.id.reminderStartDateEt));
+                setupDateField(form.findViewById(R.id.reminderEndDateEt));
                 setupReminderFormControls(form, members, rooms, hasRoomContext() ? currentRoomId : null);
 
                 DialogUtils.Shell shell = DialogUtils.buildShell(
                         requireContext(),
                         "Nuevo recordatorio",
-                        "Define concepto, destinatario, fecha e intervalo.",
+                        "Define el concepto, la frecuencia y los destinatarios del recordatorio.",
                         form,
-                        "Cancelar",
+                        null,
                         "Guardar"
                 );
                 AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
-                shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
                 shell.confirmBtn.setOnClickListener(v -> {
                     String concept = ((EditText) form.findViewById(R.id.reminderTitleEt)).getText().toString().trim();
                     String dateText = ((EditText) form.findViewById(R.id.reminderStartDateEt)).getText().toString().trim();
@@ -1540,16 +1607,29 @@ public class ExpensesFragment extends Fragment {
                     }
                     Date startAt = parseReminderStartDateOrNull(dateText);
                     if (startAt == null) {
-                        Toast.makeText(requireContext(), "Fecha inválida. Usa YYYY-MM-DD", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(requireContext(), "Fecha inv\u00e1lida. Usa YYYY-MM-DD", Toast.LENGTH_SHORT).show();
                         return;
                     }
 
                     ReminderIntervalConfig intervalConfig = resolveReminderInterval(form);
                     if (intervalConfig == null) return;
+                    String endDateText = ((EditText) form.findViewById(R.id.reminderEndDateEt)).getText().toString().trim();
+                    Date endAt = null;
+                    if (!"unico".equals(intervalConfig.intervalKey) && !endDateText.isEmpty()) {
+                        endAt = parseReminderStartDateOrNull(endDateText);
+                        if (endAt == null) {
+                            Toast.makeText(requireContext(), "Fecha de finalizaci\u00f3n inv\u00e1lida. Usa YYYY-MM-DD", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        if (endAt.before(startAt)) {
+                            Toast.makeText(requireContext(), "La fecha de finalizaci\u00f3n no puede ser anterior al inicio", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                    }
 
                     ReminderTargetConfig targetConfig = resolveReminderTargets(form, members, rooms);
                     if (targetConfig == null || targetConfig.targetEmails.isEmpty()) {
-                        Toast.makeText(requireContext(), "No hay destinatarios válidos", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(requireContext(), "No hay destinatarios v\u00e1lidos", Toast.LENGTH_SHORT).show();
                         return;
                     }
 
@@ -1561,6 +1641,8 @@ public class ExpensesFragment extends Fragment {
                     data.put("intervalDays", intervalConfig.intervalDays);
                     data.put("startAt", startAt);
                     data.put("startDateText", dateText);
+                    data.put("endAt", endAt);
+                    data.put("endDateText", endAt == null ? "" : endDateText);
                     data.put("targetType", targetConfig.targetType.toLowerCase(Locale.ROOT));
                     data.put("targetEmails", targetConfig.targetEmails);
                     data.put("targetMemberEmail", targetConfig.memberEmail);
@@ -1568,7 +1650,6 @@ public class ExpensesFragment extends Fragment {
                     data.put("roomName", targetConfig.primaryRoomName);
                     data.put("roomIds", targetConfig.roomIds);
                     data.put("roomNames", targetConfig.roomNames);
-                    data.put("attachmentUri", pendingReminderAttachmentUri == null ? "" : pendingReminderAttachmentUri);
                     data.put("ownerUid", FirebaseAuth.getInstance().getCurrentUser().getUid());
                     data.put("ownerEmail", myEmail);
                     data.put("groupId", currentGroupId);
@@ -1595,28 +1676,34 @@ public class ExpensesFragment extends Fragment {
     private void setupReminderFormControls(View form, List<String> members, List<RoomOption> rooms, @Nullable String defaultRoomId) {
         Spinner intervalSpinner = form.findViewById(R.id.reminderIntervalSpinner);
         intervalSpinner.setAdapter(buildLightSpinnerAdapter(REMINDER_INTERVAL_TYPES));
-        intervalSpinner.setSelection(1);
         TextView customDaysLabelTv = form.findViewById(R.id.reminderCustomDaysLabelTv);
         EditText customDaysEt = form.findViewById(R.id.reminderCustomDaysEt);
+        TextView startDateLabelTv = form.findViewById(R.id.reminderStartDateLabelTv);
+        TextView endDateLabelTv = form.findViewById(R.id.reminderEndDateLabelTv);
+        EditText endDateEt = form.findViewById(R.id.reminderEndDateEt);
         intervalSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 int visibility = position == 4 ? View.VISIBLE : View.GONE;
                 customDaysEt.setVisibility(visibility);
                 customDaysLabelTv.setVisibility(visibility);
+                boolean isSingle = position == 0;
+                startDateLabelTv.setText(isSingle ? "Fecha (AAAA-MM-DD):" : "Fecha de inicio (AAAA-MM-DD):");
+                int endVisibility = isSingle ? View.GONE : View.VISIBLE;
+                endDateLabelTv.setVisibility(endVisibility);
+                endDateEt.setVisibility(endVisibility);
+                if (isSingle) {
+                    endDateEt.setText("");
+                }
             }
 
             @Override
             public void onNothingSelected(AdapterView<?> parent) {
             }
         });
+        intervalSpinner.setSelection(1);
 
         setupReminderTargetSelectors(form, members, rooms, defaultRoomId);
-
-        pendingReminderAttachmentStatusTv = form.findViewById(R.id.reminderAttachmentStatusTv);
-        pendingReminderAttachmentStatusTv.setText("Sin adjunto");
-        Button attachBtn = form.findViewById(R.id.reminderAttachBtn);
-        attachBtn.setOnClickListener(v -> reminderAttachmentPickerLauncher.launch("*/*"));
     }
 
     private void setupReminderTargetSelectors(View form, List<String> members, List<RoomOption> rooms, @Nullable String defaultRoomId) {
@@ -1631,18 +1718,9 @@ public class ExpensesFragment extends Fragment {
         Button removeMemberLineBtn = form.findViewById(R.id.removeReminderMemberLineBtn);
 
         targetTypeSpinner.setAdapter(buildLightSpinnerAdapter(REMINDER_TARGET_TYPES));
-
-        List<String> memberLabels = new ArrayList<>();
-        for (String email : members) {
-            memberLabels.add(displayNameForEmail(email));
-        }
-        memberSpinner.setAdapter(buildLightSpinnerAdapter(memberLabels.toArray(new String[0])));
-
-        List<String> roomLabels = new ArrayList<>();
-        for (RoomOption room : rooms) {
-            roomLabels.add(room.name);
-        }
-        roomSpinner.setAdapter(buildLightSpinnerAdapter(roomLabels.toArray(new String[0])));
+        // Legacy single-select spinners stay hidden; now we always use line-based selectors.
+        memberSpinner.setVisibility(View.GONE);
+        roomSpinner.setVisibility(View.GONE);
 
         rebindReminderRoomLines(form, rooms, null);
         addLineBtn.setOnClickListener(v -> {
@@ -1688,8 +1766,10 @@ public class ExpensesFragment extends Fragment {
         });
         int roomIndex = findRoomIndexById(rooms, defaultRoomId);
         if (roomIndex >= 0) {
-            targetTypeSpinner.setSelection(2);
-            roomSpinner.setSelection(roomIndex);
+            List<String> initialRoomKeys = new ArrayList<>();
+            initialRoomKeys.add(rooms.get(roomIndex).id);
+            rebindReminderRoomLines(form, rooms, initialRoomKeys);
+            targetTypeSpinner.setSelection(1);
         } else {
             targetTypeSpinner.setSelection(0);
         }
@@ -1705,19 +1785,21 @@ public class ExpensesFragment extends Fragment {
         Button addMemberLineBtn = form.findViewById(R.id.addReminderMemberLineBtn);
         Button removeMemberLineBtn = form.findViewById(R.id.removeReminderMemberLineBtn);
 
-        boolean showMember = targetTypePosition == 1;
-        boolean showRoom = targetTypePosition == 2;
-        boolean showRoomLines = targetTypePosition == 3;
-        boolean showMemberLines = targetTypePosition == 4;
+        boolean showMemberLines = targetTypePosition == 0;
+        boolean showRoomLines = targetTypePosition == 1;
 
-        memberSpinner.setVisibility(showMember ? View.VISIBLE : View.GONE);
-        roomSpinner.setVisibility(showRoom ? View.VISIBLE : View.GONE);
+        memberSpinner.setVisibility(View.GONE);
+        roomSpinner.setVisibility(View.GONE);
         roomsContainer.setVisibility(showRoomLines ? View.VISIBLE : View.GONE);
         addLineBtn.setVisibility(showRoomLines ? View.VISIBLE : View.GONE);
-        removeLineBtn.setVisibility(showRoomLines && roomsContainer.getChildCount() > 1 ? View.VISIBLE : View.GONE);
+        removeLineBtn.setVisibility(showRoomLines ? View.VISIBLE : View.GONE);
+        removeLineBtn.setEnabled(showRoomLines && roomsContainer.getChildCount() > 1);
+        removeLineBtn.setAlpha(removeLineBtn.isEnabled() ? 1f : 0.45f);
         membersContainer.setVisibility(showMemberLines ? View.VISIBLE : View.GONE);
         addMemberLineBtn.setVisibility(showMemberLines ? View.VISIBLE : View.GONE);
-        removeMemberLineBtn.setVisibility(showMemberLines && membersContainer.getChildCount() > 1 ? View.VISIBLE : View.GONE);
+        removeMemberLineBtn.setVisibility(showMemberLines ? View.VISIBLE : View.GONE);
+        removeMemberLineBtn.setEnabled(showMemberLines && membersContainer.getChildCount() > 1);
+        removeMemberLineBtn.setAlpha(removeMemberLineBtn.isEnabled() ? 1f : 0.45f);
     }
 
     private void rebindReminderRoomLines(View form, List<RoomOption> rooms, @Nullable List<String> seedKeys) {
@@ -1900,14 +1982,14 @@ public class ExpensesFragment extends Fragment {
 
         String customDaysText = ((EditText) form.findViewById(R.id.reminderCustomDaysEt)).getText().toString().trim();
         if (customDaysText.isEmpty()) {
-            Toast.makeText(requireContext(), "Indica cada cuántos días", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Indica cada cu\u00e1ntos d\u00edas", Toast.LENGTH_SHORT).show();
             return null;
         }
         int customDays;
         try {
             customDays = Integer.parseInt(customDaysText);
         } catch (NumberFormatException e) {
-            Toast.makeText(requireContext(), "Intervalo personalizado no válido", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Intervalo personalizado no v\u00e1lido", Toast.LENGTH_SHORT).show();
             return null;
         }
         if (customDays <= 0) {
@@ -1922,29 +2004,24 @@ public class ExpensesFragment extends Fragment {
     private ReminderTargetConfig resolveReminderTargets(View form, List<String> members, List<RoomOption> rooms) {
         int targetTypeIndex = ((Spinner) form.findViewById(R.id.reminderTargetTypeSpinner)).getSelectedItemPosition();
         if (targetTypeIndex == 0) {
-            return new ReminderTargetConfig("todos", new ArrayList<>(members), "", "", new ArrayList<>(), new ArrayList<>(), "");
-        }
-        if (targetTypeIndex == 1) {
-            int memberIndex = ((Spinner) form.findViewById(R.id.reminderMemberSpinner)).getSelectedItemPosition();
-            if (memberIndex < 0 || memberIndex >= members.size()) return null;
-            String targetEmail = members.get(memberIndex).toLowerCase(Locale.ROOT);
-            return new ReminderTargetConfig("miembro", Collections.singletonList(targetEmail), "", "", new ArrayList<>(), new ArrayList<>(), targetEmail);
-        }
-        if (targetTypeIndex == 2) {
-            int roomIndex = ((Spinner) form.findViewById(R.id.reminderRoomSpinner)).getSelectedItemPosition();
-            if (roomIndex < 0 || roomIndex >= rooms.size()) return null;
-            RoomOption room = rooms.get(roomIndex);
+            LinearLayout memberLinesContainer = form.findViewById(R.id.reminderMembersContainer);
+            List<String> selectedMemberEmails = collectReminderMemberLineKeys(memberLinesContainer);
+            if (selectedMemberEmails.isEmpty()) return null;
+            List<String> normalizedMembers = new ArrayList<>();
+            for (String email : deduplicateStringKeys(selectedMemberEmails)) {
+                normalizedMembers.add(email.toLowerCase(Locale.ROOT));
+            }
             return new ReminderTargetConfig(
-                    "habitacion",
-                    new ArrayList<>(room.memberEmails),
-                    room.id,
-                    room.name,
-                    Collections.singletonList(room.id),
-                    Collections.singletonList(room.name),
+                    "x_miembro",
+                    normalizedMembers,
+                    "",
+                    "",
+                    new ArrayList<>(),
+                    new ArrayList<>(),
                     ""
             );
         }
-        if (targetTypeIndex == 3) {
+        if (targetTypeIndex == 1) {
             LinearLayout linesContainer = form.findViewById(R.id.reminderRoomsContainer);
             List<String> selectedRoomKeys = collectReminderRoomLineKeys(linesContainer);
             if (selectedRoomKeys.isEmpty()) return null;
@@ -1970,23 +2047,23 @@ public class ExpensesFragment extends Fragment {
                     ""
             );
         }
-
-        LinearLayout memberLinesContainer = form.findViewById(R.id.reminderMembersContainer);
-        List<String> selectedMemberEmails = collectReminderMemberLineKeys(memberLinesContainer);
-        if (selectedMemberEmails.isEmpty()) return null;
-        List<String> normalizedMembers = new ArrayList<>();
-        for (String email : deduplicateStringKeys(selectedMemberEmails)) {
-            normalizedMembers.add(email.toLowerCase(Locale.ROOT));
+        if (targetTypeIndex == 2) {
+            List<String> normalizedMembers = new ArrayList<>();
+            for (String email : deduplicateStringKeys(members)) {
+                normalizedMembers.add(email.toLowerCase(Locale.ROOT));
+            }
+            if (normalizedMembers.isEmpty()) return null;
+            return new ReminderTargetConfig(
+                    "todos_inquilinos",
+                    normalizedMembers,
+                    "",
+                    "",
+                    new ArrayList<>(),
+                    new ArrayList<>(),
+                    ""
+            );
         }
-        return new ReminderTargetConfig(
-                "x_miembro",
-                normalizedMembers,
-                "",
-                "",
-                new ArrayList<>(),
-                new ArrayList<>(),
-                ""
-        );
+        return null;
     }
 
     private void scheduleManualReminder(int reminderCode, String title, long firstTrigger, long intervalMs) {
@@ -2067,6 +2144,7 @@ public class ExpensesFragment extends Fragment {
     private String buildReminderSubtitle(DocumentSnapshot doc) {
         String targetType = doc.getString("targetType");
         String startDateText = doc.getString("startDateText");
+        String endDateText = doc.getString("endDateText");
         String interval = doc.getString("interval");
         Long intervalDays = doc.getLong("intervalDays");
         String who;
@@ -2085,23 +2163,32 @@ public class ExpensesFragment extends Fragment {
             }
         } else if ("habitacion".equals(targetType)) {
             String roomName = doc.getString("roomName");
-            who = "Habitación: " + (roomName == null || roomName.trim().isEmpty() ? "Sin nombre" : roomName);
+            who = "Habitaci\u00f3n: " + (roomName == null || roomName.trim().isEmpty() ? "Sin nombre" : roomName);
         } else if ("x_habitacion".equals(targetType)) {
             List<String> roomNames = castStrings(doc.get("roomNames"));
-            who = roomNames.isEmpty() ? "X habitación" : "X habitación: " + String.join(", ", roomNames);
+            who = roomNames.isEmpty() ? "X habitaci\u00f3n" : "X habitaci\u00f3n: " + String.join(", ", roomNames);
+        } else if ("todos_inquilinos".equals(targetType)) {
+            who = "Todos los inquilinos";
         } else {
             who = "Todos los miembros";
         }
 
-        String intervalLabel = interval == null ? "semanal" : interval;
+        String intervalKey = interval == null ? "semanal" : interval.toLowerCase(Locale.ROOT);
+        String intervalLabel = intervalKey;
         if ("unico".equals(intervalLabel)) {
-            intervalLabel = "único";
+            intervalLabel = "\u00fanico";
         }
         if ("personalizado".equals(intervalLabel) && intervalDays != null && intervalDays > 0) {
-            intervalLabel = "cada " + intervalDays + " días";
+            intervalLabel = "cada " + intervalDays + " d\u00edas";
         }
         if (startDateText == null || startDateText.trim().isEmpty()) {
             return who + " | " + intervalLabel;
+        }
+        if ("unico".equals(intervalKey)) {
+            return who + " | " + intervalLabel + " | " + startDateText;
+        }
+        if (endDateText != null && !endDateText.trim().isEmpty()) {
+            return who + " | " + intervalLabel + " | desde " + startDateText + " hasta " + endDateText;
         }
         return who + " | " + intervalLabel + " | desde " + startDateText;
     }
@@ -2212,7 +2299,7 @@ public class ExpensesFragment extends Fragment {
                 saldoRows.clear();
                 saldosAdapter.notifyDataSetChanged();
                 lastBalanceMovements.clear();
-                renderQuickBalances(Collections.emptyMap());
+                renderQuickBalances();
                 return;
             }
             String billingModel = normalizeBillingModel(groupDoc.getString("billingModel"));
@@ -2398,7 +2485,7 @@ public class ExpensesFragment extends Fragment {
         saldosAdapter.notifyDataSetChanged();
         lastBalanceMovements.clear();
         lastBalanceMovements.addAll(buildBalanceMovements(net));
-        renderQuickBalances(net);
+        renderQuickBalances();
     }
 
     private List<BalanceMovement> buildBalanceMovements(Map<String, Double> net) {
@@ -2434,104 +2521,59 @@ public class ExpensesFragment extends Fragment {
         return movements;
     }
 
-    private void renderQuickBalances(Map<String, Double> net) {
+    private void renderQuickBalances() {
         if (!isAdded() || quickBalancesContainer == null || quickBalancesCard == null) return;
         quickBalancesContainer.removeAllViews();
 
         String myEmailRaw = FirebaseAuth.getInstance().getCurrentUser().getEmail();
         String myEmail = myEmailRaw == null ? "" : myEmailRaw.toLowerCase(Locale.ROOT);
-        boolean isOwner = "admin".equals(currentUserRole);
+        double teDebenTotal = 0.0;
+        double debesTotal = 0.0;
 
-        Map<String, Double> incomingByPerson = new LinkedHashMap<>();
-        Map<String, Double> outgoingByPerson = new LinkedHashMap<>();
         for (BalanceMovement movement : lastBalanceMovements) {
-            incomingByPerson.put(movement.toEmail, incomingByPerson.getOrDefault(movement.toEmail, 0.0) + movement.amount);
-            outgoingByPerson.put(movement.fromEmail, outgoingByPerson.getOrDefault(movement.fromEmail, 0.0) + movement.amount);
-        }
-
-        if (isOwner) {
-            List<String> people = new ArrayList<>(net.keySet());
-            Collections.sort(people);
-            for (String email : people) {
-                double teDeben = incomingByPerson.getOrDefault(email, 0.0);
-                double debes = outgoingByPerson.getOrDefault(email, 0.0);
-                if (teDeben <= 0.0 && debes <= 0.0) continue;
-                addQuickBalanceChip(email, teDeben, debes, true);
-            }
-        } else {
-            Map<String, double[]> byCounterparty = new LinkedHashMap<>();
-            for (BalanceMovement movement : lastBalanceMovements) {
-                if (myEmail.equals(movement.toEmail)) {
-                    double[] values = byCounterparty.computeIfAbsent(movement.fromEmail, key -> new double[2]);
-                    values[0] += movement.amount; // te deben
-                } else if (myEmail.equals(movement.fromEmail)) {
-                    double[] values = byCounterparty.computeIfAbsent(movement.toEmail, key -> new double[2]);
-                    values[1] += movement.amount; // debes
-                }
-            }
-            for (Map.Entry<String, double[]> entry : byCounterparty.entrySet()) {
-                double teDeben = entry.getValue()[0];
-                double debes = entry.getValue()[1];
-                if (teDeben <= 0.0 && debes <= 0.0) continue;
-                addQuickBalanceChip(entry.getKey(), teDeben, debes, false);
+            if (myEmail.equals(movement.toEmail)) {
+                teDebenTotal += movement.amount;
+            } else if (myEmail.equals(movement.fromEmail)) {
+                debesTotal += movement.amount;
             }
         }
 
+        addQuickSummaryCard("Te deben", teDebenTotal);
+        addQuickSummaryCard("Debes", debesTotal);
         updateQuickBalancesVisibility();
     }
 
-    private void addQuickBalanceChip(String personEmail, double teDeben, double debes, boolean ownerView) {
-        Button chip = new Button(requireContext());
-        chip.setAllCaps(false);
-        chip.setMinWidth(0);
-        chip.setBackgroundResource(R.drawable.bg_tab_default);
-        chip.setTextColor(requireContext().getColor(R.color.text_light));
-        chip.setTextSize(11f);
-        chip.setPadding(dp(12), dp(8), dp(12), dp(8));
-        chip.setSingleLine(false);
-        chip.setMaxLines(3);
-
-        String personLabel = displayNameForEmail(personEmail);
-        if (ownerView) {
-            chip.setText(personLabel + "\nTe deben: " + formatCurrency(teDeben) + " | Debe: " + formatCurrency(debes));
-        } else {
-            chip.setText(personLabel + "\nTe deben: " + formatCurrency(teDeben) + " | Debes: " + formatCurrency(debes));
-        }
+    private void addQuickSummaryCard(String title, double amount) {
+        LinearLayout card = new LinearLayout(requireContext());
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackgroundResource(R.drawable.bg_tab_default);
+        card.setPadding(dp(14), dp(10), dp(14), dp(10));
 
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
+                0,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        params.bottomMargin = dp(6);
-        chip.setLayoutParams(params);
-        chip.setOnClickListener(v -> showQuickBalanceDetail(personEmail, teDeben, debes, ownerView));
-        quickBalancesContainer.addView(chip);
-    }
+        params.weight = 1f;
+        params.leftMargin = dp(6);
+        params.rightMargin = dp(6);
+        card.setLayoutParams(params);
 
-    private void showQuickBalanceDetail(String personEmail, double teDeben, double debes, boolean ownerView) {
-        String personLabel = displayNameForEmail(personEmail);
-        StringBuilder detail = new StringBuilder();
-        if (ownerView) {
-            detail.append("Resumen global de ").append(personLabel).append("\n\n")
-                    .append("Te deben: ").append(formatCurrency(teDeben)).append("\n")
-                    .append("Debe: ").append(formatCurrency(debes));
-        } else {
-            detail.append("Detalle con ").append(personLabel).append("\n\n")
-                    .append("Te deben: ").append(formatCurrency(teDeben)).append("\n")
-                    .append("Debes: ").append(formatCurrency(debes));
-        }
+        TextView titleTv = new TextView(requireContext());
+        titleTv.setText(title);
+        titleTv.setTextColor(requireContext().getColor(R.color.text_muted));
+        titleTv.setTextSize(12f);
+        titleTv.setTypeface(titleTv.getTypeface(), android.graphics.Typeface.BOLD);
 
-        View content = DialogUtils.createMessageView(requireContext(), detail.toString());
-        DialogUtils.Shell shell = DialogUtils.buildShell(
-                requireContext(),
-                "Debes / Te deben",
-                ownerView ? "Vista global del propietario" : "Vista personal",
-                content,
-                null,
-                "Cerrar"
-        );
-        AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
-        shell.confirmBtn.setOnClickListener(v -> dialog.dismiss());
+        TextView amountTv = new TextView(requireContext());
+        amountTv.setText(formatCurrency(amount));
+        amountTv.setTextColor(requireContext().getColor(R.color.text_light));
+        amountTv.setTextSize(18f);
+        amountTv.setTypeface(amountTv.getTypeface(), android.graphics.Typeface.BOLD);
+        amountTv.setPadding(0, dp(6), 0, 0);
+
+        card.addView(titleTv);
+        card.addView(amountTv);
+        quickBalancesContainer.addView(card);
     }
 
     private void updateQuickBalancesVisibility() {
@@ -4011,14 +4053,6 @@ public class ExpensesFragment extends Fragment {
         }
     }
 
-    private void handleReminderAttachmentSelected(@Nullable Uri uri) {
-        if (uri == null || !isAdded()) return;
-        pendingReminderAttachmentUri = uri.toString();
-        if (pendingReminderAttachmentStatusTv != null) {
-            pendingReminderAttachmentStatusTv.setText("Adjunto: " + uri.getLastPathSegment());
-        }
-    }
-
     @Nullable
     private String extractFirstAmount(String rawText) {
         Pattern pattern = Pattern.compile("(\\d+[\\.,]\\d{2})");
@@ -4381,5 +4415,6 @@ public class ExpensesFragment extends Fragment {
         }
     }
 }
+
 
 

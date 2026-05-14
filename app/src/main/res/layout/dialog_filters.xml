@@ -17,10 +17,11 @@
     <Spinner
         android:id="@+id/filterModeSpinner"
         android:layout_width="match_parent"
-        android:layout_height="40dp"
+        android:layout_height="50dp"
         android:layout_marginTop="4dp"
         android:background="@drawable/bg_select_dark_round"
         android:paddingHorizontal="12dp"
+        android:popupBackground="@color/surface_dark_alt"
         android:spinnerMode="dropdown" />
 
     <LinearLayout
@@ -41,10 +42,11 @@
         <Spinner
             android:id="@+id/filterCategorySpinner"
             android:layout_width="match_parent"
-            android:layout_height="40dp"
+            android:layout_height="50dp"
             android:layout_marginTop="4dp"
             android:background="@drawable/bg_select_dark_round"
             android:paddingHorizontal="12dp"
+            android:popupBackground="@color/surface_dark_alt"
             android:spinnerMode="dropdown" />
     </LinearLayout>
 
@@ -67,10 +69,11 @@
         <Spinner
             android:id="@+id/filterPersonSpinner"
             android:layout_width="match_parent"
-            android:layout_height="40dp"
+            android:layout_height="50dp"
             android:layout_marginTop="4dp"
             android:background="@drawable/bg_select_dark_round"
             android:paddingHorizontal="12dp"
+            android:popupBackground="@color/surface_dark_alt"
             android:spinnerMode="dropdown" />
     </LinearLayout>
 

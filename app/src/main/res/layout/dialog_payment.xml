@@ -36,7 +36,7 @@
         android:textSize="12sp"
         android:textStyle="bold" />
 
-    <EditText
+    <AutoCompleteTextView
         android:id="@+id/paymentConceptEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -84,6 +84,18 @@
         android:background="@drawable/bg_select_dark_round"
         android:paddingHorizontal="12dp"
         android:popupBackground="@color/surface_dark_alt" />
+
+    <TextView
+        android:id="@+id/paymentCategoryFixedTv"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_select_dark_round"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="16dp"
+        android:textColor="@color/text_light"
+        android:textStyle="bold"
+        android:visibility="gone" />
 
     <TextView
         android:layout_width="match_parent"

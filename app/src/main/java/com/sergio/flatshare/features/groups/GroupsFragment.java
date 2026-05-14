@@ -32,6 +32,7 @@ import androidx.fragment.app.Fragment;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -44,6 +45,7 @@ import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
 import com.journeyapps.barcodescanner.ScanContract;
 import com.journeyapps.barcodescanner.ScanOptions;
+import com.sergio.flatshare.BuildConfig;
 import com.sergio.flatshare.R;
 import com.sergio.flatshare.features.shell.MainActivity;
 import com.sergio.flatshare.core.session.SessionStore;
@@ -102,6 +104,7 @@ public class GroupsFragment extends Fragment {
         ListView listView = view.findViewById(R.id.groupsLv);
         Button addGroupBtn = view.findViewById(R.id.addGroupBtn);
         Button joinGroupBtn = view.findViewById(R.id.joinGroupBtn);
+        Button debugSeedBtn = view.findViewById(R.id.debugSeedBtn);
         detailsCard = view.findViewById(R.id.groupDetailsCard);
         emptyGroupsTv = view.findViewById(R.id.emptyGroupsTv);
         totalGroupsTv = view.findViewById(R.id.totalGroupsTv);
@@ -142,10 +145,149 @@ public class GroupsFragment extends Fragment {
 
         addGroupBtn.setOnClickListener(v -> createGroupDialog());
         joinGroupBtn.setOnClickListener(v -> joinGroupDialog());
+        if (BuildConfig.DEBUG) {
+            debugSeedBtn.setVisibility(View.VISIBLE);
+            debugSeedBtn.setOnClickListener(v -> showDebugSeedDialog());
+        }
 
         loadGroups();
         checkInvitations();
         return view;
+    }
+
+    private void showDebugSeedDialog() {
+        showSingleInputDialog(
+                "Seed temporal",
+                "Formato: pisos,habitaciones. Ejemplo: 5,4",
+                "Cantidad de pisos y habitaciones",
+                InputType.TYPE_CLASS_TEXT,
+                "Crear seed",
+                value -> {
+                    int[] parsed = parseSeedInput(value);
+                    if (parsed == null) {
+                        Toast.makeText(requireContext(), "Formato invalido. Usa pisos,habitaciones", Toast.LENGTH_SHORT).show();
+                        return false;
+                    }
+                    seedGroupsAndRooms(parsed[0], parsed[1]);
+                    return true;
+                }
+        );
+    }
+
+    @Nullable
+    private int[] parseSeedInput(String rawValue) {
+        String raw = rawValue == null ? "" : rawValue.trim();
+        if (raw.isEmpty()) {
+            raw = "3,4";
+        }
+        String normalized = raw.replace("x", ",").replace("X", ",").replace(";", ",");
+        String[] parts = normalized.split(",");
+        if (parts.length != 2) return null;
+
+        int groupsCount;
+        int roomsPerGroup;
+        try {
+            groupsCount = Integer.parseInt(parts[0].trim());
+            roomsPerGroup = Integer.parseInt(parts[1].trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+        if (groupsCount <= 0 || roomsPerGroup <= 0) return null;
+        if (groupsCount > 30 || roomsPerGroup > 15) return null;
+        return new int[]{groupsCount, roomsPerGroup};
+    }
+
+    private void seedGroupsAndRooms(int groupsCount, int roomsPerGroup) {
+        if (FirebaseAuth.getInstance().getCurrentUser() == null
+                || FirebaseAuth.getInstance().getCurrentUser().getEmail() == null) {
+            Toast.makeText(requireContext(), "Debes iniciar sesion para usar el seed", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        String email = FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
+        List<Task<Void>> commits = new ArrayList<>();
+        String lastGroupId = null;
+
+        for (int g = 1; g <= groupsCount; g++) {
+            DocumentReference groupRef = db.collection("groups").document();
+            String groupId = groupRef.getId();
+            String groupName = "Piso seed " + g;
+            String shareCode = groupId.toUpperCase(Locale.ROOT);
+            lastGroupId = groupId;
+
+            Map<String, Object> roles = new HashMap<>();
+            roles.put(uid, "admin");
+
+            Map<String, Object> location = new HashMap<>();
+            location.put("street", "Calle Seed " + g);
+            location.put("portal", "Portal " + g);
+            location.put("postalCode", String.format(Locale.ROOT, "28%03d", g));
+            location.put("city", "Madrid");
+            location.put("province", "Madrid");
+
+            Map<String, Object> groupData = new HashMap<>();
+            groupData.put("name", groupName);
+            groupData.put("description", "Piso de pruebas creado por seed temporal");
+            groupData.put("location", location);
+            groupData.put("ownerId", uid);
+            groupData.put("roles", roles);
+            groupData.put("members", Collections.singletonList(uid));
+            groupData.put("memberEmails", Collections.singletonList(email));
+            groupData.put("shareCode", shareCode);
+            groupData.put("roomCount", roomsPerGroup);
+            groupData.put("billingModel", RENT_MODE_VARIABLE);
+            groupData.put("variableSplitMode", VARIABLE_SPLIT_EQUAL);
+            groupData.put("createdAt", FieldValue.serverTimestamp());
+
+            Map<String, Object> codeData = new HashMap<>();
+            codeData.put("groupId", groupId);
+            codeData.put("ownerId", uid);
+            codeData.put("name", groupName);
+
+            WriteBatch batch = db.batch();
+            batch.set(groupRef, groupData);
+            batch.set(db.collection("group_codes").document(shareCode), codeData);
+
+            for (int r = 1; r <= roomsPerGroup; r++) {
+                DocumentReference roomRef = db.collection("rooms_groups").document();
+                Map<String, Object> roomData = new HashMap<>();
+                roomData.put("groupId", groupId);
+                roomData.put("roomNumber", r);
+                roomData.put("name", "Habitacion " + r);
+                roomData.put("capacity", 1 + ((r - 1) % 3));
+                roomData.put("monthlyCost", 300d + (r * 25d));
+                roomData.put("memberEmails", new ArrayList<String>());
+                roomData.put("memberCount", 0);
+                roomData.put("createdByUid", uid);
+                roomData.put("updatedByUid", uid);
+                roomData.put("createdAt", FieldValue.serverTimestamp());
+                roomData.put("updatedAt", FieldValue.serverTimestamp());
+                batch.set(roomRef, roomData);
+            }
+            commits.add(batch.commit());
+        }
+
+        String finalLastGroupId = lastGroupId;
+        Tasks.whenAll(commits)
+                .addOnSuccessListener(v -> {
+                    if (finalLastGroupId != null) {
+                        selectedGroupId = finalLastGroupId;
+                        SessionStore.setCurrentGroup(requireContext(), finalLastGroupId);
+                        SessionStore.clearCurrentRoom(requireContext());
+                    }
+                    loadGroups();
+                    Toast.makeText(
+                            requireContext(),
+                            "Seed completado: " + groupsCount + " pisos y " + (groupsCount * roomsPerGroup) + " habitaciones",
+                            Toast.LENGTH_LONG
+                    ).show();
+                })
+                .addOnFailureListener(e -> Toast.makeText(
+                        requireContext(),
+                        "No se pudo completar el seed: " + e.getMessage(),
+                        Toast.LENGTH_LONG
+                ).show());
     }
     private void createGroupDialog() {
         View form = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_create_group, null, false);
@@ -972,39 +1114,95 @@ public class GroupsFragment extends Fragment {
         queries.add(db.collection("payments").whereEqualTo("groupId", groupId).get());
         queries.add(db.collection("payment_deadlines").whereEqualTo("groupId", groupId).get());
         queries.add(db.collection("reminders").whereEqualTo("groupId", groupId).get());
+        queries.add(db.collection("activity_logs").whereEqualTo("groupId", groupId).get());
+        queries.add(db.collection("rental_contracts").whereEqualTo("groupId", groupId).get());
+        queries.add(db.collection("rent_collections").whereEqualTo("groupId", groupId).get());
+        queries.add(db.collection("maintenance_tickets").whereEqualTo("groupId", groupId).get());
+        queries.add(db.collection("group_documents").whereEqualTo("groupId", groupId).get());
+        queries.add(db.collection("audit_events").whereEqualTo("groupId", groupId).get());
+        queries.add(db.collection("rent_automations").whereEqualTo("groupId", groupId).get());
+        queries.add(db.collection("event_reminder_rules").whereEqualTo("groupId", groupId).get());
+        queries.add(db.collection("event_reminder_jobs").whereEqualTo("groupId", groupId).get());
+        queries.add(db.collection("invitations").whereEqualTo("groupId", groupId).get());
 
-        Tasks.whenAllSuccess(queries)
-                .addOnSuccessListener(results -> {
-                    WriteBatch batch = db.batch();
-                    for (Object result : results) {
-                        QuerySnapshot snapshot = (QuerySnapshot) result;
-                        for (DocumentSnapshot doc : snapshot.getDocuments()) {
-                            batch.delete(doc.getReference());
-                        }
-                    }
-                    batch.delete(db.collection("groups").document(groupId));
-                    batch.commit()
-                            .addOnSuccessListener(v -> {
-                                if (groupId.equals(SessionStore.getCurrentGroup(requireContext()))) {
-                                    SessionStore.clearCurrentGroup(requireContext());
-                                    SessionStore.clearCurrentRoom(requireContext());
+        db.collection("groups").document(groupId).get()
+                .addOnSuccessListener(groupDoc -> Tasks.whenAllSuccess(queries)
+                        .addOnSuccessListener(results -> {
+                            List<DocumentReference> refsToDelete = new ArrayList<>();
+                            for (Object result : results) {
+                                QuerySnapshot snapshot = (QuerySnapshot) result;
+                                for (DocumentSnapshot doc : snapshot.getDocuments()) {
+                                    refsToDelete.add(doc.getReference());
                                 }
-                                selectedGroupId = null;
-                                detailsCard.setVisibility(View.GONE);
-                                Toast.makeText(requireContext(), "Piso eliminado", Toast.LENGTH_SHORT).show();
-                                loadGroups();
-                            })
-                            .addOnFailureListener(e -> Toast.makeText(
-                                    requireContext(),
-                                    "No se pudo eliminar el piso: " + e.getMessage(),
-                                    Toast.LENGTH_LONG
-                            ).show());
-                })
+                            }
+
+                            String shareCode = normalizeShareCode(groupDoc.getString("shareCode"));
+                            if (shareCode.isEmpty()) {
+                                shareCode = groupDoc.getId().toUpperCase(Locale.ROOT);
+                            }
+                            refsToDelete.add(db.collection("group_codes").document(shareCode));
+                            refsToDelete.add(db.collection("groups").document(groupId));
+
+                            deleteDocumentsInChunks(refsToDelete)
+                                    .addOnSuccessListener(v -> {
+                                        if (groupId.equals(SessionStore.getCurrentGroup(requireContext()))) {
+                                            SessionStore.clearCurrentGroup(requireContext());
+                                            SessionStore.clearCurrentRoom(requireContext());
+                                        }
+                                        selectedGroupId = null;
+                                        detailsCard.setVisibility(View.GONE);
+                                        Toast.makeText(requireContext(), "Piso eliminado", Toast.LENGTH_SHORT).show();
+                                        loadGroups();
+                                    })
+                                    .addOnFailureListener(e -> Toast.makeText(
+                                            requireContext(),
+                                            "No se pudo eliminar el piso: " + e.getMessage(),
+                                            Toast.LENGTH_LONG
+                                    ).show());
+                        })
+                        .addOnFailureListener(e -> Toast.makeText(
+                                requireContext(),
+                                "No se pudieron preparar los datos: " + e.getMessage(),
+                                Toast.LENGTH_LONG
+                        ).show()))
                 .addOnFailureListener(e -> Toast.makeText(
                         requireContext(),
-                        "No se pudieron preparar los datos: " + e.getMessage(),
+                        "No se pudo leer la información del piso: " + e.getMessage(),
                         Toast.LENGTH_LONG
                 ).show());
+    }
+
+    private String normalizeShareCode(String shareCode) {
+        return shareCode == null ? "" : shareCode.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private Task<Void> deleteDocumentsInChunks(List<DocumentReference> refs) {
+        if (refs == null || refs.isEmpty()) {
+            return Tasks.forResult(null);
+        }
+
+        final int chunkSize = 450;
+        List<Task<Void>> commits = new ArrayList<>();
+        WriteBatch batch = db.batch();
+        int count = 0;
+        for (DocumentReference ref : refs) {
+            if (ref == null) continue;
+            batch.delete(ref);
+            count++;
+            if (count == chunkSize) {
+                commits.add(batch.commit());
+                batch = db.batch();
+                count = 0;
+            }
+        }
+
+        if (count > 0) {
+            commits.add(batch.commit());
+        }
+        if (commits.isEmpty()) {
+            return Tasks.forResult(null);
+        }
+        return Tasks.whenAll(commits);
     }
 
     private void setupProvinceAutocomplete(AutoCompleteTextView provinceInput) {

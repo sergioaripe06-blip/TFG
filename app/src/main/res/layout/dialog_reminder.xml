@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -30,6 +30,50 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
+        android:text="Frecuencia del recordatorio:"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <Spinner
+        android:id="@+id/reminderIntervalSpinner"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/bg_select_dark_round"
+        android:paddingHorizontal="12dp"
+        android:popupBackground="@color/surface_dark_alt" />
+
+    <TextView
+        android:id="@+id/reminderCustomDaysLabelTv"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="Frecuencia personalizada (días):"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
+    <EditText
+        android:id="@+id/reminderCustomDaysEt"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_input_dark_round"
+        android:hint="Ejemplo: 15"
+        android:inputType="number"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp"
+        android:textColor="@color/text_light"
+        android:textColorHint="@color/text_muted"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/reminderStartDateLabelTv"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
         android:text="Fecha de inicio (AAAA-MM-DD):"
         android:textColor="@color/text_light"
         android:textSize="12sp"
@@ -50,45 +94,47 @@
         android:textColor="@color/text_light"
         android:textColorHint="@color/text_muted" />
 
-    <Spinner
-        android:id="@+id/reminderIntervalSpinner"
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:layout_marginTop="10dp"
-        android:background="@drawable/bg_select_dark_round"
-        android:paddingHorizontal="12dp"
-        android:popupBackground="@color/surface_dark_alt" />
-
     <TextView
-        android:id="@+id/reminderCustomDaysLabelTv"
+        android:id="@+id/reminderEndDateLabelTv"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
-        android:text="Frecuencia (días):"
+        android:text="Fecha de finalización (AAAA-MM-DD):"
         android:textColor="@color/text_light"
         android:textSize="12sp"
         android:textStyle="bold"
         android:visibility="gone" />
 
     <EditText
-        android:id="@+id/reminderCustomDaysEt"
+        android:id="@+id/reminderEndDateEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="4dp"
         android:background="@drawable/bg_input_dark_round"
-        android:hint="Ejemplo: 15"
-        android:inputType="number"
+        android:hint="@string/due_date_hint"
+        android:clickable="true"
+        android:focusable="false"
+        android:inputType="none"
         android:paddingHorizontal="16dp"
         android:paddingVertical="12dp"
         android:textColor="@color/text_light"
         android:textColorHint="@color/text_muted"
         android:visibility="gone" />
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="Destinatarios del recordatorio:"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
     <Spinner
         android:id="@+id/reminderTargetTypeSpinner"
         android:layout_width="match_parent"
         android:layout_height="50dp"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="4dp"
         android:background="@drawable/bg_select_dark_round"
         android:paddingHorizontal="12dp"
         android:popupBackground="@color/surface_dark_alt" />
@@ -127,7 +173,7 @@
         android:layout_height="40dp"
         android:layout_marginTop="8dp"
         android:background="@drawable/bg_tab_default"
-        android:text="Añadir línea de habitación"
+        android:text="Añadir habitación"
         android:textAllCaps="false"
         android:textColor="@color/text_light"
         android:visibility="gone" />
@@ -138,7 +184,7 @@
         android:layout_height="40dp"
         android:layout_marginTop="8dp"
         android:background="@drawable/bg_tab_default"
-        android:text="Eliminar línea de habitación"
+        android:text="Quitar habitación"
         android:textAllCaps="false"
         android:textColor="@color/text_light"
         android:visibility="gone" />
@@ -157,7 +203,7 @@
         android:layout_height="40dp"
         android:layout_marginTop="8dp"
         android:background="@drawable/bg_tab_default"
-        android:text="Añadir línea de miembro"
+        android:text="Añadir inquilino"
         android:textAllCaps="false"
         android:textColor="@color/text_light"
         android:visibility="gone" />
@@ -168,28 +214,9 @@
         android:layout_height="40dp"
         android:layout_marginTop="8dp"
         android:background="@drawable/bg_tab_default"
-        android:text="Eliminar línea de miembro"
+        android:text="Quitar inquilino"
         android:textAllCaps="false"
         android:textColor="@color/text_light"
         android:visibility="gone" />
-
-    <Button
-        android:id="@+id/reminderAttachBtn"
-        android:layout_width="match_parent"
-        android:layout_height="40dp"
-        android:layout_marginTop="10dp"
-        android:background="@drawable/bg_tab_default"
-        android:text="Adjuntar archivo"
-        android:textAllCaps="false"
-        android:textColor="@color/text_light" />
-
-    <TextView
-        android:id="@+id/reminderAttachmentStatusTv"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:text="Sin adjunto"
-        android:textColor="@color/text_muted"
-        android:textSize="12sp" />
 
 </LinearLayout>
