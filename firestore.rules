@@ -108,8 +108,16 @@ service cloud.firestore {
 
     match /payments/{paymentId} {
       allow create: if signedIn()
-        && request.resource.data.fromEmail == authEmail()
-        && isGroupMember(request.resource.data.groupId);
+        && isGroupMember(request.resource.data.groupId)
+        && (
+          request.resource.data.fromEmail == authEmail()
+          || (
+            isGroupOwner(request.resource.data.groupId)
+            && request.resource.data.seed == true
+            && request.resource.data.toEmail == authEmail()
+            && request.resource.data.fromEmail.matches('^seeduser[0-9]{3}@seed\\.flatshare\\.local$')
+          )
+        );
 
       allow read, update, delete: if signedIn()
         && isGroupMember(resource.data.groupId);

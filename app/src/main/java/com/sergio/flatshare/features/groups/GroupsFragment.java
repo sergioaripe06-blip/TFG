@@ -60,6 +60,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Calendar;
+import java.util.Date;
 
 public class GroupsFragment extends Fragment {
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
@@ -245,12 +247,12 @@ public class GroupsFragment extends Fragment {
             codeData.put("ownerId", uid);
             codeData.put("name", groupName);
 
-            WriteBatch batch = db.batch();
-            batch.set(groupRef, groupData);
-            batch.set(db.collection("group_codes").document(shareCode), codeData);
+            WriteBatch groupBatch = db.batch();
+            groupBatch.set(groupRef, groupData);
+            groupBatch.set(db.collection("group_codes").document(shareCode), codeData);
 
+            List<Map<String, Object>> pendingRooms = new ArrayList<>();
             for (int r = 1; r <= roomsPerGroup; r++) {
-                DocumentReference roomRef = db.collection("rooms_groups").document();
                 Map<String, Object> roomData = new HashMap<>();
                 roomData.put("groupId", groupId);
                 roomData.put("roomNumber", r);
@@ -263,9 +265,36 @@ public class GroupsFragment extends Fragment {
                 roomData.put("updatedByUid", uid);
                 roomData.put("createdAt", FieldValue.serverTimestamp());
                 roomData.put("updatedAt", FieldValue.serverTimestamp());
-                batch.set(roomRef, roomData);
+                pendingRooms.add(roomData);
             }
-            commits.add(batch.commit());
+
+            List<Map<String, Object>> pendingPayments = buildOwnerSeedPayments(groupId, email, g);
+            Task<Void> seedTask = groupBatch.commit().continueWithTask(task -> {
+                if (!task.isSuccessful()) {
+                    Exception error = task.getException();
+                    if (error != null) throw error;
+                    throw new IllegalStateException("No se pudo crear el grupo seed");
+                }
+                WriteBatch roomsBatch = db.batch();
+                for (Map<String, Object> roomData : pendingRooms) {
+                    DocumentReference roomRef = db.collection("rooms_groups").document();
+                    roomsBatch.set(roomRef, roomData);
+                }
+                return roomsBatch.commit().continueWithTask(roomTask -> {
+                    if (!roomTask.isSuccessful()) {
+                        Exception error = roomTask.getException();
+                        if (error != null) throw error;
+                        throw new IllegalStateException("No se pudieron crear las habitaciones seed");
+                    }
+                    WriteBatch paymentsBatch = db.batch();
+                    for (Map<String, Object> paymentData : pendingPayments) {
+                        DocumentReference paymentRef = db.collection("payments").document();
+                        paymentsBatch.set(paymentRef, paymentData);
+                    }
+                    return paymentsBatch.commit();
+                });
+            });
+            commits.add(seedTask);
         }
 
         String finalLastGroupId = lastGroupId;
@@ -289,6 +318,46 @@ public class GroupsFragment extends Fragment {
                         Toast.LENGTH_LONG
                 ).show());
     }
+
+    private List<Map<String, Object>> buildOwnerSeedPayments(String groupId, String ownerEmail, int groupIndex) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        String owner = ownerEmail == null ? "" : ownerEmail.trim().toLowerCase(Locale.ROOT);
+        if (owner.isEmpty()) return out;
+
+        int[] monthOffsets = {0, -1, -2, -3, -5, -7, -11};
+        for (int i = 0; i < monthOffsets.length; i++) {
+            int seedIndex = ((groupIndex - 1) * monthOffsets.length) + i + 1;
+            String fromSeed = String.format(Locale.ROOT, "seeduser%03d@seed.flatshare.local", ((seedIndex - 1) % 20) + 1);
+
+            Map<String, Object> payment = new HashMap<>();
+            payment.put("groupId", groupId);
+            payment.put("amount", 35d + (i * 9d));
+            payment.put("fromEmail", fromSeed);
+            payment.put("toEmail", owner);
+            payment.put("category", i % 2 == 0 ? "alquiler" : "electricidad");
+            payment.put("priority", i % 3 == 0 ? "alta" : "media");
+            payment.put("status", i % 5 == 0 ? "pending" : "confirmed");
+            payment.put("createdAt", FieldValue.serverTimestamp());
+            payment.put("dueAt", monthsFromNow(monthOffsets[i]));
+            payment.put("concept", "Cobro seed propietario " + (i + 1));
+            payment.put("targetType", "miembro");
+            payment.put("seed", true);
+            out.add(payment);
+        }
+        return out;
+    }
+
+    private Date monthsFromNow(int monthOffset) {
+        Calendar c = Calendar.getInstance();
+        c.set(Calendar.DAY_OF_MONTH, 12);
+        c.set(Calendar.HOUR_OF_DAY, 10);
+        c.set(Calendar.MINUTE, 0);
+        c.set(Calendar.SECOND, 0);
+        c.set(Calendar.MILLISECOND, 0);
+        c.add(Calendar.MONTH, monthOffset);
+        return c.getTime();
+    }
+
     private void createGroupDialog() {
         View form = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_create_group, null, false);
         LinearLayout stepOneContainer = form.findViewById(R.id.createGroupStepOneContainer);
@@ -329,7 +398,7 @@ public class GroupsFragment extends Fragment {
             inStepTwo[0] = false;
             stepOneContainer.setVisibility(View.VISIBLE);
             stepTwoContainer.setVisibility(View.GONE);
-            stepIndicatorTv.setText("Paso 1 de 2 · Datos básicos");
+            stepIndicatorTv.setText("Paso 1 de 2 - Datos básicos");
             shell.cancelBtn.setText("Cancelar");
             shell.confirmBtn.setText("Siguiente");
         };
@@ -338,7 +407,7 @@ public class GroupsFragment extends Fragment {
             inStepTwo[0] = true;
             stepOneContainer.setVisibility(View.GONE);
             stepTwoContainer.setVisibility(View.VISIBLE);
-            stepIndicatorTv.setText("Paso 2 de 2 · Configuración");
+            stepIndicatorTv.setText("Paso 2 de 2 - Configuración");
             shell.cancelBtn.setText("Atrás");
             shell.confirmBtn.setText("Crear");
         };
@@ -366,7 +435,7 @@ public class GroupsFragment extends Fragment {
                     return;
                 }
                 if (province.isEmpty()) {
-                    Toast.makeText(requireContext(), "Selecciona una provincia de la lista", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(requireContext(), "Indica una provincia", Toast.LENGTH_SHORT).show();
                     return;
                 }
                 showStepTwo.run();
@@ -567,7 +636,11 @@ public class GroupsFragment extends Fragment {
                     openCurrentGroupWorkspace();
                 })
                 .addOnFailureListener(e -> {
-                    Toast.makeText(requireContext(), "No se pudieron guardar todas las habitaciones", Toast.LENGTH_LONG).show();
+                    Toast.makeText(
+                            requireContext(),
+                            "No se pudieron guardar todas las habitaciones: " + e.getMessage(),
+                            Toast.LENGTH_LONG
+                    ).show();
                     openCurrentGroupWorkspace();
                 });
     }
@@ -743,16 +816,42 @@ public class GroupsFragment extends Fragment {
                 "Enviar",
                 value -> {
                     String invitedEmail = value.trim().toLowerCase(Locale.ROOT);
-                    if (invitedEmail.isEmpty()) return false;
+                    if (invitedEmail.isEmpty() || !invitedEmail.contains("@")) {
+                        Toast.makeText(requireContext(), "Email invalido", Toast.LENGTH_SHORT).show();
+                        return false;
+                    }
 
-                    Map<String, Object> inv = new HashMap<>();
-                    inv.put("groupId", groupId);
-                    inv.put("invitedEmail", invitedEmail);
-                    inv.put("inviterUid", FirebaseAuth.getInstance().getCurrentUser().getUid());
-                    inv.put("status", "pending");
-                    inv.put("createdAt", FieldValue.serverTimestamp());
-                    db.collection("invitations").add(inv)
-                            .addOnSuccessListener(v -> Toast.makeText(requireContext(), "Invitación enviada", Toast.LENGTH_SHORT).show());
+                    String inviterUid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+                    String inviterEmail = FirebaseAuth.getInstance().getCurrentUser().getEmail() == null
+                            ? ""
+                            : FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
+
+                    db.collection("groups").document(groupId).get()
+                            .addOnSuccessListener(groupDoc -> {
+                                String currentGroupName = groupDoc.getString("name");
+                                if (currentGroupName == null || currentGroupName.trim().isEmpty()) {
+                                    currentGroupName = "Piso";
+                                }
+                                String currentShareCode = groupDoc.getString("shareCode");
+                                if (currentShareCode == null || currentShareCode.trim().isEmpty()) {
+                                    currentShareCode = groupId.toUpperCase(Locale.ROOT);
+                                }
+
+                                Map<String, Object> inv = new HashMap<>();
+                                inv.put("groupId", groupId);
+                                inv.put("groupName", currentGroupName);
+                                inv.put("shareCode", currentShareCode);
+                                inv.put("invitedEmail", invitedEmail);
+                                inv.put("inviterUid", inviterUid);
+                                inv.put("inviterEmail", inviterEmail);
+                                inv.put("status", "pending");
+                                inv.put("createdAt", FieldValue.serverTimestamp());
+
+                                db.collection("invitations").add(inv)
+                                        .addOnSuccessListener(v -> Toast.makeText(requireContext(), "Invitacion creada", Toast.LENGTH_SHORT).show())
+                                        .addOnFailureListener(e -> Toast.makeText(requireContext(), "No se pudo crear la invitacion", Toast.LENGTH_SHORT).show());
+                            })
+                            .addOnFailureListener(e -> Toast.makeText(requireContext(), "No se pudo leer el piso", Toast.LENGTH_SHORT).show());
                     return true;
                 }
         );
@@ -875,30 +974,141 @@ public class GroupsFragment extends Fragment {
                 .get()
                 .addOnSuccessListener(res -> {
                     if (res.isEmpty()) return;
-                    DocumentSnapshot doc = res.getDocuments().get(0);
-                    String groupId = doc.getString("groupId");
-                    showInvitationDecision(doc.getId(), groupId);
+                    showInvitationDecision(res.getDocuments(), 0);
                 });
     }
 
-    private void showInvitationDecision(String invitationId, String groupId) {
-        View content = DialogUtils.createMessageView(requireContext(), "Tienes una invitación a un piso compartido.");
+    private void showInvitationDecision(List<DocumentSnapshot> pendingInvitations, int index) {
+        if (!isAdded() || index >= pendingInvitations.size()) return;
+        DocumentSnapshot invitation = pendingInvitations.get(index);
+        String invitationId = invitation.getId();
+        String groupId = stringValue(invitation.get("groupId"));
+        String invitationGroupName = stringValue(invitation.get("groupName"));
+        String invitationShareCode = stringValue(invitation.get("shareCode")).toUpperCase(Locale.ROOT);
+        String inviterEmail = stringValue(invitation.get("inviterEmail")).toLowerCase(Locale.ROOT);
+
+        if (groupId.isEmpty()) {
+            db.collection("invitations").document(invitationId).update("status", "rejected")
+                    .addOnCompleteListener(t -> showInvitationDecision(pendingInvitations, index + 1));
+            return;
+        }
+
+        db.collection("groups").document(groupId).get().addOnSuccessListener(groupDoc -> {
+            if (!isAdded()) return;
+
+            String groupName = invitationGroupName.isEmpty() ? "Piso" : invitationGroupName;
+            String shareCode = invitationShareCode;
+            String ownerLabel = "Sin datos";
+            String locationLabel = "Sin ubicacion";
+            List<String> memberIds = new ArrayList<>();
+            List<String> memberEmails = new ArrayList<>();
+
+            if (groupDoc.exists()) {
+                String liveName = stringValue(groupDoc.getString("name"));
+                if (!liveName.isEmpty()) groupName = liveName;
+
+                String liveCode = stringValue(groupDoc.getString("shareCode")).toUpperCase(Locale.ROOT);
+                if (!liveCode.isEmpty()) {
+                    shareCode = liveCode;
+                } else if (shareCode.isEmpty()) {
+                    shareCode = groupId.toUpperCase(Locale.ROOT);
+                }
+
+                memberIds = castStrings(groupDoc.get("members"));
+                memberEmails = castStrings(groupDoc.get("memberEmails"));
+                String resolvedOwner = resolveOwnerEmail(groupDoc, memberIds, memberEmails);
+                if (!resolvedOwner.isEmpty()) ownerLabel = resolvedOwner;
+                locationLabel = buildLocationLabel(groupDoc);
+            } else if (shareCode.isEmpty()) {
+                shareCode = groupId.toUpperCase(Locale.ROOT);
+            }
+
+            String invitedByLabel = inviterEmail.isEmpty() ? "Sin datos" : inviterEmail;
+            final String finalGroupName = groupName;
+            final String finalOwnerLabel = ownerLabel;
+            final String finalLocationLabel = locationLabel;
+            final String finalShareCode = shareCode;
+            final List<String> finalMemberIds = new ArrayList<>(memberIds);
+            final List<String> finalMemberEmails = new ArrayList<>(memberEmails);
+
+            if (finalMemberEmails.isEmpty()) {
+                openInvitationDecisionDialog(
+                        invitationId,
+                        groupId,
+                        pendingInvitations,
+                        index,
+                        finalGroupName,
+                        finalOwnerLabel,
+                        "Sin datos",
+                        finalLocationLabel,
+                        finalShareCode,
+                        invitedByLabel
+                );
+                return;
+            }
+
+            resolveMemberDisplayNames(finalMemberIds, finalMemberEmails, labels -> {
+                if (!isAdded()) return;
+                String membersLabel = buildDetailedMembersLabel(labels, finalMemberEmails);
+                openInvitationDecisionDialog(
+                        invitationId,
+                        groupId,
+                        pendingInvitations,
+                        index,
+                        finalGroupName,
+                        finalOwnerLabel,
+                        membersLabel,
+                        finalLocationLabel,
+                        finalShareCode,
+                        invitedByLabel
+                );
+            });
+        }).addOnFailureListener(e -> {
+            if (!isAdded()) return;
+            Toast.makeText(requireContext(), "No se pudo leer la invitacion", Toast.LENGTH_SHORT).show();
+            showInvitationDecision(pendingInvitations, index + 1);
+        });
+    }
+
+    private void openInvitationDecisionDialog(
+            String invitationId,
+            String groupId,
+            List<DocumentSnapshot> pendingInvitations,
+            int index,
+            String groupName,
+            String ownerLabel,
+            String membersLabel,
+            String locationLabel,
+            String shareCode,
+            String invitedByLabel
+    ) {
+        String details = "Piso: " + groupName
+                + "\nPropietario: " + ownerLabel
+                + "\nMiembros:\n" + membersLabel
+                + "\nUbicacion: " + locationLabel
+                + "\nCodigo: " + shareCode
+                + "\nInvitado por: " + invitedByLabel;
+
+        View content = DialogUtils.createMessageView(requireContext(), details);
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
-                "Invitación pendiente",
-                "Decide si quieres entrar ahora o rechazarla.",
+                "Invitacion pendiente",
+                "Te han invitado a este piso. Quieres unirte ahora?",
                 content,
                 "Rechazar",
-                "Aceptar"
+                "Unirme"
         );
         AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
         shell.cancelBtn.setOnClickListener(v -> {
-            db.collection("invitations").document(invitationId).update("status", "rejected");
-            dialog.dismiss();
+            db.collection("invitations").document(invitationId).update("status", "rejected")
+                    .addOnCompleteListener(t -> {
+                        dialog.dismiss();
+                        showInvitationDecision(pendingInvitations, index + 1);
+                    });
         });
         shell.confirmBtn.setOnClickListener(v -> {
-            acceptInvitation(invitationId, groupId);
             dialog.dismiss();
+            acceptInvitation(invitationId, groupId);
         });
     }
 
@@ -917,9 +1127,33 @@ public class GroupsFragment extends Fragment {
             if (requireActivity() instanceof MainActivity) {
                 ((MainActivity) requireActivity()).openCurrentGroupWorkspace();
             }
+        }).addOnFailureListener(e -> {
+            if (!isAdded()) return;
+            Toast.makeText(requireContext(), "No se pudo aceptar la invitacion", Toast.LENGTH_SHORT).show();
         });
     }
 
+    private String buildDetailedMembersLabel(List<String> displayNames, List<String> memberEmails) {
+        if (memberEmails == null || memberEmails.isEmpty()) {
+            return "Sin datos";
+        }
+
+        StringBuilder out = new StringBuilder();
+        for (int i = 0; i < memberEmails.size(); i++) {
+            String email = stringValue(memberEmails.get(i)).toLowerCase(Locale.ROOT);
+            if (email.isEmpty()) continue;
+            String name = email;
+            if (displayNames != null && i < displayNames.size()) {
+                String candidate = stringValue(displayNames.get(i));
+                if (!candidate.isEmpty()) name = candidate;
+            }
+            if (out.length() > 0) out.append("\n");
+            out.append("Miembro ").append(i + 1).append(":");
+            out.append("\nNombre: ").append(name);
+            out.append("\nCorreo: ").append(email);
+        }
+        return out.length() == 0 ? "Sin datos" : out.toString();
+    }
     private void loadGroups() {
         String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
         db.collection("groups").whereArrayContains("members", uid).get().addOnSuccessListener(res -> {
@@ -979,12 +1213,18 @@ public class GroupsFragment extends Fragment {
         detailDescTv.setText(desc);
         resolveMemberDisplayNames(memberIds, emails, labels -> {
             if (!isAdded()) return;
-            if (labels.isEmpty()) {
+            if (labels.isEmpty() || emails.isEmpty()) {
                 detailMembersTv.setText("Miembros: sin datos");
             } else {
                 StringBuilder membersText = new StringBuilder("Miembros:");
-                for (String label : labels) {
-                    membersText.append("\n- ").append(label);
+                int count = Math.min(labels.size(), emails.size());
+                for (int i = 0; i < count; i++) {
+                    String label = labels.get(i) == null ? "" : labels.get(i).trim();
+                    String email = emails.get(i) == null ? "" : emails.get(i).trim().toLowerCase(Locale.ROOT);
+                    if (label.isEmpty()) label = email.isEmpty() ? "Sin datos" : email;
+                    membersText.append("\nMiembro ").append(i + 1).append(":");
+                    membersText.append("\nNombre: ").append(label);
+                    membersText.append("\nCorreo: ").append(email.isEmpty() ? "sin correo" : email);
                 }
                 detailMembersTv.setText(membersText.toString());
             }
@@ -993,6 +1233,63 @@ public class GroupsFragment extends Fragment {
         manageRoomsBtn.setVisibility(isOwner ? View.VISIBLE : View.GONE);
         deleteGroupBtn.setVisibility(isOwner ? View.VISIBLE : View.GONE);
         detailsCard.setVisibility(View.VISIBLE);
+    }
+
+    @SuppressWarnings("unchecked")
+    private String buildLocationLabel(DocumentSnapshot doc) {
+        Object locationRaw = doc.get("location");
+        if (!(locationRaw instanceof Map)) {
+            return "Sin ubicacion";
+        }
+        Map<String, Object> location = (Map<String, Object>) locationRaw;
+        String street = stringValue(location.get("street"));
+        String portal = stringValue(location.get("portal"));
+        String postalCode = stringValue(location.get("postalCode"));
+        String city = stringValue(location.get("city"));
+        String province = stringValue(location.get("province"));
+
+        StringBuilder out = new StringBuilder();
+        if (!street.isEmpty()) out.append(street);
+        if (!portal.isEmpty()) {
+            if (out.length() > 0) out.append(", ");
+            out.append(portal);
+        }
+        if (!postalCode.isEmpty() || !city.isEmpty()) {
+            if (out.length() > 0) out.append(" - ");
+            if (!postalCode.isEmpty()) out.append(postalCode).append(" ");
+            if (!city.isEmpty()) out.append(city);
+        }
+        if (!province.isEmpty()) {
+            if (out.length() > 0) out.append(" (");
+            out.append(province);
+            if (out.length() > 0 && out.charAt(out.length() - 1) != ')') out.append(")");
+        }
+        return out.length() == 0 ? "Sin ubicacion" : out.toString();
+    }
+
+    private String resolveOwnerEmail(DocumentSnapshot groupDoc, List<String> memberIds, List<String> memberEmails) {
+        String ownerId = groupDoc.getString("ownerId");
+        if (ownerId == null || ownerId.trim().isEmpty()) return "";
+
+        int size = Math.min(memberIds.size(), memberEmails.size());
+        for (int i = 0; i < size; i++) {
+            String uid = memberIds.get(i);
+            if (ownerId.equals(uid)) {
+                String email = memberEmails.get(i);
+                return email == null ? "" : email.toLowerCase(Locale.ROOT);
+            }
+        }
+        String myUid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        if (ownerId.equals(myUid)) {
+            String myEmail = FirebaseAuth.getInstance().getCurrentUser().getEmail();
+            return myEmail == null ? "" : myEmail.toLowerCase(Locale.ROOT);
+        }
+        return "";
+    }
+
+    private String stringValue(Object value) {
+        if (value == null) return "";
+        return value.toString().trim();
     }
 
     private void resolveMemberDisplayNames(List<String> memberIds, List<String> memberEmails, MemberLabelsCallback callback) {
@@ -1264,7 +1561,7 @@ public class GroupsFragment extends Fragment {
                 return province;
             }
         }
-        return "";
+        return typedProvince;
     }
 
     private String getInputValue(TextView input) {
@@ -1461,6 +1758,5 @@ public class GroupsFragment extends Fragment {
         }
     }
 }
-
 
 

@@ -1,7 +1,7 @@
 # Firebase Setup
 
 Este documento es la referencia viva de Firebase para `FlatShare`.
-Actualízalo cuando cambie la app, la estructura de datos o las reglas.
+ActualÃƒÂ­zalo cuando cambie la app, la estructura de datos o las reglas.
 
 ## Estado actual
 
@@ -24,7 +24,7 @@ Colecciones principales:
 - `reminders`
 - `activity_logs`
 
-Nuevas colecciones de gestión de alquiler:
+Nuevas colecciones de gestiÃ³n de alquiler:
 
 - `rental_contracts`
 - `rent_collections`
@@ -35,7 +35,7 @@ Nuevas colecciones de gestión de alquiler:
 - `event_reminder_rules`
 - `event_reminder_jobs`
 
-## Qué hace cada colección
+## Quï¿½ hace cada colecciÃƒÂ³n
 
 ### `groups/{groupId}`
 
@@ -115,10 +115,11 @@ Campos principales:
 - `dueAt`
 - `dueDateText`
 - `createdAt`
+- `seed` (opcional, booleano): marca pagos de demo generados por seed.
 
 ### `reminders/{reminderId}`
 
-Recordatorios manuales del piso (visibles en pestaña de Recordatorios y calendario).
+Recordatorios manuales del piso (visibles en pestaÃ±a de Recordatorios y calendario).
 
 Campos principales:
 
@@ -219,7 +220,7 @@ Campos principales:
 
 ### `group_documents/{docId}`
 
-Documentación del piso: contrato, facturas, inventario, fotos y actas.
+DocumentaciÃƒÂ³n del piso: contrato, facturas, inventario, fotos y actas.
 
 Campos principales:
 
@@ -238,7 +239,7 @@ Campos principales:
 
 ### `audit_events/{eventId}`
 
-Auditoría de movimientos.
+AuditorÃƒÂ­a de movimientos.
 
 Campos principales:
 
@@ -306,6 +307,21 @@ Campos principales:
 - `reminderCode`
 - `createdAt`
 
+### `invitations/{invitationId}`
+
+Invitaciones a piso por codigo interno y por correo.
+
+Campos principales:
+
+- `groupId`
+- `groupName`
+- `shareCode`
+- `invitedEmail`
+- `inviterUid`
+- `inviterEmail`
+- `status` (`pending`, `accepted`, `rejected`)
+- `createdAt`
+
 ## Reglas recomendadas
 
 El archivo fuente de reglas es [firestore.rules](./firestore.rules).
@@ -315,25 +331,26 @@ Resumen:
 - `groups`: solo miembros leen, propietario gestiona.
 - `rooms_groups`: miembros leen, propietario crea/edita/elimina.
 - `expenses`, `payments`, `payment_deadlines`, `reminders`, `activity_logs`: solo miembros del grupo.
-- `rental_contracts`: lectura de miembros, gestión del propietario.
+- `payments`: para seed demo, el propietario puede crear pagos con `seed=true` y `fromEmail` tipo `seeduserNNN@seed.flatshare.local` dirigidos a su propio correo.
+- `rental_contracts`: lectura de miembros, gestiÃ³n del propietario.
 - `rent_collections`: miembros del grupo pueden leer y actualizar estados/cobros.
 - `maintenance_tickets`: miembros del grupo pueden crear/leer/actualizar.
 - `group_documents`: miembros del grupo pueden crear/leer/actualizar.
 - `audit_events`: miembros leen y crean; no se permite editar ni borrar.
-- `rent_automations` y `event_reminder_rules`: lectura de miembros, gestión del propietario.
+- `rent_automations` y `event_reminder_rules`: lectura de miembros, gestiÃ³n del propietario.
 - `event_reminder_jobs`: miembros leen y crean; no se permite editar ni borrar.
 - `invitations`: acceso para quien invita o quien recibe.
 
-## Cómo aplicarlo en Firebase
+## CÃ³mo aplicarlo en Firebase
 
 1. Abre `Firebase Console`.
 2. Entra en tu proyecto.
 3. Ve a `Firestore Database`.
-4. Abre la pestaña `Rules`.
+4. Abre la pestaÃ±a `Rules`.
 5. Copia el contenido de `firestore.rules`.
 6. Pulsa `Publish`.
 
-## Qué activar
+## QuÃ© activar
 
 ### Authentication
 
@@ -350,7 +367,7 @@ En `Firestore Database`:
 
 ## No hace falta crear colecciones a mano
 
-La app crea los documentos automáticamente al crear piso, habitaciones, gastos, pagos, contratos, cobros, incidencias, documentos, automatizaciones y reglas de recordatorio.
+La app crea los documentos automÃƒÂ¡ticamente al crear piso, habitaciones, gastos, pagos, contratos, cobros, incidencias, documentos, automatizaciones y reglas de recordatorio.
 
 ## Seed de cuentas reales (Auth + Firestore)
 
@@ -359,16 +376,16 @@ Para pruebas multiusuario reales puedes usar el seeder admin:
 - Ruta: `tools/firebase-admin-seed`
 - Script: `seed.js`
 
-Qué crea:
+QuÃ© crea:
 
 - Usuarios reales en `Firebase Authentication` (email/password)
 - Documentos en `users`
 - Documentos en `usernames`
 - Pisos en `groups` con tu cuenta como `ownerId`
-- Códigos en `group_codes`
+- CÃƒÂ³digos en `group_codes`
 - Habitaciones en `rooms_groups`
 
-Uso rápido:
+Uso rÃƒÂ¡pido:
 
 1. Coloca una service account JSON en local (no la subas al repo).
 2. Ejecuta:

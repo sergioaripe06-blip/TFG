@@ -41,12 +41,12 @@ public class MonthlyBarChartView extends View {
         gridPaint.setStrokeWidth(dp(1.0f));
 
         axisTextPaint.setColor(context.getColor(R.color.text_muted));
-        axisTextPaint.setTextSize(dp(3.4f));
+        axisTextPaint.setTextSize(sp(11f));
 
         barPaint.setColor(context.getColor(R.color.primary_green_bright));
 
         emptyPaint.setColor(context.getColor(R.color.text_muted));
-        emptyPaint.setTextSize(dp(4.0f));
+        emptyPaint.setTextSize(sp(13f));
     }
 
     public void setBars(@Nullable List<Bar> items) {
@@ -79,8 +79,8 @@ public class MonthlyBarChartView extends View {
         float leftPad = dp(16f);
         float rightPad = dp(12f);
         float topPad = dp(16f);
-        float bottomPad = dp(34f);
-        float yAxisWidth = dp(48f);
+        float bottomPad = dp(46f);
+        float yAxisWidth = dp(78f);
 
         float plotLeft = leftPad + yAxisWidth;
         float plotTop = topPad;
@@ -108,7 +108,7 @@ public class MonthlyBarChartView extends View {
             canvas.drawRoundRect(barRect, radius, radius, barPaint);
 
             float labelWidth = axisTextPaint.measureText(bar.label);
-            canvas.drawText(bar.label, centerX - labelWidth / 2f, getHeight() - dp(10f), axisTextPaint);
+            canvas.drawText(bar.label, centerX - labelWidth / 2f, getHeight() - dp(14f), axisTextPaint);
         }
     }
 
@@ -121,7 +121,7 @@ public class MonthlyBarChartView extends View {
             float value = max * ratio;
             String amountLabel = amountFormat.format(value) + " EUR";
             float labelX = dp(6f);
-            float labelY = y + dp(1.5f);
+            float labelY = y + dp(3.5f);
             canvas.drawText(amountLabel, labelX, labelY, axisTextPaint);
         }
     }
@@ -135,5 +135,9 @@ public class MonthlyBarChartView extends View {
 
     private float dp(float value) {
         return value * getResources().getDisplayMetrics().density;
+    }
+
+    private float sp(float value) {
+        return value * getResources().getDisplayMetrics().scaledDensity;
     }
 }

@@ -7,7 +7,11 @@ Este script crea:
 - entradas en `usernames`,
 - pisos en `groups`,
 - codigos en `group_codes`,
-- habitaciones en `rooms_groups`.
+- habitaciones en `rooms_groups`,
+- gastos en `expenses`,
+- pagos en `payments`,
+- vencimientos en `payment_deadlines`,
+- recordatorios en `reminders`.
 
 La cuenta propietaria (`owner`) queda como admin en todos los pisos.
 
@@ -34,7 +38,10 @@ node seed.js \
   --users 12 \
   --groups 4 \
   --rooms 3 \
-  --members-per-group 4
+  --members-per-group 4 \
+  --expenses-per-group 8 \
+  --payments-per-group 6 \
+  --reminders-per-group 4
 ```
 
 ## Opciones
@@ -46,6 +53,9 @@ node seed.js \
 - `--groups`: numero de pisos a crear.
 - `--rooms`: habitaciones por piso.
 - `--members-per-group`: inquilinos por piso (sin contar owner).
+- `--expenses-per-group`: gastos seed por piso.
+- `--payments-per-group`: pagos seed por piso.
+- `--reminders-per-group`: recordatorios seed por piso.
 - `--password-prefix`: prefijo de password de inquilinos.
 - `--email-prefix`: prefijo de email de inquilinos.
 - `--email-domain`: dominio de email de inquilinos.

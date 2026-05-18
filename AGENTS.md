@@ -35,3 +35,10 @@ Este archivo define reglas de trabajo persistentes para este proyecto.
 - Revisar textos visibles.
 - Revisar que no haya referencias rotas por ids nuevos.
 - Revisar que la documentacion relacionada quede actualizada.
+
+## Documentacion viva obligatoria
+
+- Mantener `diary.md` actualizado en cada tarea relevante.
+- Mantener `MANUAL_USUARIO.md` actualizado en cada cambio funcional, tecnico o de UI.
+- Si hay cambios en Firebase (colecciones, campos, reglas, flujos Auth), actualizar tambien `FIREBASE_SETUP.md`.
+- No cerrar una tarea sin revisar estas tres piezas: `diary.md`, `MANUAL_USUARIO.md`, `FIREBASE_SETUP.md`.

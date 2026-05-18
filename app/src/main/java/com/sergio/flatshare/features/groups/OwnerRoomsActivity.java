@@ -78,7 +78,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
 
         groupId = getIntent().getStringExtra(EXTRA_GROUP_ID);
         if (groupId == null || groupId.trim().isEmpty()) {
-            Toast.makeText(this, "No se encontrÃ³ el piso", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "No se encontró el piso", Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
@@ -155,9 +155,9 @@ public class OwnerRoomsActivity extends AppCompatActivity {
 
             roomsTitleTv.setText("Habitaciones de " + groupName);
             roomsSubtitleTv.setText(isOwner
-                    ? "Crea habitaciones, invita residentes y asigna quiÃ©n vive en cada una."
+                    ? "Crea habitaciones, invita residentes y asigna quién vive en cada una."
                     : "Vista de habitaciones del piso compartido.");
-            shareCodeTv.setText("CÃ³digo: " + shareCode);
+            shareCodeTv.setText("Código: " + shareCode);
         }).addOnFailureListener(e ->
                 Toast.makeText(this, "No se pudo cargar el piso", Toast.LENGTH_SHORT).show()
         );
@@ -182,7 +182,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
                         Double monthlyCost = doc.getDouble("monthlyCost");
                         rooms.add(new RoomItem(
                                 doc.getId(),
-                                name == null || name.trim().isEmpty() ? "HabitaciÃ³n" : name,
+                                name == null || name.trim().isEmpty() ? "Habitación" : name,
                                 roomNumber == null ? 0 : roomNumber.intValue(),
                                 capacity == null ? 0 : capacity.intValue(),
                                 monthlyCost == null ? 0.0 : monthlyCost,
@@ -202,11 +202,11 @@ public class OwnerRoomsActivity extends AppCompatActivity {
         EditText roomNameEt = form.findViewById(R.id.roomNameEt);
         EditText roomCapacityEt = form.findViewById(R.id.roomCapacityEt);
         EditText roomCostEt = form.findViewById(R.id.roomCostEt);
-        roomNameEt.setHint("Nombre de la habitaciÃ³n:");
+        roomNameEt.setHint("Nombre de la habitación:");
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 this,
-                "Nueva habitaciÃ³n",
+                "Nueva habitación",
                 "Indica nombre, capacidad y coste mensual.",
                 form,
                 "Cancelar",
@@ -219,7 +219,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
             String capacityText = roomCapacityEt.getText().toString().trim();
             String costText = roomCostEt.getText().toString().trim();
             if (roomName.isEmpty() || capacityText.isEmpty() || costText.isEmpty()) {
-                Toast.makeText(this, "Completa todos los datos de la habitaciÃ³n", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Completa todos los datos de la habitación", Toast.LENGTH_SHORT).show();
                 return;
             }
 
@@ -230,7 +230,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
                 capacity = Integer.parseInt(capacityText);
                 monthlyCost = Double.parseDouble(costText);
             } catch (NumberFormatException e) {
-                Toast.makeText(this, "Capacidad o coste no vÃ¡lidos", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Capacidad o coste no válidos", Toast.LENGTH_SHORT).show();
                 return;
             }
             if (capacity <= 0) {
@@ -259,7 +259,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
             db.collection("rooms_groups")
                     .add(room)
                     .addOnSuccessListener(v2 -> {
-                        Toast.makeText(this, "HabitaciÃ³n creada", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "Habitación creada", Toast.LENGTH_SHORT).show();
                         loadRooms();
                         dialog.dismiss();
                     })
@@ -279,7 +279,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 this,
                 room.name,
-                "Gestiona esta habitaciÃ³n.",
+                "Gestiona esta habitación.",
                 content,
                 "Cerrar",
                 null
@@ -310,7 +310,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
         String[] memberItems = new String[groupMembers.size()];
         boolean[] checkedItems = new boolean[groupMembers.size()];
         for (int i = 0; i < groupMembers.size(); i++) {
-            memberItems[i] = displayNameForEmail(groupMembers.get(i));
+            memberItems[i] = formatMemberNameAndEmail(groupMembers.get(i), i + 1);
             checkedItems[i] = room.memberEmails.contains(groupMembers.get(i));
         }
 
@@ -367,7 +367,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
     }
     private void renameRoomDialog(RoomItem room) {
         showSingleInputDialog(
-                "Renombrar habitaciÃ³n",
+                "Renombrar habitación",
                 "Escribe el nuevo nombre.",
                 room.name,
                 InputType.TYPE_CLASS_TEXT,
@@ -396,10 +396,10 @@ public class OwnerRoomsActivity extends AppCompatActivity {
     }
 
     private void deleteRoomDialog(RoomItem room) {
-        View content = DialogUtils.createMessageView(this, "Esta acciÃ³n eliminarÃ¡ la habitaciÃ³n y su asignaciÃ³n de residentes.");
+        View content = DialogUtils.createMessageView(this, "Esta acción eliminará la habitación y su asignación de residentes.");
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 this,
-                "Eliminar habitaciÃ³n",
+                "Eliminar habitación",
                 room.name,
                 content,
                 "Cancelar",
@@ -411,7 +411,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
             db.collection("rooms_groups").document(room.id)
                     .delete()
                     .addOnSuccessListener(v2 -> {
-                        Toast.makeText(this, "HabitaciÃ³n eliminada", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "Habitación eliminada", Toast.LENGTH_SHORT).show();
                         loadRooms();
                     })
                     .addOnFailureListener(e -> Toast.makeText(this, "No se pudo eliminar", Toast.LENGTH_SHORT).show());
@@ -421,7 +421,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
 
     private void showShareOptionsDialog() {
         View content = DialogUtils.createVerticalActions(this);
-        Button codeBtn = DialogUtils.createActionButton(this, "Mostrar cÃ³digo", true);
+        Button codeBtn = DialogUtils.createActionButton(this, "Mostrar código", true);
         Button qrBtn = DialogUtils.createActionButton(this, "Mostrar QR", false);
         ((LinearLayout) content).addView(codeBtn);
         ((LinearLayout) content).addView(qrBtn);
@@ -450,8 +450,8 @@ public class OwnerRoomsActivity extends AppCompatActivity {
         View content = DialogUtils.createMessageView(this, shareCode);
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 this,
-                "CÃ³digo del piso",
-                "Comparte este cÃ³digo para que se unan al piso.",
+                "Código del piso",
+                "Comparte este código para que se unan al piso.",
                 content,
                 null,
                 "Cerrar"
@@ -479,30 +479,39 @@ public class OwnerRoomsActivity extends AppCompatActivity {
         if (!isOwner) return;
         showSingleInputDialog(
                 "Invitar por email",
-                "EnvÃ­a una invitaciÃ³n directa por correo.",
+                "Envia una invitacion directa por correo.",
                 "Email del invitado:",
                 InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
                 "Enviar",
                 value -> {
                     String invitedEmail = value.trim().toLowerCase(Locale.ROOT);
-                    if (invitedEmail.isEmpty()) {
-                        Toast.makeText(this, "Debes indicar un email", Toast.LENGTH_SHORT).show();
+                    if (invitedEmail.isEmpty() || !invitedEmail.contains("@")) {
+                        Toast.makeText(this, "Debes indicar un email valido", Toast.LENGTH_SHORT).show();
                         return false;
                     }
+                    String currentShareCode = (shareCode == null || shareCode.trim().isEmpty())
+                            ? groupId.toUpperCase(Locale.ROOT)
+                            : shareCode;
+                    String inviterEmail = FirebaseAuth.getInstance().getCurrentUser().getEmail() == null
+                            ? ""
+                            : FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
+
                     Map<String, Object> invitation = new HashMap<>();
                     invitation.put("groupId", groupId);
+                    invitation.put("groupName", groupName == null || groupName.trim().isEmpty() ? "Piso" : groupName);
+                    invitation.put("shareCode", currentShareCode);
                     invitation.put("invitedEmail", invitedEmail);
                     invitation.put("inviterUid", FirebaseAuth.getInstance().getCurrentUser().getUid());
+                    invitation.put("inviterEmail", inviterEmail);
                     invitation.put("status", "pending");
                     invitation.put("createdAt", FieldValue.serverTimestamp());
                     db.collection("invitations").add(invitation)
-                            .addOnSuccessListener(v -> Toast.makeText(this, "InvitaciÃ³n enviada", Toast.LENGTH_SHORT).show())
-                            .addOnFailureListener(e -> Toast.makeText(this, "No se pudo enviar", Toast.LENGTH_SHORT).show());
+                            .addOnSuccessListener(v -> Toast.makeText(this, "Invitacion creada", Toast.LENGTH_SHORT).show())
+                            .addOnFailureListener(e -> Toast.makeText(this, "No se pudo crear la invitacion", Toast.LENGTH_SHORT).show());
                     return true;
                 }
         );
     }
-
     private void openWorkspace() {
         Intent intent = new Intent(this, MainActivity.class);
         intent.putExtra(EXTRA_OPEN_WORKSPACE, true);
@@ -709,15 +718,27 @@ public class OwnerRoomsActivity extends AppCompatActivity {
             if (room.memberEmails.isEmpty()) {
                 roomMembersTv.setText("Sin residentes asignados");
             } else {
-                List<String> labels = new ArrayList<>();
+                StringBuilder residentsText = new StringBuilder("Residentes:");
+                int index = 1;
                 for (String email : room.memberEmails) {
-                    labels.add(displayNameForEmail(email));
+                    residentsText.append("\n").append(formatMemberNameAndEmail(email, index));
+                    index++;
                 }
-                roomMembersTv.setText("Residentes: " + String.join(", ", labels));
+                roomMembersTv.setText(residentsText.toString());
             }
             roomMetaTv.setText("Capacidad: " + room.capacity + " personas | Coste: " + String.format(Locale.ROOT, "%.2f EUR", room.monthlyCost));
             roomCountBadgeTv.setText(room.memberEmails.size() + " residentes");
             return view;
         }
+    }
+
+    private String formatMemberNameAndEmail(@Nullable String email, int index) {
+        String normalized = email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
+        String name = displayNameForEmail(normalized);
+        if (name == null || name.trim().isEmpty()) {
+            name = normalized.isEmpty() ? "Sin datos" : normalized;
+        }
+        String emailLine = normalized.isEmpty() ? "sin correo" : normalized;
+        return "Miembro " + index + ": " + name + "\n  " + emailLine;
     }
 }

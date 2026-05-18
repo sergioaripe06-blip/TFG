@@ -341,18 +341,14 @@ public class ExpensesFragment extends Fragment {
                 if (!isAdded()) return;
                 String ownerEmail = resolveOwnerEmail(doc, memberIds, memberEmails);
                 String ownerLabel = displayNameForEmail(ownerEmail);
-                List<String> memberLabels = new ArrayList<>();
-                for (String email : memberEmails) {
-                    memberLabels.add(displayNameForEmail(email));
-                }
-                String membersLabel = memberLabels.isEmpty() ? "Sin datos" : String.join(", ", memberLabels);
+                String membersLabel = formatMembersDetailed(memberEmails);
                 String billingLabel = BILLING_FIXED.equals(currentBillingModel)
                         ? "Alquiler fijo"
                         : ("Alquiler variable (" + (VARIABLE_SPLIT_PERCENTAGE.equals(currentVariableSplitMode) ? "porcentual" : "equitativo") + ")");
                 String meta = "Piso: " + description
                         + "\nPropietario: " + (ownerLabel.isEmpty() ? "Sin datos" : ownerLabel)
                         + "\nModelo: " + billingLabel
-                        + "\nMiembros (" + memberEmails.size() + "): " + membersLabel;
+                        + "\nMiembros (" + memberEmails.size() + "):\n" + membersLabel;
                 workspaceTitleTv.setText(currentGroupName);
                 workspaceMetaCache = meta;
                 workspaceMetaTv.setText(meta);
@@ -2711,6 +2707,28 @@ public class ExpensesFragment extends Fragment {
         return name == null || name.trim().isEmpty() ? normalized : name;
     }
 
+    private String formatMembersDetailed(List<String> memberEmails) {
+        if (memberEmails == null || memberEmails.isEmpty()) {
+            return "Sin datos";
+        }
+        StringBuilder out = new StringBuilder();
+        int index = 1;
+        for (String email : memberEmails) {
+            if (email == null) continue;
+            String normalized = email.trim().toLowerCase(Locale.ROOT);
+            if (normalized.isEmpty()) continue;
+            String name = displayNameForEmail(normalized);
+            if (name == null || name.trim().isEmpty()) {
+                name = normalized;
+            }
+            if (out.length() > 0) out.append("\n");
+            out.append("Miembro ").append(index).append(": ").append(name);
+            out.append("\n  ").append(normalized);
+            index++;
+        }
+        return out.length() == 0 ? "Sin datos" : out.toString();
+    }
+
     private String resolveOwnerEmail(DocumentSnapshot groupDoc, List<String> memberIds, List<String> memberEmails) {
         String ownerId = groupDoc.getString("ownerId");
         if (ownerId == null || ownerId.trim().isEmpty()) {
@@ -3070,7 +3088,7 @@ public class ExpensesFragment extends Fragment {
         } else if (mergedMembers.isEmpty()) {
             roomMembersHintTv.setText("Habitación sin residentes asignados.");
         } else {
-            roomMembersHintTv.setText("Residentes: " + String.join(", ", mergedMembers));
+            roomMembersHintTv.setText("Residentes:\n" + formatMembersDetailed(mergedMembers));
         }
 
         Object keepInitialSplitTag = form.getTag(R.id.roomMembersHintTv);
