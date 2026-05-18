@@ -14,42 +14,25 @@
         android:paddingTop="16dp"
         android:paddingBottom="24dp">
 
-        <LinearLayout
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="168dp"
-            android:background="@drawable/bg_group_row"
-            android:gravity="top"
-            android:orientation="horizontal"
-            android:paddingHorizontal="18dp"
-            android:paddingTop="20dp">
+            android:layout_height="wrap_content">
 
-            <LinearLayout
-                android:layout_width="0dp"
+            <TextView
+                android:id="@+id/profileScreenTitleTv"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Mi perfil"
-                    android:textColor="@color/text_light"
-                    android:textSize="25sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="Gestiona tus datos y tu cuenta"
-                    android:textColor="@color/text_muted"
-                    android:textSize="13sp" />
-            </LinearLayout>
+                android:layout_gravity="top|center_horizontal"
+                android:text="Perfil"
+                android:textColor="@color/text_light"
+                android:textSize="24sp"
+                android:textStyle="bold" />
 
             <ImageButton
                 android:id="@+id/openSettingsBtn"
                 android:layout_width="42dp"
                 android:layout_height="42dp"
+                android:layout_gravity="end|top"
                 android:background="@android:color/transparent"
                 android:contentDescription="Abrir ajustes"
                 android:foreground="@null"
@@ -57,13 +40,13 @@
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_settings_24"
                 android:tint="@color/text_light" />
-        </LinearLayout>
+        </FrameLayout>
 
         <FrameLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
-            android:layout_marginTop="-54dp">
+            android:layout_marginTop="-4dp">
 
             <com.google.android.material.imageview.ShapeableImageView
                 android:id="@+id/profilePhotoIv"

@@ -47,8 +47,24 @@ service cloud.firestore {
         && request.resource.data.roles[authUid()] == 'member';
     }
 
+    function isPaymentStatusToggleByOwner() {
+      return signedIn()
+        && isGroupOwner(resource.data.groupId)
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['status', 'updatedAt'])
+        && request.resource.data.status in ['pending', 'confirmed']
+        && resource.data.status in ['pending', 'confirmed'];
+    }
+
+    function canOwnerDeletePaymentBeforeDue() {
+      return signedIn()
+        && isGroupOwner(resource.data.groupId)
+        && (resource.data.dueAt is timestamp)
+        && resource.data.dueAt > request.time;
+    }
+
     match /users/{userId} {
-      allow read, write: if signedIn() && authUid() == userId;
+      allow read: if signedIn();
+      allow write: if signedIn() && authUid() == userId;
     }
 
     match /usernames/{username} {
@@ -119,8 +135,12 @@ service cloud.firestore {
           )
         );
 
-      allow read, update, delete: if signedIn()
+      allow read: if signedIn()
         && isGroupMember(resource.data.groupId);
+
+      allow update: if isPaymentStatusToggleByOwner();
+
+      allow delete: if canOwnerDeletePaymentBeforeDue();
     }
 
     match /payment_deadlines/{deadlineId} {

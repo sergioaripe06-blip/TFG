@@ -241,6 +241,25 @@
                         android:textColorHint="@color/text_muted" />
                 </com.google.android.material.textfield.TextInputLayout>
 
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/termsSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="Acepto los t&#233;rminos y condiciones de uso"
+                    android:textColor="@color/text_light" />
+
+                <TextView
+                    android:id="@+id/viewTermsTv"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center"
+                    android:text="Ver t&#233;rminos y condiciones"
+                    android:textColor="@color/primary_green"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
                 <Button
                     android:id="@+id/registerBtn"
                     android:layout_width="match_parent"

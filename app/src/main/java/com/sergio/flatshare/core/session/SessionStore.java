@@ -8,6 +8,7 @@ public class SessionStore {
     private static final String KEY_GROUP = "current_group";
     private static final String KEY_ROOM_ID = "current_room_id";
     private static final String KEY_ROOM_NAME = "current_room_name";
+    private static final String KEY_REMEMBER_ME = "remember_me";
 
     public static void setCurrentGroup(Context context, String groupId) {
         context.getSharedPreferences(PREF, Context.MODE_PRIVATE).edit().putString(KEY_GROUP, groupId).apply();
@@ -49,6 +50,18 @@ public class SessionStore {
                 .remove(KEY_ROOM_ID)
                 .remove(KEY_ROOM_NAME)
                 .apply();
+    }
+
+    public static void setRememberMeEnabled(Context context, boolean enabled) {
+        context.getSharedPreferences(PREF, Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean(KEY_REMEMBER_ME, enabled)
+                .apply();
+    }
+
+    public static boolean isRememberMeEnabled(Context context) {
+        SharedPreferences p = context.getSharedPreferences(PREF, Context.MODE_PRIVATE);
+        return p.getBoolean(KEY_REMEMBER_ME, false);
     }
 }
 

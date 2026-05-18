@@ -45,7 +45,6 @@ import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
 import com.journeyapps.barcodescanner.ScanContract;
 import com.journeyapps.barcodescanner.ScanOptions;
-import com.sergio.flatshare.BuildConfig;
 import com.sergio.flatshare.R;
 import com.sergio.flatshare.features.shell.MainActivity;
 import com.sergio.flatshare.core.session.SessionStore;
@@ -106,7 +105,6 @@ public class GroupsFragment extends Fragment {
         ListView listView = view.findViewById(R.id.groupsLv);
         Button addGroupBtn = view.findViewById(R.id.addGroupBtn);
         Button joinGroupBtn = view.findViewById(R.id.joinGroupBtn);
-        Button debugSeedBtn = view.findViewById(R.id.debugSeedBtn);
         detailsCard = view.findViewById(R.id.groupDetailsCard);
         emptyGroupsTv = view.findViewById(R.id.emptyGroupsTv);
         totalGroupsTv = view.findViewById(R.id.totalGroupsTv);
@@ -147,215 +145,10 @@ public class GroupsFragment extends Fragment {
 
         addGroupBtn.setOnClickListener(v -> createGroupDialog());
         joinGroupBtn.setOnClickListener(v -> joinGroupDialog());
-        if (BuildConfig.DEBUG) {
-            debugSeedBtn.setVisibility(View.VISIBLE);
-            debugSeedBtn.setOnClickListener(v -> showDebugSeedDialog());
-        }
 
         loadGroups();
         checkInvitations();
         return view;
-    }
-
-    private void showDebugSeedDialog() {
-        showSingleInputDialog(
-                "Seed temporal",
-                "Formato: pisos,habitaciones. Ejemplo: 5,4",
-                "Cantidad de pisos y habitaciones",
-                InputType.TYPE_CLASS_TEXT,
-                "Crear seed",
-                value -> {
-                    int[] parsed = parseSeedInput(value);
-                    if (parsed == null) {
-                        Toast.makeText(requireContext(), "Formato invalido. Usa pisos,habitaciones", Toast.LENGTH_SHORT).show();
-                        return false;
-                    }
-                    seedGroupsAndRooms(parsed[0], parsed[1]);
-                    return true;
-                }
-        );
-    }
-
-    @Nullable
-    private int[] parseSeedInput(String rawValue) {
-        String raw = rawValue == null ? "" : rawValue.trim();
-        if (raw.isEmpty()) {
-            raw = "3,4";
-        }
-        String normalized = raw.replace("x", ",").replace("X", ",").replace(";", ",");
-        String[] parts = normalized.split(",");
-        if (parts.length != 2) return null;
-
-        int groupsCount;
-        int roomsPerGroup;
-        try {
-            groupsCount = Integer.parseInt(parts[0].trim());
-            roomsPerGroup = Integer.parseInt(parts[1].trim());
-        } catch (NumberFormatException e) {
-            return null;
-        }
-        if (groupsCount <= 0 || roomsPerGroup <= 0) return null;
-        if (groupsCount > 30 || roomsPerGroup > 15) return null;
-        return new int[]{groupsCount, roomsPerGroup};
-    }
-
-    private void seedGroupsAndRooms(int groupsCount, int roomsPerGroup) {
-        if (FirebaseAuth.getInstance().getCurrentUser() == null
-                || FirebaseAuth.getInstance().getCurrentUser().getEmail() == null) {
-            Toast.makeText(requireContext(), "Debes iniciar sesion para usar el seed", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
-        String email = FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
-        List<Task<Void>> commits = new ArrayList<>();
-        String lastGroupId = null;
-
-        for (int g = 1; g <= groupsCount; g++) {
-            DocumentReference groupRef = db.collection("groups").document();
-            String groupId = groupRef.getId();
-            String groupName = "Piso seed " + g;
-            String shareCode = groupId.toUpperCase(Locale.ROOT);
-            lastGroupId = groupId;
-
-            Map<String, Object> roles = new HashMap<>();
-            roles.put(uid, "admin");
-
-            Map<String, Object> location = new HashMap<>();
-            location.put("street", "Calle Seed " + g);
-            location.put("portal", "Portal " + g);
-            location.put("postalCode", String.format(Locale.ROOT, "28%03d", g));
-            location.put("city", "Madrid");
-            location.put("province", "Madrid");
-
-            Map<String, Object> groupData = new HashMap<>();
-            groupData.put("name", groupName);
-            groupData.put("description", "Piso de pruebas creado por seed temporal");
-            groupData.put("location", location);
-            groupData.put("ownerId", uid);
-            groupData.put("roles", roles);
-            groupData.put("members", Collections.singletonList(uid));
-            groupData.put("memberEmails", Collections.singletonList(email));
-            groupData.put("shareCode", shareCode);
-            groupData.put("roomCount", roomsPerGroup);
-            groupData.put("billingModel", RENT_MODE_VARIABLE);
-            groupData.put("variableSplitMode", VARIABLE_SPLIT_EQUAL);
-            groupData.put("createdAt", FieldValue.serverTimestamp());
-
-            Map<String, Object> codeData = new HashMap<>();
-            codeData.put("groupId", groupId);
-            codeData.put("ownerId", uid);
-            codeData.put("name", groupName);
-
-            WriteBatch groupBatch = db.batch();
-            groupBatch.set(groupRef, groupData);
-            groupBatch.set(db.collection("group_codes").document(shareCode), codeData);
-
-            List<Map<String, Object>> pendingRooms = new ArrayList<>();
-            for (int r = 1; r <= roomsPerGroup; r++) {
-                Map<String, Object> roomData = new HashMap<>();
-                roomData.put("groupId", groupId);
-                roomData.put("roomNumber", r);
-                roomData.put("name", "Habitacion " + r);
-                roomData.put("capacity", 1 + ((r - 1) % 3));
-                roomData.put("monthlyCost", 300d + (r * 25d));
-                roomData.put("memberEmails", new ArrayList<String>());
-                roomData.put("memberCount", 0);
-                roomData.put("createdByUid", uid);
-                roomData.put("updatedByUid", uid);
-                roomData.put("createdAt", FieldValue.serverTimestamp());
-                roomData.put("updatedAt", FieldValue.serverTimestamp());
-                pendingRooms.add(roomData);
-            }
-
-            List<Map<String, Object>> pendingPayments = buildOwnerSeedPayments(groupId, email, g);
-            Task<Void> seedTask = groupBatch.commit().continueWithTask(task -> {
-                if (!task.isSuccessful()) {
-                    Exception error = task.getException();
-                    if (error != null) throw error;
-                    throw new IllegalStateException("No se pudo crear el grupo seed");
-                }
-                WriteBatch roomsBatch = db.batch();
-                for (Map<String, Object> roomData : pendingRooms) {
-                    DocumentReference roomRef = db.collection("rooms_groups").document();
-                    roomsBatch.set(roomRef, roomData);
-                }
-                return roomsBatch.commit().continueWithTask(roomTask -> {
-                    if (!roomTask.isSuccessful()) {
-                        Exception error = roomTask.getException();
-                        if (error != null) throw error;
-                        throw new IllegalStateException("No se pudieron crear las habitaciones seed");
-                    }
-                    WriteBatch paymentsBatch = db.batch();
-                    for (Map<String, Object> paymentData : pendingPayments) {
-                        DocumentReference paymentRef = db.collection("payments").document();
-                        paymentsBatch.set(paymentRef, paymentData);
-                    }
-                    return paymentsBatch.commit();
-                });
-            });
-            commits.add(seedTask);
-        }
-
-        String finalLastGroupId = lastGroupId;
-        Tasks.whenAll(commits)
-                .addOnSuccessListener(v -> {
-                    if (finalLastGroupId != null) {
-                        selectedGroupId = finalLastGroupId;
-                        SessionStore.setCurrentGroup(requireContext(), finalLastGroupId);
-                        SessionStore.clearCurrentRoom(requireContext());
-                    }
-                    loadGroups();
-                    Toast.makeText(
-                            requireContext(),
-                            "Seed completado: " + groupsCount + " pisos y " + (groupsCount * roomsPerGroup) + " habitaciones",
-                            Toast.LENGTH_LONG
-                    ).show();
-                })
-                .addOnFailureListener(e -> Toast.makeText(
-                        requireContext(),
-                        "No se pudo completar el seed: " + e.getMessage(),
-                        Toast.LENGTH_LONG
-                ).show());
-    }
-
-    private List<Map<String, Object>> buildOwnerSeedPayments(String groupId, String ownerEmail, int groupIndex) {
-        List<Map<String, Object>> out = new ArrayList<>();
-        String owner = ownerEmail == null ? "" : ownerEmail.trim().toLowerCase(Locale.ROOT);
-        if (owner.isEmpty()) return out;
-
-        int[] monthOffsets = {0, -1, -2, -3, -5, -7, -11};
-        for (int i = 0; i < monthOffsets.length; i++) {
-            int seedIndex = ((groupIndex - 1) * monthOffsets.length) + i + 1;
-            String fromSeed = String.format(Locale.ROOT, "seeduser%03d@seed.flatshare.local", ((seedIndex - 1) % 20) + 1);
-
-            Map<String, Object> payment = new HashMap<>();
-            payment.put("groupId", groupId);
-            payment.put("amount", 35d + (i * 9d));
-            payment.put("fromEmail", fromSeed);
-            payment.put("toEmail", owner);
-            payment.put("category", i % 2 == 0 ? "alquiler" : "electricidad");
-            payment.put("priority", i % 3 == 0 ? "alta" : "media");
-            payment.put("status", i % 5 == 0 ? "pending" : "confirmed");
-            payment.put("createdAt", FieldValue.serverTimestamp());
-            payment.put("dueAt", monthsFromNow(monthOffsets[i]));
-            payment.put("concept", "Cobro seed propietario " + (i + 1));
-            payment.put("targetType", "miembro");
-            payment.put("seed", true);
-            out.add(payment);
-        }
-        return out;
-    }
-
-    private Date monthsFromNow(int monthOffset) {
-        Calendar c = Calendar.getInstance();
-        c.set(Calendar.DAY_OF_MONTH, 12);
-        c.set(Calendar.HOUR_OF_DAY, 10);
-        c.set(Calendar.MINUTE, 0);
-        c.set(Calendar.SECOND, 0);
-        c.set(Calendar.MILLISECOND, 0);
-        c.add(Calendar.MONTH, monthOffset);
-        return c.getTime();
     }
 
     private void createGroupDialog() {
@@ -1050,13 +843,14 @@ public class GroupsFragment extends Fragment {
             resolveMemberDisplayNames(finalMemberIds, finalMemberEmails, labels -> {
                 if (!isAdded()) return;
                 String membersLabel = buildDetailedMembersLabel(labels, finalMemberEmails);
+                String resolvedOwnerLabel = buildOwnerDetailedLabel(finalOwnerLabel, labels, finalMemberEmails);
                 openInvitationDecisionDialog(
                         invitationId,
                         groupId,
                         pendingInvitations,
                         index,
                         finalGroupName,
-                        finalOwnerLabel,
+                        resolvedOwnerLabel,
                         membersLabel,
                         finalLocationLabel,
                         finalShareCode,
@@ -1085,8 +879,8 @@ public class GroupsFragment extends Fragment {
         String details = "Piso: " + groupName
                 + "\nPropietario: " + ownerLabel
                 + "\nMiembros:\n" + membersLabel
-                + "\nUbicacion: " + locationLabel
-                + "\nCodigo: " + shareCode
+                + "\nUbicación: " + locationLabel
+                + "\nCódigo: " + shareCode
                 + "\nInvitado por: " + invitedByLabel;
 
         View content = DialogUtils.createMessageView(requireContext(), details);
@@ -1235,6 +1029,29 @@ public class GroupsFragment extends Fragment {
         detailsCard.setVisibility(View.VISIBLE);
     }
 
+    private String buildOwnerDetailedLabel(String ownerEmailOrLabel, List<String> displayNames, List<String> memberEmails) {
+        String normalized = stringValue(ownerEmailOrLabel).toLowerCase(Locale.ROOT);
+        if (normalized.isEmpty() || "sin datos".equals(normalized)) {
+            return "Sin datos";
+        }
+        if (!normalized.contains("@")) {
+            return ownerEmailOrLabel;
+        }
+        for (int i = 0; i < memberEmails.size(); i++) {
+            String email = stringValue(memberEmails.get(i)).toLowerCase(Locale.ROOT);
+            if (!normalized.equals(email)) continue;
+            String name = "";
+            if (displayNames != null && i < displayNames.size()) {
+                name = stringValue(displayNames.get(i));
+            }
+            if (name.isEmpty() || name.equalsIgnoreCase(email)) {
+                return email;
+            }
+            return name + " (" + email + ")";
+        }
+        return normalized;
+    }
+
     @SuppressWarnings("unchecked")
     private String buildLocationLabel(DocumentSnapshot doc) {
         Object locationRaw = doc.get("location");
@@ -1315,7 +1132,10 @@ public class GroupsFragment extends Fragment {
                         DocumentSnapshot userDoc = task.getResult();
                         String email = userDoc.getString("email");
                         if (email == null || email.trim().isEmpty()) continue;
-                        String displayName = userDoc.getString("displayName");
+                        String displayName = userDoc.getString("name");
+                        if (displayName == null || displayName.trim().isEmpty()) {
+                            displayName = userDoc.getString("displayName");
+                        }
                         if (displayName == null || displayName.trim().isEmpty()) {
                             displayName = userDoc.getString("username");
                         }

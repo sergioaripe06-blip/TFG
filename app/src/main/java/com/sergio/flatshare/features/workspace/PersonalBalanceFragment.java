@@ -16,6 +16,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
+import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -71,6 +73,7 @@ public class PersonalBalanceFragment extends Fragment {
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
     private final List<GroupOption> groupOptions = new ArrayList<>();
     private final LinkedHashSet<String> ownedGroupIds = new LinkedHashSet<>();
+    private final Map<String, String> ownerMemberNamesByEmail = new HashMap<>();
 
     private PieChartView chart;
     private MonthlyBarChartView monthlyChart;
@@ -266,12 +269,16 @@ public class PersonalBalanceFragment extends Fragment {
                                         double amount = doc.getDouble("amount") == null ? 0.0 : doc.getDouble("amount");
                                         totalsByTenant.put(fromEmail, totalsByTenant.getOrDefault(fromEmail, 0.0) + amount);
                                     }
-                                    renderTenantBars(totalsByTenant);
+                                    renderTenantBarsWithResolvedNames(totalsByTenant);
                                 })
-                                .addOnFailureListener(e -> renderTenantBars(totalsByTenant));
+                                .addOnFailureListener(e -> renderTenantBarsWithResolvedNames(totalsByTenant));
                     })
-                    .addOnFailureListener(e -> renderTenantBars(totalsByTenant));
-        }).addOnFailureListener(e -> renderTenantBars(totalsByTenant));
+                    .addOnFailureListener(e -> renderTenantBarsWithResolvedNames(totalsByTenant));
+        }).addOnFailureListener(e -> renderTenantBarsWithResolvedNames(totalsByTenant));
+    }
+
+    private void renderTenantBarsWithResolvedNames(LinkedHashMap<String, Double> totalsByTenant) {
+        resolveNamesForEmails(new ArrayList<>(totalsByTenant.keySet()), () -> renderTenantBars(totalsByTenant));
     }
 
     private void renderTenantBars(LinkedHashMap<String, Double> totalsByTenant) {
@@ -281,7 +288,10 @@ public class PersonalBalanceFragment extends Fragment {
         int index = 1;
         for (Map.Entry<String, Double> entry : totalsByTenant.entrySet()) {
             String email = entry.getKey();
-            String label = shortLabelFromEmail(email);
+            String displayName = memberNameOnly(email);
+            String label = "Sin nombre".equalsIgnoreCase(displayName)
+                    ? "Miembro " + index
+                    : shortLabel(displayName);
             if (label.isEmpty()) {
                 label = "M" + index;
             }
@@ -321,7 +331,7 @@ public class PersonalBalanceFragment extends Fragment {
                 detailByMonthMember,
                 () -> {
                     renderOwnerBars(monthlyTotals);
-                    renderOwnerMemberDetails(detailByMonthMember);
+                    resolveOwnerMemberNames(detailByMonthMember, () -> renderOwnerMemberDetails(detailByMonthMember));
                 }
         );
     }
@@ -406,6 +416,50 @@ public class PersonalBalanceFragment extends Fragment {
         ownerPaidChart.setBars(bars);
     }
 
+    private void resolveOwnerMemberNames(
+            LinkedHashMap<String, LinkedHashMap<String, Double>> detailByMonthMember,
+            Runnable done
+    ) {
+        List<String> allEmails = new ArrayList<>();
+        for (LinkedHashMap<String, Double> totalsByEmail : detailByMonthMember.values()) {
+            for (String email : totalsByEmail.keySet()) {
+                String normalized = safeLower(email);
+                if (!normalized.isEmpty() && !allEmails.contains(normalized)) {
+                    allEmails.add(normalized);
+                }
+            }
+        }
+        if (allEmails.isEmpty()) {
+            done.run();
+            return;
+        }
+
+        List<Task<?>> tasks = new ArrayList<>();
+        for (String email : allEmails) {
+            if (ownerMemberNamesByEmail.containsKey(email)) continue;
+            Task<?> task = db.collection("users")
+                    .whereEqualTo("email", email)
+                    .limit(1)
+                    .get()
+                    .addOnSuccessListener(result -> {
+                        String resolvedName = "Sin nombre";
+                        if (!result.isEmpty()) {
+                            DocumentSnapshot userDoc = result.getDocuments().get(0);
+                            resolvedName = resolveNameFromUserDoc(userDoc);
+                        }
+                        ownerMemberNamesByEmail.put(email, resolvedName);
+                    })
+                    .addOnFailureListener(e -> ownerMemberNamesByEmail.put(email, "Sin nombre"));
+            tasks.add(task);
+        }
+
+        if (tasks.isEmpty()) {
+            done.run();
+            return;
+        }
+        Tasks.whenAllComplete(tasks).addOnCompleteListener(t -> done.run());
+    }
+
     private void renderOwnerMemberDetails(LinkedHashMap<String, LinkedHashMap<String, Double>> detailByMonthMember) {
         if (!canUseUi() || ownerMemberDetailContainer == null || ownerMemberDetailTitleTv == null) return;
         Context context = getContext();
@@ -431,8 +485,8 @@ public class PersonalBalanceFragment extends Fragment {
                 line.setTextColor(context.getColor(R.color.text_light));
                 line.setTextSize(14f);
                 String month = monthLabel(monthKey);
-                String displayName = displayNameFromEmail(row.getKey());
-                line.setText(String.format(Locale.ROOT, "%s - %.2f EUR - %s", month, amount, displayName));
+                String memberInfo = memberNameOnly(row.getKey());
+                line.setText(String.format(Locale.ROOT, "%s - %.2f EUR - %s", month, amount, memberInfo));
                 ownerMemberDetailContainer.addView(line);
                 hasRows = true;
             }
@@ -730,27 +784,74 @@ public class PersonalBalanceFragment extends Fragment {
         return local;
     }
 
+    private String shortLabel(String value) {
+        if (value == null) return "";
+        String label = value.trim();
+        if (label.isEmpty()) return "";
+        if (label.length() > 10) label = label.substring(0, 10);
+        return label;
+    }
+
     private String displayNameFromEmail(@Nullable String email) {
         String normalized = safeLower(email);
         if (normalized.isEmpty()) return "Sin nombre";
-        String local = normalized;
-        int at = local.indexOf('@');
-        if (at > 0) local = local.substring(0, at);
-        local = local.replace(".", " ").replace("_", " ").replace("-", " ");
-        String[] parts = local.trim().split("\\s+");
-        StringBuilder out = new StringBuilder();
-        for (String part : parts) {
-            if (part.isEmpty()) continue;
-            if (out.length() > 0) out.append(' ');
-            out.append(Character.toUpperCase(part.charAt(0)));
-            if (part.length() > 1) out.append(part.substring(1));
+        String realName = ownerMemberNamesByEmail.get(normalized);
+        if (realName != null && !realName.trim().isEmpty()) {
+            return realName.trim();
         }
-        if (out.length() == 0) return normalized;
-        return out.toString();
+        return normalized;
+    }
+
+    private String memberNameOnly(@Nullable String email) {
+        String normalized = safeLower(email);
+        if (normalized.isEmpty()) return "Sin nombre";
+        String name = displayNameFromEmail(normalized);
+        if (name.equalsIgnoreCase(normalized) || name.contains("@")) {
+            return "Sin nombre";
+        }
+        return name;
+    }
+
+    private void resolveNamesForEmails(List<String> emails, Runnable done) {
+        List<Task<?>> tasks = new ArrayList<>();
+        for (String email : emails) {
+            String normalized = safeLower(email);
+            if (normalized.isEmpty() || ownerMemberNamesByEmail.containsKey(normalized)) continue;
+            Task<?> task = db.collection("users")
+                    .whereEqualTo("email", normalized)
+                    .limit(1)
+                    .get()
+                    .addOnSuccessListener(result -> {
+                        String resolvedName = "Sin nombre";
+                        if (!result.isEmpty()) {
+                            DocumentSnapshot userDoc = result.getDocuments().get(0);
+                            resolvedName = resolveNameFromUserDoc(userDoc);
+                        }
+                        ownerMemberNamesByEmail.put(normalized, resolvedName);
+                    })
+                    .addOnFailureListener(e -> ownerMemberNamesByEmail.put(normalized, "Sin nombre"));
+            tasks.add(task);
+        }
+        if (tasks.isEmpty()) {
+            done.run();
+            return;
+        }
+        Tasks.whenAllComplete(tasks).addOnCompleteListener(t -> done.run());
     }
 
     private String safeLower(@Nullable String value) {
         return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String resolveNameFromUserDoc(@NonNull DocumentSnapshot userDoc) {
+        String[] keys = {"name", "displayName", "fullName", "username"};
+        for (String key : keys) {
+            String value = userDoc.getString(key);
+            if (value != null && !value.trim().isEmpty()) {
+                return value.trim();
+            }
+        }
+        return "Sin nombre";
     }
 
     private ArrayAdapter<String> buildLightSpinnerAdapter(Context context, String[] values) {

@@ -1,5 +1,6 @@
 package com.sergio.flatshare.features.auth;
 
+import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.os.Build;
 import android.os.Bundle;
@@ -11,8 +12,10 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.UserProfileChangeRequest;
+import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.sergio.flatshare.R;
 import com.sergio.flatshare.core.sync.UserSync;
@@ -21,7 +24,9 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 public class RegisterActivity extends AppCompatActivity {
     @Override
@@ -35,9 +40,12 @@ public class RegisterActivity extends AppCompatActivity {
         EditText phoneEt = findViewById(R.id.phoneEt);
         EditText birthDateEt = findViewById(R.id.birthDateEt);
         EditText passwordEt = findViewById(R.id.passwordEt);
+        SwitchMaterial termsSwitch = findViewById(R.id.termsSwitch);
         Button registerBtn = findViewById(R.id.registerBtn);
         TextView loginTv = findViewById(R.id.loginTv);
+        TextView viewTermsTv = findViewById(R.id.viewTermsTv);
         setupBirthDateField(birthDateEt);
+        viewTermsTv.setOnClickListener(v -> showTermsDialog());
 
         registerBtn.setOnClickListener(v -> {
             String fullName = fullNameEt.getText().toString().trim();
@@ -59,6 +67,11 @@ public class RegisterActivity extends AppCompatActivity {
                 return;
             }
 
+            if (!termsSwitch.isChecked()) {
+                Toast.makeText(this, "Debes aceptar los términos y condiciones de uso", Toast.LENGTH_LONG).show();
+                return;
+            }
+
             FirebaseFirestore.getInstance().collection("usernames")
                     .document(username)
                     .get()
@@ -75,6 +88,13 @@ public class RegisterActivity extends AppCompatActivity {
                                                 .setDisplayName(fullName)
                                                 .build();
                                         authResult.getUser().updateProfile(profile);
+                                        Map<String, Object> termsData = new HashMap<>();
+                                        termsData.put("termsAccepted", true);
+                                        termsData.put("termsAcceptedAt", FieldValue.serverTimestamp());
+                                        FirebaseFirestore.getInstance()
+                                                .collection("users")
+                                                .document(authResult.getUser().getUid())
+                                                .set(termsData, com.google.firebase.firestore.SetOptions.merge());
                                     }
                                     UserSync.saveCurrentUserProfile(fullName, username, phone, birthDate);
                                     Toast.makeText(this, "Cuenta creada", Toast.LENGTH_SHORT).show();
@@ -86,6 +106,22 @@ public class RegisterActivity extends AppCompatActivity {
         });
 
         loginTv.setOnClickListener(v -> finish());
+    }
+
+    private void showTermsDialog() {
+        String content = "Términos y condiciones de uso\n\n"
+                + "1. Debes usar la app de forma legal y respetuosa.\n"
+                + "2. Eres responsable de los datos que introduces.\n"
+                + "3. No debes compartir el acceso de tu cuenta.\n"
+                + "4. Los gastos, pagos y recordatorios son responsabilidad de los usuarios.\n"
+                + "5. Puedes dejar de usar la app cuando quieras.\n"
+                + "6. Al registrarte, aceptas estas condiciones.";
+
+        new AlertDialog.Builder(this)
+                .setTitle("Términos y condiciones")
+                .setMessage(content)
+                .setPositiveButton("Cerrar", null)
+                .show();
     }
 
     private boolean isAdult(String birthDateIso) {

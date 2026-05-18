@@ -14,6 +14,7 @@ import androidx.fragment.app.FragmentManager;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.sergio.flatshare.R;
+import com.sergio.flatshare.core.session.SessionStore;
 import com.sergio.flatshare.features.auth.LoginActivity;
 import com.sergio.flatshare.features.groups.GroupsFragment;
 import com.sergio.flatshare.features.groups.OwnerRoomsActivity;
@@ -103,6 +104,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(@NonNull android.view.MenuItem item) {
+        SessionStore.setRememberMeEnabled(this, false);
         FirebaseAuth.getInstance().signOut();
         startActivity(new Intent(this, LoginActivity.class));
         finish();

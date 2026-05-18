@@ -1,13 +1,24 @@
 package com.sergio.flatshare.features.workspace;
 
+import android.app.AlertDialog;
+import android.app.DatePickerDialog;
 import android.os.Bundle;
+import android.text.InputType;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
+import android.widget.Button;
 import android.widget.CalendarView;
+import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.ScrollView;
+import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -17,25 +28,35 @@ import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QuerySnapshot;
 import com.sergio.flatshare.R;
 import com.sergio.flatshare.core.notifications.ReminderScheduler;
+import com.sergio.flatshare.shared.ui.DialogUtils;
 
 import java.text.DecimalFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 public class CalendarFragment extends Fragment {
+    private static final SimpleDateFormat REMINDER_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT);
+    private static final String[] REMINDER_INTERVAL_LABELS = {"Único", "Diario", "Semanal", "Mensual", "Personalizado"};
+    private static final String[] REMINDER_INTERVAL_KEYS = {"unico", "diario", "semanal", "mensual", "personalizado"};
+
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
     private final List<CalendarRow> allRows = new ArrayList<>();
     private final List<CalendarRow> filteredRows = new ArrayList<>();
+    private final Map<String, String> memberNamesByEmail = new HashMap<>();
     private CalendarAdapter adapter;
     private TextView selectedDateTv;
     private long selectedDateMs;
@@ -62,6 +83,13 @@ public class CalendarFragment extends Fragment {
             selectedDateMs = c.getTimeInMillis();
             updateSelectedDateLabel();
             applyDateFilter();
+        });
+        eventsLv.setOnItemLongClickListener((parent, itemView, position, id) -> {
+            if (position < 0 || position >= filteredRows.size()) return true;
+            CalendarRow row = filteredRows.get(position);
+            if (!row.isReminder || "empty".equals(row.id)) return true;
+            openReminderLongPressDialog(row);
+            return true;
         });
 
         loadDeadlines();
@@ -92,7 +120,7 @@ public class CalendarFragment extends Fragment {
                         String priority = doc.getString("priority");
                         Double amount = doc.getDouble("amount");
                         String title = concept == null || concept.isEmpty() ? "Pago pendiente" : concept;
-                        String subtitle = (groupName == null ? "Piso" : groupName) + " - Pagar a " + (creditor == null ? "miembro" : creditor);
+                        String subtitle = (groupName == null ? "Piso" : groupName) + " - Pagar a " + displayNameWithEmail(creditor);
                         String amountText = (amount == null ? "0.00" : df.format(amount)) + " EUR";
                         allRows.add(new CalendarRow(title, subtitle, amountText, due.getTime(), doc.getId(), normalizePriority(priority), "none", 0, false));
                         scheduleDeadlineNotifications(title, amountText, due.getTime(), doc.getId());
@@ -138,8 +166,8 @@ public class CalendarFragment extends Fragment {
             String priority = doc.getString("priority");
             String title = "Pago registrado";
             String direction = myEmail.equalsIgnoreCase(from == null ? "" : from)
-                    ? "Enviado a " + (to == null ? "miembro" : to)
-                    : "Recibido de " + (from == null ? "miembro" : from);
+                    ? "Enviado a " + displayNameWithEmail(to)
+                    : "Recibido de " + displayNameWithEmail(from);
             Date dueAt = doc.getDate("dueAt");
             boolean confirmed = "confirmed".equals(status);
             boolean overdue = !confirmed && dueAt != null && dueAt.getTime() < System.currentTimeMillis();
@@ -231,11 +259,16 @@ public class CalendarFragment extends Fragment {
     private String buildReminderTargetLabel(@Nullable String targetType, DocumentSnapshot doc) {
         if ("miembro".equals(targetType)) {
             String email = doc.getString("targetMemberEmail");
-            return "Miembro: " + (email == null ? "miembro" : email);
+            return "Miembro: " + displayNameWithEmail(email);
         }
         if ("x_miembro".equals(targetType)) {
             List<String> members = castStrings(doc.get("targetEmails"));
-            return members.isEmpty() ? "X miembros" : "X miembros: " + String.join(", ", members);
+            if (members.isEmpty()) return "X miembros";
+            List<String> labels = new ArrayList<>();
+            for (String email : members) {
+                labels.add(displayNameWithEmail(email));
+            }
+            return "X miembros: " + String.join(", ", labels);
         }
         if ("habitacion".equals(targetType)) {
             String room = doc.getString("roomName");
@@ -249,6 +282,384 @@ public class CalendarFragment extends Fragment {
             return "Todos los inquilinos";
         }
         return "Todos los miembros";
+    }
+
+    private void openReminderLongPressDialog(@NonNull CalendarRow row) {
+        String reminderDocId = reminderDocIdFromRow(row.id);
+        if (reminderDocId.isEmpty()) return;
+
+        db.collection("reminders")
+                .document(reminderDocId)
+                .get()
+                .addOnSuccessListener(doc -> {
+                    if (!doc.exists()) {
+                        Toast.makeText(requireContext(), "El recordatorio ya no existe", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    showReminderActionsDialog(row, doc);
+                })
+                .addOnFailureListener(e ->
+                        Toast.makeText(requireContext(), "No se pudo cargar el recordatorio", Toast.LENGTH_SHORT).show()
+                );
+    }
+
+    private void showReminderActionsDialog(@NonNull CalendarRow row, @NonNull DocumentSnapshot reminderDoc) {
+        LinearLayout content = DialogUtils.createVerticalActions(requireContext());
+        Button infoBtn = DialogUtils.createActionButton(requireContext(), "Ver información", true);
+        content.addView(infoBtn);
+
+        boolean canEdit = canEditReminder(reminderDoc);
+        Button editBtn = canEdit ? DialogUtils.createActionButton(requireContext(), "Editar", false) : null;
+        if (editBtn != null) content.addView(editBtn);
+
+        DialogUtils.Shell shell = DialogUtils.buildShell(
+                requireContext(),
+                row.title,
+                "Acciones del recordatorio",
+                content,
+                "Cerrar",
+                null
+        );
+        AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+        shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+        infoBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            showReminderInfoDialog(row, reminderDoc);
+        });
+        if (editBtn != null) {
+            editBtn.setOnClickListener(v -> {
+                dialog.dismiss();
+                showReminderEditDialog(reminderDoc);
+            });
+        }
+    }
+
+    private void showReminderInfoDialog(@NonNull CalendarRow row, @NonNull DocumentSnapshot reminderDoc) {
+        String groupName = reminderDoc.getString("groupName");
+        if (groupName == null || groupName.trim().isEmpty()) {
+            groupName = "Piso";
+        }
+        String targetLabel = buildReminderTargetLabel(reminderDoc.getString("targetType"), reminderDoc);
+        String fromDate = resolveReminderDateText(reminderDoc, "startDateText", "startAt");
+        String toDate = resolveReminderDateText(reminderDoc, "endDateText", "endAt");
+        if ("Sin fecha".equals(toDate)) toDate = "Sin fecha fin";
+
+        String details = "Piso: " + groupName
+                + "\nDirigido a: " + targetLabel
+                + "\nFrecuencia: " + reminderIntervalLabel(reminderDoc)
+                + "\nDesde: " + fromDate
+                + "\nHasta: " + toDate;
+
+        View content = DialogUtils.createMessageView(requireContext(), details);
+        DialogUtils.Shell shell = DialogUtils.buildShell(
+                requireContext(),
+                row.title,
+                "Detalle del recordatorio",
+                content,
+                null,
+                "Cerrar"
+        );
+        AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+        shell.confirmBtn.setOnClickListener(v -> dialog.dismiss());
+    }
+
+    private void showReminderEditDialog(@NonNull DocumentSnapshot reminderDoc) {
+        if (!canEditReminder(reminderDoc)) {
+            Toast.makeText(requireContext(), "Solo quien lo creó puede editarlo", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        LinearLayout form = new LinearLayout(requireContext());
+        form.setOrientation(LinearLayout.VERTICAL);
+        form.setPadding(dp(4), dp(2), dp(4), dp(2));
+
+        EditText titleEt = buildDialogEditText("Título");
+        titleEt.setText(reminderDoc.getString("title") == null ? "" : reminderDoc.getString("title"));
+        form.addView(titleEt);
+
+        Spinner intervalSpinner = new Spinner(requireContext(), Spinner.MODE_DROPDOWN);
+        intervalSpinner.setBackgroundResource(R.drawable.bg_select_dark_round);
+        intervalSpinner.setAdapter(buildLightSpinnerAdapter(REMINDER_INTERVAL_LABELS));
+        LinearLayout.LayoutParams spinnerParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(50)
+        );
+        spinnerParams.topMargin = dp(10);
+        intervalSpinner.setLayoutParams(spinnerParams);
+        form.addView(intervalSpinner);
+
+        EditText customDaysEt = buildDialogEditText("Cada cuántos días");
+        customDaysEt.setInputType(InputType.TYPE_CLASS_NUMBER);
+        form.addView(customDaysEt);
+
+        EditText startDateEt = buildDialogEditText("Fecha inicio (YYYY-MM-DD)");
+        setupDatePickerField(startDateEt);
+        form.addView(startDateEt);
+
+        EditText endDateEt = buildDialogEditText("Fecha fin (opcional, YYYY-MM-DD)");
+        setupDatePickerField(endDateEt);
+        form.addView(endDateEt);
+
+        String intervalKey = safeLower(reminderDoc.getString("interval"));
+        if (intervalKey.isEmpty()) intervalKey = "semanal";
+        int intervalIndex = intervalIndexForKey(intervalKey);
+        intervalSpinner.setSelection(intervalIndex);
+        Long days = reminderDoc.getLong("intervalDays");
+        customDaysEt.setText(days == null || days <= 0 ? "" : String.valueOf(days));
+        customDaysEt.setVisibility("personalizado".equals(intervalKey) ? View.VISIBLE : View.GONE);
+
+        String startText = resolveReminderDateText(reminderDoc, "startDateText", "startAt");
+        if (!"Sin fecha".equals(startText)) startDateEt.setText(startText);
+        String endText = resolveReminderDateText(reminderDoc, "endDateText", "endAt");
+        if (!"Sin fecha".equals(endText)) endDateEt.setText(endText);
+
+        intervalSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                String selectedKey = REMINDER_INTERVAL_KEYS[position];
+                customDaysEt.setVisibility("personalizado".equals(selectedKey) ? View.VISIBLE : View.GONE);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
+
+        ScrollView scroll = new ScrollView(requireContext());
+        scroll.setFillViewport(true);
+        scroll.addView(form, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        ));
+
+        DialogUtils.Shell shell = DialogUtils.buildShell(
+                requireContext(),
+                "Editar recordatorio",
+                "Guarda los cambios del recordatorio",
+                scroll,
+                "Cancelar",
+                "Guardar"
+        );
+        AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+        shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+        shell.confirmBtn.setOnClickListener(v -> {
+            String title = titleEt.getText() == null ? "" : titleEt.getText().toString().trim();
+            if (title.isEmpty()) {
+                Toast.makeText(requireContext(), "El título es obligatorio", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            String startTextValue = startDateEt.getText() == null ? "" : startDateEt.getText().toString().trim();
+            Date startAt = parseReminderDateOrNull(startTextValue);
+            if (startAt == null) {
+                Toast.makeText(requireContext(), "Fecha de inicio no válida", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (startAt.getTime() < startOfDay(System.currentTimeMillis())) {
+                Toast.makeText(requireContext(), "La fecha de inicio no puede ser pasada", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            String endTextValue = endDateEt.getText() == null ? "" : endDateEt.getText().toString().trim();
+            Date endAt = null;
+            if (!endTextValue.isEmpty()) {
+                endAt = parseReminderDateOrNull(endTextValue);
+                if (endAt == null) {
+                    Toast.makeText(requireContext(), "Fecha de fin no válida", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (endAt.before(startAt)) {
+                    Toast.makeText(requireContext(), "La fecha fin debe ser posterior a inicio", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+            }
+
+            String newIntervalKey = REMINDER_INTERVAL_KEYS[intervalSpinner.getSelectedItemPosition()];
+            int intervalDays = 0;
+            if ("personalizado".equals(newIntervalKey)) {
+                String daysText = customDaysEt.getText() == null ? "" : customDaysEt.getText().toString().trim();
+                try {
+                    intervalDays = Integer.parseInt(daysText);
+                } catch (NumberFormatException e) {
+                    intervalDays = 0;
+                }
+                if (intervalDays <= 0) {
+                    Toast.makeText(requireContext(), "Indica cada cuántos días", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+            }
+
+            final int finalIntervalDays = intervalDays;
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("title", title);
+            updates.put("interval", newIntervalKey);
+            updates.put("intervalDays", intervalDays);
+            updates.put("startAt", startAt);
+            updates.put("startDateText", REMINDER_DATE_FORMAT.format(startAt));
+            updates.put("endAt", endAt);
+            updates.put("endDateText", endAt == null ? "" : REMINDER_DATE_FORMAT.format(endAt));
+            updates.put("updatedAt", FieldValue.serverTimestamp());
+
+            db.collection("reminders")
+                    .document(reminderDoc.getId())
+                    .update(updates)
+                    .addOnSuccessListener(done -> {
+                        rescheduleReminderForCurrentUser(reminderDoc, title, startAt.getTime(), newIntervalKey, finalIntervalDays);
+                        Toast.makeText(requireContext(), "Recordatorio actualizado", Toast.LENGTH_SHORT).show();
+                        dialog.dismiss();
+                        loadDeadlines();
+                    })
+                    .addOnFailureListener(e ->
+                            Toast.makeText(requireContext(), "No se pudo actualizar", Toast.LENGTH_SHORT).show()
+                    );
+        });
+    }
+
+    private void rescheduleReminderForCurrentUser(
+            @NonNull DocumentSnapshot reminderDoc,
+            @NonNull String title,
+            long startAtMs,
+            @NonNull String intervalKey,
+            int intervalDays
+    ) {
+        Long reminderCode = reminderDoc.getLong("reminderCode");
+        if (reminderCode == null) return;
+        if (!isCurrentUserTarget(reminderDoc)) return;
+
+        int code = reminderCode.intValue();
+        ReminderScheduler.cancel(requireContext(), code);
+        long intervalMs = intervalMsForReminder(intervalKey, intervalDays);
+        if (intervalMs <= 0L) {
+            ReminderScheduler.scheduleOneTime(requireContext(), code, "FlatShare: " + title, "Recordatorio pendiente", startAtMs);
+        } else {
+            ReminderScheduler.schedule(requireContext(), code, "FlatShare: " + title, "Recordatorio pendiente", startAtMs, intervalMs);
+        }
+    }
+
+    private boolean isCurrentUserTarget(@NonNull DocumentSnapshot reminderDoc) {
+        String myEmail = safeLower(FirebaseAuth.getInstance().getCurrentUser() == null
+                ? null
+                : FirebaseAuth.getInstance().getCurrentUser().getEmail());
+        List<String> targets = castStrings(reminderDoc.get("targetEmails"));
+        for (String email : targets) {
+            if (myEmail.equals(safeLower(email))) return true;
+        }
+        return false;
+    }
+
+    private long intervalMsForReminder(@NonNull String intervalKey, int intervalDays) {
+        if ("unico".equals(intervalKey)) return 0L;
+        if ("diario".equals(intervalKey)) return 24L * 60L * 60L * 1000L;
+        if ("semanal".equals(intervalKey)) return 7L * 24L * 60L * 60L * 1000L;
+        if ("mensual".equals(intervalKey)) return 30L * 24L * 60L * 60L * 1000L;
+        if ("personalizado".equals(intervalKey) && intervalDays > 0) {
+            return intervalDays * 24L * 60L * 60L * 1000L;
+        }
+        return 0L;
+    }
+
+    private boolean canEditReminder(@NonNull DocumentSnapshot reminderDoc) {
+        if (FirebaseAuth.getInstance().getCurrentUser() == null) return false;
+        String myUid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        String myEmail = safeLower(FirebaseAuth.getInstance().getCurrentUser().getEmail());
+        String ownerUid = reminderDoc.getString("ownerUid");
+        if (ownerUid != null && ownerUid.equals(myUid)) return true;
+        String ownerEmail = safeLower(reminderDoc.getString("ownerEmail"));
+        return !myEmail.isEmpty() && myEmail.equals(ownerEmail);
+    }
+
+    @NonNull
+    private String reminderDocIdFromRow(@Nullable String rowId) {
+        if (rowId == null) return "";
+        if (rowId.startsWith("reminder_")) {
+            return rowId.substring("reminder_".length());
+        }
+        return "";
+    }
+
+    private String resolveReminderDateText(@NonNull DocumentSnapshot doc, @NonNull String textField, @NonNull String dateField) {
+        String text = doc.getString(textField);
+        if (text != null && !text.trim().isEmpty()) return text.trim();
+        Date date = doc.getDate(dateField);
+        if (date == null) return "Sin fecha";
+        return REMINDER_DATE_FORMAT.format(date);
+    }
+
+    private String reminderIntervalLabel(@NonNull DocumentSnapshot doc) {
+        String interval = safeLower(doc.getString("interval"));
+        Long intervalDays = doc.getLong("intervalDays");
+        if ("unico".equals(interval)) return "Único";
+        if ("diario".equals(interval)) return "Diario";
+        if ("semanal".equals(interval)) return "Semanal";
+        if ("mensual".equals(interval)) return "Mensual";
+        if ("personalizado".equals(interval) && intervalDays != null && intervalDays > 0) {
+            return "Cada " + intervalDays + " días";
+        }
+        return interval.isEmpty() ? "Sin definir" : interval;
+    }
+
+    private Date parseReminderDateOrNull(@Nullable String value) {
+        if (value == null || value.trim().isEmpty()) return null;
+        try {
+            Date raw = REMINDER_DATE_FORMAT.parse(value.trim());
+            if (raw == null) return null;
+            Calendar c = Calendar.getInstance();
+            c.setTime(raw);
+            c.set(Calendar.HOUR_OF_DAY, 10);
+            c.set(Calendar.MINUTE, 0);
+            c.set(Calendar.SECOND, 0);
+            c.set(Calendar.MILLISECOND, 0);
+            return c.getTime();
+        } catch (ParseException e) {
+            return null;
+        }
+    }
+
+    private void setupDatePickerField(@NonNull EditText field) {
+        field.setFocusable(false);
+        field.setClickable(true);
+        field.setOnClickListener(v -> {
+            Calendar now = Calendar.getInstance();
+            String current = field.getText() == null ? "" : field.getText().toString().trim();
+            if (!current.isEmpty()) {
+                Date parsed = parseReminderDateOrNull(current);
+                if (parsed != null) now.setTime(parsed);
+            }
+            DatePickerDialog dialog = new DatePickerDialog(
+                    requireContext(),
+                    (view, year, month, dayOfMonth) -> field.setText(String.format(Locale.ROOT, "%04d-%02d-%02d", year, month + 1, dayOfMonth)),
+                    now.get(Calendar.YEAR),
+                    now.get(Calendar.MONTH),
+                    now.get(Calendar.DAY_OF_MONTH)
+            );
+            dialog.show();
+        });
+    }
+
+    private EditText buildDialogEditText(@NonNull String hint) {
+        EditText editText = new EditText(requireContext());
+        editText.setHint(hint);
+        editText.setHintTextColor(requireContext().getColor(R.color.text_muted));
+        editText.setTextColor(requireContext().getColor(R.color.text_light));
+        editText.setBackgroundResource(R.drawable.bg_input_dark_round);
+        editText.setPadding(dp(12), dp(12), dp(12), dp(12));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        params.topMargin = dp(10);
+        editText.setLayoutParams(params);
+        return editText;
+    }
+
+    private int intervalIndexForKey(@NonNull String key) {
+        for (int i = 0; i < REMINDER_INTERVAL_KEYS.length; i++) {
+            if (REMINDER_INTERVAL_KEYS[i].equalsIgnoreCase(key)) return i;
+        }
+        return 2;
+    }
+
+    private int dp(int value) {
+        return (int) (value * requireContext().getResources().getDisplayMetrics().density);
     }
 
     private List<String> castStrings(Object raw) {
@@ -322,11 +733,71 @@ public class CalendarFragment extends Fragment {
         int reminderB = Math.abs((docId + "_b").hashCode());
 
         if (oneDayBefore > now) {
-            ReminderScheduler.scheduleOneTime(requireContext(), reminderA, "Pago vence manana", title + " - " + amount, oneDayBefore);
+            ReminderScheduler.scheduleOneTime(requireContext(), reminderA, "Pago vence mañana", title + " - " + amount, oneDayBefore);
         }
         if (dueAtMs > now) {
             ReminderScheduler.scheduleOneTime(requireContext(), reminderB, "Pago vence hoy", title + " - " + amount, dueAtMs);
         }
+    }
+
+    private String displayNameWithEmail(@Nullable String email) {
+        String normalized = safeLower(email);
+        if (normalized.isEmpty()) return "miembro";
+        ensureNameCached(normalized);
+        String name = memberNamesByEmail.get(normalized);
+        if (name == null || name.trim().isEmpty() || name.equalsIgnoreCase(normalized)) {
+            return normalized;
+        }
+        return name + " (" + normalized + ")";
+    }
+
+    private void ensureNameCached(String email) {
+        if (email == null || email.trim().isEmpty()) return;
+        String normalized = email.trim().toLowerCase(Locale.ROOT);
+        if (memberNamesByEmail.containsKey(normalized)) return;
+        memberNamesByEmail.put(normalized, normalized);
+        db.collection("users")
+                .whereEqualTo("email", normalized)
+                .limit(1)
+                .get()
+                .addOnSuccessListener(result -> {
+                    String resolved = normalized;
+                    if (!result.isEmpty()) {
+                        String name = result.getDocuments().get(0).getString("name");
+                        if (name != null && !name.trim().isEmpty()) {
+                            resolved = name.trim();
+                        }
+                    }
+                    memberNamesByEmail.put(normalized, resolved);
+                    if (!isAdded()) return;
+                    applyDateFilter();
+                })
+                .addOnFailureListener(e -> memberNamesByEmail.put(normalized, normalized));
+    }
+
+    private String safeLower(@Nullable String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private ArrayAdapter<String> buildLightSpinnerAdapter(String[] values) {
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(requireContext(), android.R.layout.simple_spinner_item, values) {
+            @NonNull
+            @Override
+            public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+                View view = super.getView(position, convertView, parent);
+                ((TextView) view).setTextColor(requireContext().getColor(R.color.text_light));
+                return view;
+            }
+
+            @Override
+            public View getDropDownView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+                View view = super.getDropDownView(position, convertView, parent);
+                ((TextView) view).setTextColor(requireContext().getColor(R.color.text_light));
+                return view;
+            }
+        };
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        return adapter;
     }
 
     private static class CalendarRow {
@@ -406,3 +877,4 @@ public class CalendarFragment extends Fragment {
         }
     }
 }
+

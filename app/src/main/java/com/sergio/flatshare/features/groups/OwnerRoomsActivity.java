@@ -642,7 +642,10 @@ public class OwnerRoomsActivity extends AppCompatActivity {
                         DocumentSnapshot userDoc = task.getResult();
                         String email = userDoc.getString("email");
                         if (email == null || email.trim().isEmpty()) continue;
-                        String displayName = userDoc.getString("displayName");
+                        String displayName = userDoc.getString("name");
+                        if (displayName == null || displayName.trim().isEmpty()) {
+                            displayName = userDoc.getString("displayName");
+                        }
                         if (displayName == null || displayName.trim().isEmpty()) {
                             displayName = userDoc.getString("username");
                         }
@@ -739,6 +742,6 @@ public class OwnerRoomsActivity extends AppCompatActivity {
             name = normalized.isEmpty() ? "Sin datos" : normalized;
         }
         String emailLine = normalized.isEmpty() ? "sin correo" : normalized;
-        return "Miembro " + index + ": " + name + "\n  " + emailLine;
+        return "Miembro " + index + ":\nNombre: " + name + "\nCorreo: " + emailLine;
     }
 }

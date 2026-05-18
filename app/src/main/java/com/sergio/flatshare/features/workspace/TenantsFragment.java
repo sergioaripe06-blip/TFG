@@ -111,11 +111,7 @@ public class TenantsFragment extends Fragment {
             }
         }
         if (tasks.isEmpty()) {
-            for (String email : memberEmails) {
-                tenants.add(new TenantRow(email.toLowerCase(Locale.ROOT), email.toLowerCase(Locale.ROOT), "", "", ""));
-            }
-            adapter.notifyDataSetChanged();
-            emptyTenantsTv.setVisibility(tenants.isEmpty() ? View.VISIBLE : View.GONE);
+            resolveTenantRowsByEmail(memberEmails);
             return;
         }
         Tasks.whenAllComplete(tasks).addOnSuccessListener(done -> {
@@ -125,7 +121,10 @@ public class TenantsFragment extends Fragment {
                 DocumentSnapshot userDoc = task.getResult();
                 String email = safeLower(userDoc.getString("email"));
                 if (email.isEmpty()) continue;
-                String displayName = userDoc.getString("displayName");
+                String displayName = userDoc.getString("name");
+                if (displayName == null || displayName.trim().isEmpty()) {
+                    displayName = userDoc.getString("displayName");
+                }
                 if (displayName == null || displayName.trim().isEmpty()) {
                     displayName = userDoc.getString("username");
                 }
@@ -154,6 +153,59 @@ public class TenantsFragment extends Fragment {
         });
     }
 
+    private void resolveTenantRowsByEmail(List<String> memberEmails) {
+        List<Task<?>> tasks = new ArrayList<>();
+        Map<String, TenantRow> byEmail = new HashMap<>();
+        for (String rawEmail : memberEmails) {
+            String email = safeLower(rawEmail);
+            if (email.isEmpty()) continue;
+            Task<?> task = db.collection("users")
+                    .whereEqualTo("email", email)
+                    .limit(1)
+                    .get()
+                    .addOnSuccessListener(result -> {
+                        if (result.isEmpty()) {
+                            byEmail.put(email, new TenantRow(email, email, "", "", ""));
+                            return;
+                        }
+                        DocumentSnapshot userDoc = result.getDocuments().get(0);
+                        String displayName = safe(userDoc.getString("name"));
+                        if (displayName.isEmpty()) displayName = safe(userDoc.getString("displayName"));
+                        if (displayName.isEmpty()) displayName = safe(userDoc.getString("username"));
+                        if (displayName.isEmpty()) displayName = email;
+                        byEmail.put(email, new TenantRow(
+                                email,
+                                displayName,
+                                safe(userDoc.getString("username")),
+                                safe(userDoc.getString("phone")),
+                                safe(userDoc.getString("birthDate"))
+                        ));
+                    })
+                    .addOnFailureListener(e -> byEmail.put(email, new TenantRow(email, email, "", "", "")));
+            tasks.add(task);
+        }
+        if (tasks.isEmpty()) {
+            for (String email : memberEmails) {
+                String normalized = safeLower(email);
+                if (!normalized.isEmpty()) tenants.add(new TenantRow(normalized, normalized, "", "", ""));
+            }
+            adapter.notifyDataSetChanged();
+            emptyTenantsTv.setVisibility(tenants.isEmpty() ? View.VISIBLE : View.GONE);
+            return;
+        }
+        Tasks.whenAllComplete(tasks).addOnCompleteListener(done -> {
+            tenants.clear();
+            for (String email : memberEmails) {
+                String normalized = safeLower(email);
+                if (normalized.isEmpty()) continue;
+                TenantRow row = byEmail.get(normalized);
+                tenants.add(row == null ? new TenantRow(normalized, normalized, "", "", "") : row);
+            }
+            adapter.notifyDataSetChanged();
+            emptyTenantsTv.setVisibility(tenants.isEmpty() ? View.VISIBLE : View.GONE);
+        });
+    }
+
     private void showTenantDetails(TenantRow tenant) {
         if (currentGroupId == null) return;
         db.collection("expenses").whereEqualTo("groupId", currentGroupId).get().addOnSuccessListener(expenses -> {
@@ -178,7 +230,8 @@ public class TenantsFragment extends Fragment {
                     paymentAmount += amount == null ? 0.0 : amount;
                 }
                 DecimalFormat df = new DecimalFormat("0.00");
-                String detail = "Email: " + tenant.email
+                String detail = "Nombre: " + tenant.displayName
+                        + "\nCorreo: " + tenant.email
                         + "\nUsuario: " + (tenant.username.isEmpty() ? "-" : tenant.username)
                         + "\nTeléfono: " + (tenant.phone.isEmpty() ? "-" : tenant.phone)
                         + "\nNacimiento: " + (tenant.birthDate.isEmpty() ? "-" : tenant.birthDate)
@@ -270,7 +323,7 @@ public class TenantsFragment extends Fragment {
             TextView subtitleTv = view.findViewById(R.id.rowSubtitleTv);
             TextView amountTv = view.findViewById(R.id.rowAmountTv);
             titleTv.setText(row.displayName);
-            subtitleTv.setText("Mantén pulsado para ver datos y gastos");
+            subtitleTv.setText("Correo: " + row.email + "\nMantén pulsado para ver datos y gastos");
             amountTv.setText("");
             return view;
         }

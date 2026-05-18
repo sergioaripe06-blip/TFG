@@ -228,7 +228,7 @@
             android:divider="@android:color/transparent"
             android:dividerHeight="0dp"
             android:listSelector="@android:color/transparent"
-            android:paddingBottom="190dp" />
+            android:paddingBottom="24dp" />
 
         <ListView
             android:id="@+id/saldosLv"
@@ -240,7 +240,7 @@
             android:divider="@android:color/transparent"
             android:dividerHeight="0dp"
             android:listSelector="@android:color/transparent"
-            android:paddingBottom="190dp"
+            android:paddingBottom="24dp"
             android:visibility="gone" />
 
         <ListView
@@ -253,7 +253,7 @@
             android:divider="@android:color/transparent"
             android:dividerHeight="0dp"
             android:listSelector="@android:color/transparent"
-            android:paddingBottom="190dp"
+            android:paddingBottom="24dp"
             android:visibility="gone" />
 
         <FrameLayout
@@ -270,7 +270,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="40dp"
+        android:layout_marginBottom="72dp"
         android:gravity="center_horizontal"
         android:orientation="vertical">
 
