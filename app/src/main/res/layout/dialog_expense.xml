@@ -57,13 +57,18 @@
         android:textSize="12sp"
         android:textStyle="bold" />
 
-    <Spinner
-        android:id="@+id/categorySpinner"
+    <AutoCompleteTextView
+        android:id="@+id/categoryEt"
         android:layout_width="match_parent"
-        android:layout_height="50dp"
+        android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:background="@drawable/bg_select_dark_round"
-        android:paddingHorizontal="12dp"
+        android:background="@drawable/bg_input_dark_round"
+        android:hint="Ejemplo: luz"
+        android:inputType="textCapWords"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp"
+        android:textColor="@color/text_light"
+        android:textColorHint="@color/text_muted"
         android:popupBackground="@color/surface_dark_alt" />
 
     <TextView

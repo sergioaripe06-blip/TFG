@@ -54,6 +54,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.firestore.WriteBatch;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.EncodeHintType;
@@ -67,6 +68,11 @@ import com.sergio.flatshare.R;
 import com.sergio.flatshare.shared.ui.DialogUtils;
 import com.sergio.flatshare.core.notifications.ReminderScheduler;
 import com.sergio.flatshare.core.session.SessionStore;
+import com.sergio.flatshare.features.workspace.services.CategorySuggestionsRepository;
+import com.sergio.flatshare.features.workspace.services.ExpenseDialogs;
+import com.sergio.flatshare.features.workspace.services.ExpenseService;
+import com.sergio.flatshare.features.workspace.services.PaymentService;
+import com.sergio.flatshare.features.workspace.services.ReminderService;
 
 import java.text.DecimalFormat;
 import java.text.ParseException;
@@ -117,6 +123,10 @@ public class ExpensesFragment extends Fragment {
     private static final SimpleDateFormat DUE_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT);
 
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
+    private final CategorySuggestionsRepository categorySuggestionsRepository = new CategorySuggestionsRepository(db);
+    private final PaymentService paymentService = new PaymentService();
+    private final ExpenseService expenseService = new ExpenseService();
+    private final ReminderService reminderService = new ReminderService();
     private final List<WorkspaceRow> expenseRows = new ArrayList<>();
     private final List<WorkspaceRow> saldoRows = new ArrayList<>();
     private final List<WorkspaceRow> reminderRows = new ArrayList<>();
@@ -1402,7 +1412,7 @@ public class ExpensesFragment extends Fragment {
                 }
                 View form = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_expense, null, false);
                 pendingTicketUri = null;
-                setupTypeSpinner((Spinner) form.findViewById(R.id.categorySpinner), null);
+                setupCategoryInput((AutoCompleteTextView) form.findViewById(R.id.categoryEt), null);
                 setupPrioritySpinner((Spinner) form.findViewById(R.id.expensePrioritySpinner), null);
                 setupDateField(form.findViewById(R.id.dueDateEt));
                 setupSplitUi(form, members, null);
@@ -1417,7 +1427,7 @@ public class ExpensesFragment extends Fragment {
                         null
                 );
                 setupTicketControls(form);
-                View scrollableForm = wrapFormForDialogScroll(form);
+                View scrollableForm = ExpenseDialogs.wrapFormForDialogScroll(requireContext(), form);
 
                 DialogUtils.Shell shell = DialogUtils.buildShell(
                         requireContext(),
@@ -1427,9 +1437,9 @@ public class ExpensesFragment extends Fragment {
                         "Cancelar",
                         "Guardar"
                 );
-                tuneLongFormShell(shell);
+                ExpenseDialogs.tuneLongFormShell(shell);
                 AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
-                adjustLongFormDialogWindow(dialog);
+                ExpenseDialogs.adjustLongFormDialogWindow(requireContext(), dialog);
                 shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
                 shell.confirmBtn.setOnClickListener(v -> {
                     if (saveExpense(form, null, members, rooms)) {
@@ -1447,7 +1457,7 @@ public class ExpensesFragment extends Fragment {
         }
         String concept = ((EditText) form.findViewById(R.id.conceptEt)).getText().toString().trim();
         String amountStr = ((EditText) form.findViewById(R.id.amountEt)).getText().toString().trim();
-        String category = ((Spinner) form.findViewById(R.id.categorySpinner)).getSelectedItem().toString();
+        String category = normalizeCategoryKey(((EditText) form.findViewById(R.id.categoryEt)).getText().toString());
         String priority = ((Spinner) form.findViewById(R.id.expensePrioritySpinner)).getSelectedItem().toString();
         String dueDateText = ((EditText) form.findViewById(R.id.dueDateEt)).getText().toString().trim();
         if (concept.isEmpty() || amountStr.isEmpty() || currentGroupId == null) return false;
@@ -1491,8 +1501,8 @@ public class ExpensesFragment extends Fragment {
         data.put("payerEmail", FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT));
         data.put("createdAt", FieldValue.serverTimestamp());
         data.put("customSplit", customSplit);
-        data.put("category", category.isEmpty() ? "otros" : category.toLowerCase(Locale.ROOT));
-        data.put("priority", priority.isEmpty() ? "media" : priority.toLowerCase(Locale.ROOT));
+        data.put("category", category.isEmpty() ? "otros" : category);
+        data.put("priority", expenseService.normalizePriority(priority));
         data.put("ticketUri", pendingTicketUri == null ? "" : pendingTicketUri);
         data.put("dueAt", dueDate);
         data.put("dueDateText", dueDateText);
@@ -1560,17 +1570,17 @@ public class ExpensesFragment extends Fragment {
             }
             loadCurrentGroupRooms(rooms -> {
                 View form = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_payment, null, false);
-                Spinner paymentCategorySpinner = form.findViewById(R.id.paymentCategorySpinner);
+                AutoCompleteTextView paymentCategoryInputEt = form.findViewById(R.id.paymentCategoryInputEt);
                 TextView paymentCategoryFixedTv = form.findViewById(R.id.paymentCategoryFixedTv);
                 if (BILLING_FIXED.equals(currentBillingModel)) {
-                    paymentCategorySpinner.setVisibility(View.GONE);
+                    paymentCategoryInputEt.setVisibility(View.GONE);
                     paymentCategoryFixedTv.setVisibility(View.VISIBLE);
                     paymentCategoryFixedTv.setText(capitalizeTypeLabel(CATEGORY_RENT));
                     setupFixedPaymentConceptSuggestions(form);
                 } else {
                     paymentCategoryFixedTv.setVisibility(View.GONE);
-                    paymentCategorySpinner.setVisibility(View.VISIBLE);
-                    setupTypeSpinner(paymentCategorySpinner, null);
+                    paymentCategoryInputEt.setVisibility(View.VISIBLE);
+                    setupCategoryInput(paymentCategoryInputEt, null);
                 }
                 setupPrioritySpinner((Spinner) form.findViewById(R.id.paymentPrioritySpinner), "media");
                 setupDateField(form.findViewById(R.id.paymentDueDateEt));
@@ -1648,26 +1658,70 @@ public class ExpensesFragment extends Fragment {
                 });
     }
 
+    private void setupCategoryInput(@NonNull AutoCompleteTextView input, @Nullable String selectedCategory) {
+        String normalizedSelected = normalizeCategoryKey(selectedCategory);
+        if (!normalizedSelected.isEmpty()) {
+            input.setText(capitalizeTypeLabel(normalizedSelected), false);
+        }
+        input.setThreshold(1);
+        input.setOnClickListener(v -> input.showDropDown());
+        input.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) input.post(input::showDropDown);
+        });
+
+        loadGroupCategorySuggestions(false, categories -> {
+            if (!isAdded()) return;
+            List<String> labels = new ArrayList<>();
+            for (String category : categories) {
+                if (category == null || category.trim().isEmpty()) continue;
+                labels.add(capitalizeTypeLabel(category));
+            }
+            input.setAdapter(buildLightDropdownAdapter(labels.toArray(new String[0])));
+        });
+    }
+
+    private void loadGroupCategorySuggestions(boolean forceRefresh, @NonNull CategorySuggestionsRepository.Callback callback) {
+        categorySuggestionsRepository.getSuggestions(currentGroupId, forceRefresh, callback);
+    }
+
+    private String normalizeCategoryKey(@Nullable String rawCategory) {
+        return expenseService.normalizeCategory(rawCategory);
+    }
+
     private void setupPaymentTargetSelectors(View form, List<String> members, List<RoomOption> rooms, @Nullable String defaultRoomId) {
         Spinner targetTypeSpinner = form.findViewById(R.id.paymentTargetTypeSpinner);
-        Spinner memberSpinner = form.findViewById(R.id.paymentMemberSpinner);
         Spinner roomSpinner = form.findViewById(R.id.paymentRoomSpinner);
+        LinearLayout membersContainer = form.findViewById(R.id.paymentMembersContainer);
+        Button addMemberLineBtn = form.findViewById(R.id.addPaymentMemberLineBtn);
+        Button removeMemberLineBtn = form.findViewById(R.id.removePaymentMemberLineBtn);
 
         targetTypeSpinner.setAdapter(buildLightSpinnerAdapter(PAYMENT_TARGET_TYPES));
-        memberSpinner.setAdapter(buildLightSpinnerAdapter(members.toArray(new String[0])));
-
         String[] roomLabels = new String[rooms.size()];
         for (int i = 0; i < rooms.size(); i++) {
             roomLabels[i] = rooms.get(i).name;
         }
         roomSpinner.setAdapter(buildLightSpinnerAdapter(roomLabels));
 
+        rebindPaymentMemberLines(form, members, null);
+        addMemberLineBtn.setOnClickListener(v -> {
+            List<String> currentKeys = collectPaymentMemberLineKeys(membersContainer);
+            currentKeys.add(firstAvailableMemberKey(members, currentKeys));
+            rebindPaymentMemberLines(form, members, currentKeys);
+            updatePaymentTargetSection(form, targetTypeSpinner.getSelectedItemPosition(), members.size());
+        });
+        removeMemberLineBtn.setOnClickListener(v -> {
+            List<String> currentKeys = collectPaymentMemberLineKeys(membersContainer);
+            if (currentKeys.size() > 1) {
+                currentKeys.remove(currentKeys.size() - 1);
+            }
+            rebindPaymentMemberLines(form, members, currentKeys);
+            updatePaymentTargetSection(form, targetTypeSpinner.getSelectedItemPosition(), members.size());
+        });
+
         targetTypeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                String type = PAYMENT_TARGET_TYPES[position];
-                memberSpinner.setVisibility("Miembro".equals(type) ? View.VISIBLE : View.GONE);
-                roomSpinner.setVisibility("Habitación".equals(type) ? View.VISIBLE : View.GONE);
+                updatePaymentTargetSection(form, position, members.size());
             }
 
             @Override
@@ -1683,53 +1737,165 @@ public class ExpensesFragment extends Fragment {
         }
     }
 
+    private void updatePaymentTargetSection(View form, int targetTypePosition, int membersCount) {
+        TextView memberLabelTv = form.findViewById(R.id.paymentMemberLabelTv);
+        LinearLayout membersContainer = form.findViewById(R.id.paymentMembersContainer);
+        Button addMemberLineBtn = form.findViewById(R.id.addPaymentMemberLineBtn);
+        Button removeMemberLineBtn = form.findViewById(R.id.removePaymentMemberLineBtn);
+        TextView roomLabelTv = form.findViewById(R.id.paymentRoomLabelTv);
+        Spinner roomSpinner = form.findViewById(R.id.paymentRoomSpinner);
+
+        boolean showRoomSection = targetTypePosition == 0;
+        boolean showMemberSection = targetTypePosition == 1;
+
+        roomLabelTv.setVisibility(showRoomSection ? View.VISIBLE : View.GONE);
+        roomSpinner.setVisibility(showRoomSection ? View.VISIBLE : View.GONE);
+        memberLabelTv.setVisibility(showMemberSection ? View.VISIBLE : View.GONE);
+        membersContainer.setVisibility(showMemberSection ? View.VISIBLE : View.GONE);
+
+        int remainingMembers = membersCount - membersContainer.getChildCount();
+        addMemberLineBtn.setVisibility(showMemberSection && remainingMembers > 0 ? View.VISIBLE : View.GONE);
+        removeMemberLineBtn.setVisibility(showMemberSection ? View.VISIBLE : View.GONE);
+        boolean canRemove = showMemberSection && membersContainer.getChildCount() > 1;
+        removeMemberLineBtn.setEnabled(canRemove);
+        removeMemberLineBtn.setAlpha(canRemove ? 1f : 0.45f);
+    }
+
+    private void rebindPaymentMemberLines(View form, List<String> members, @Nullable List<String> seedKeys) {
+        LinearLayout container = form.findViewById(R.id.paymentMembersContainer);
+        List<String> selectedKeys = seedKeys == null ? collectPaymentMemberLineKeys(container) : new ArrayList<>(seedKeys);
+        if (selectedKeys.isEmpty()) {
+            selectedKeys.add(firstAvailableMemberKey(members, Collections.emptyList()));
+        }
+        selectedKeys = deduplicateStringKeys(selectedKeys);
+        container.removeAllViews();
+
+        for (int i = 0; i < selectedKeys.size(); i++) {
+            Spinner spinner = buildPaymentMemberLineSpinner(members, selectedKeys, i, selectedKeys.get(i));
+            spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                    rebindPaymentMemberLines(form, members, null);
+                    Spinner targetTypeSpinner = form.findViewById(R.id.paymentTargetTypeSpinner);
+                    updatePaymentTargetSection(form, targetTypeSpinner.getSelectedItemPosition(), members.size());
+                }
+
+                @Override
+                public void onNothingSelected(AdapterView<?> parent) {
+                }
+            });
+            container.addView(spinner);
+        }
+    }
+
+    private Spinner buildPaymentMemberLineSpinner(
+            List<String> members,
+            List<String> selectedKeys,
+            int spinnerIndex,
+            String selectedKey
+    ) {
+        Spinner spinner = new Spinner(requireContext(), Spinner.MODE_DROPDOWN);
+        spinner.setBackgroundResource(R.drawable.bg_select_dark_round);
+        spinner.setPadding(dp(12), 0, dp(12), 0);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(50)
+        );
+        if (spinnerIndex > 0) params.topMargin = dp(8);
+        spinner.setLayoutParams(params);
+
+        List<String> optionKeys = new ArrayList<>();
+        List<String> optionLabels = new ArrayList<>();
+        for (String member : members) {
+            boolean selectedElsewhere = false;
+            for (int i = 0; i < selectedKeys.size(); i++) {
+                if (i == spinnerIndex) continue;
+                if (member.equals(selectedKeys.get(i))) {
+                    selectedElsewhere = true;
+                    break;
+                }
+            }
+            if (!selectedElsewhere || member.equals(selectedKey)) {
+                optionKeys.add(member);
+                optionLabels.add(displayNameForEmail(member));
+            }
+        }
+        if (optionKeys.isEmpty() && !members.isEmpty()) {
+            optionKeys.add(members.get(0));
+            optionLabels.add(displayNameForEmail(members.get(0)));
+        }
+
+        spinner.setTag(optionKeys);
+        spinner.setAdapter(buildLightSpinnerAdapter(optionLabels.toArray(new String[0])));
+        int selectedIndex = optionKeys.indexOf(selectedKey);
+        spinner.setSelection(selectedIndex >= 0 ? selectedIndex : 0);
+        return spinner;
+    }
+
+    private List<String> collectPaymentMemberLineKeys(LinearLayout container) {
+        List<String> keys = new ArrayList<>();
+        for (int i = 0; i < container.getChildCount(); i++) {
+            View child = container.getChildAt(i);
+            if (!(child instanceof Spinner spinner)) continue;
+            @SuppressWarnings("unchecked")
+            List<String> optionKeys = (List<String>) spinner.getTag();
+            int selected = spinner.getSelectedItemPosition();
+            if (optionKeys == null || selected < 0 || selected >= optionKeys.size()) continue;
+            keys.add(optionKeys.get(selected));
+        }
+        return keys;
+    }
+
+    private List<PaymentService.PaymentRoom> toPaymentRooms(List<RoomOption> rooms) {
+        List<PaymentService.PaymentRoom> out = new ArrayList<>();
+        for (RoomOption room : rooms) {
+            out.add(new PaymentService.PaymentRoom(room.id, room.name, room.memberEmails));
+        }
+        return out;
+    }
+
     private boolean savePayment(View form, List<String> members, List<RoomOption> rooms) {
         if (currentGroupId == null) return false;
         String amountStr = ((EditText) form.findViewById(R.id.paymentAmountEt)).getText().toString().trim();
         String concept = ((EditText) form.findViewById(R.id.paymentConceptEt)).getText().toString().trim();
         String category = "";
         if (!BILLING_FIXED.equals(currentBillingModel)) {
-            Object selectedCategory = ((Spinner) form.findViewById(R.id.paymentCategorySpinner)).getSelectedItem();
-            category = selectedCategory == null ? "" : selectedCategory.toString();
+            category = normalizeCategoryKey(((EditText) form.findViewById(R.id.paymentCategoryInputEt)).getText().toString());
         }
         String priority = ((Spinner) form.findViewById(R.id.paymentPrioritySpinner)).getSelectedItem().toString();
         String dueDateText = ((EditText) form.findViewById(R.id.paymentDueDateEt)).getText().toString().trim();
         String targetType = ((Spinner) form.findViewById(R.id.paymentTargetTypeSpinner)).getSelectedItem().toString();
-        int memberIndex = ((Spinner) form.findViewById(R.id.paymentMemberSpinner)).getSelectedItemPosition();
+        LinearLayout memberLinesContainer = form.findViewById(R.id.paymentMembersContainer);
+        List<String> selectedMemberEmails = collectPaymentMemberLineKeys(memberLinesContainer);
         int roomIndex = ((Spinner) form.findViewById(R.id.paymentRoomSpinner)).getSelectedItemPosition();
-        if (amountStr.isEmpty() || dueDateText.isEmpty()) {
-            Toast.makeText(requireContext(), "Debes indicar importe y fecha límite", Toast.LENGTH_SHORT).show();
-            return false;
-        }
         Date dueDate = parseDueDateOrNull(dueDateText);
-        if (dueDate == null) {
-            Toast.makeText(requireContext(), "Fecha inválida. Usa YYYY-MM-DD", Toast.LENGTH_SHORT).show();
+        PaymentService.ValidationResult validation = paymentService.validateAmountAndRequiredFields(amountStr, dueDateText, dueDate);
+        if (!validation.valid) {
+            Toast.makeText(requireContext(), validation.message, Toast.LENGTH_SHORT).show();
             return false;
         }
-        double amount;
-        try {
-            amount = Double.parseDouble(amountStr);
-        } catch (NumberFormatException e) {
-            Toast.makeText(requireContext(), "Importe no válido", Toast.LENGTH_SHORT).show();
-            return false;
-        }
-        if (amount <= 0) {
-            Toast.makeText(requireContext(), "El importe debe ser mayor que 0", Toast.LENGTH_SHORT).show();
-            return false;
-        }
+        double amount = validation.amount;
 
         String fromEmail = FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
-        String normalizedCategory = BILLING_FIXED.equals(currentBillingModel)
-                ? CATEGORY_RENT
-                : (category == null || category.trim().isEmpty() ? "otros" : category.trim().toLowerCase(Locale.ROOT));
-        List<PaymentTarget> targets = resolvePaymentTargets(targetType, members, rooms, memberIndex, roomIndex, fromEmail);
+        String normalizedCategory = paymentService.normalizeCategory(
+                BILLING_FIXED.equals(currentBillingModel),
+                category,
+                CATEGORY_RENT
+        );
+        List<PaymentService.PaymentTarget> targets = paymentService.resolveTargets(
+                targetType,
+                members,
+                toPaymentRooms(rooms),
+                selectedMemberEmails,
+                roomIndex,
+                fromEmail
+        );
         if (targets.isEmpty()) {
             Toast.makeText(requireContext(), "No hay destinatarios válidos para este pago", Toast.LENGTH_SHORT).show();
             return false;
         }
 
-        double splitAmount = amount / targets.size();
-        String safePriority = priority == null || priority.trim().isEmpty() ? "media" : priority.toLowerCase(Locale.ROOT);
+        String safePriority = paymentService.normalizePriority(priority);
         String suggestedConcept = "";
         if (BILLING_FIXED.equals(currentBillingModel)) {
             CharSequence hint = ((EditText) form.findViewById(R.id.paymentConceptEt)).getHint();
@@ -1740,38 +1906,37 @@ public class ExpensesFragment extends Fragment {
                 }
             }
         }
-        String safeConcept = concept.isEmpty()
-                ? (suggestedConcept.isEmpty() ? "Pago directo" : suggestedConcept)
-                : concept;
+        String safeConcept = paymentService.resolveConcept(concept, suggestedConcept);
+        List<PaymentService.PaymentWrite> writes = paymentService.buildWrites(
+                currentGroupId,
+                amount,
+                fromEmail,
+                normalizedCategory,
+                safePriority,
+                dueDate,
+                dueDateText,
+                safeConcept,
+                targetType,
+                targets
+        );
         WriteBatch batch = db.batch();
         List<Map<String, Object>> createdPayments = new ArrayList<>();
-        for (PaymentTarget target : targets) {
-            Map<String, Object> data = new HashMap<>();
-            data.put("groupId", currentGroupId);
-            data.put("amount", splitAmount);
-            data.put("fromEmail", fromEmail);
-            data.put("toEmail", target.toEmail);
-            data.put("category", normalizedCategory);
-            data.put("priority", safePriority);
-            data.put("status", "pending");
-            data.put("createdAt", FieldValue.serverTimestamp());
-            data.put("dueAt", dueDate);
-            data.put("dueDateText", dueDateText);
-            data.put("concept", safeConcept);
-            data.put("targetType", targetType.toLowerCase(Locale.ROOT));
-            data.put("roomId", target.roomId == null ? "" : target.roomId);
-            data.put("roomName", target.roomName == null ? "" : target.roomName);
+        for (PaymentService.PaymentWrite write : writes) {
             var paymentRef = db.collection("payments").document();
-            batch.set(paymentRef, data);
+            batch.set(paymentRef, write.data);
             Map<String, Object> created = new HashMap<>();
             created.put("paymentId", paymentRef.getId());
-            created.put("toEmail", target.toEmail);
+            created.put("toEmail", write.toEmail);
+            created.put("splitAmount", write.splitAmount);
             createdPayments.add(created);
         }
         batch.commit().addOnSuccessListener(v -> {
             for (Map<String, Object> created : createdPayments) {
                 String paymentId = String.valueOf(created.get("paymentId"));
                 String toEmail = String.valueOf(created.get("toEmail"));
+                double splitAmount = created.get("splitAmount") instanceof Number
+                        ? ((Number) created.get("splitAmount")).doubleValue()
+                        : 0.0;
                 logActivity("payment_created", "Pago a " + toEmail, splitAmount, "payment");
                 syncPaymentDeadline(paymentId, safeConcept, splitAmount, fromEmail, toEmail, dueDate, safePriority);
             }
@@ -1779,46 +1944,6 @@ public class ExpensesFragment extends Fragment {
             loadFinancialViews();
         });
         return true;
-    }
-
-    private List<PaymentTarget> resolvePaymentTargets(
-            String targetType,
-            List<String> members,
-            List<RoomOption> rooms,
-            int memberIndex,
-            int roomIndex,
-            String fromEmail
-    ) {
-        List<PaymentTarget> targets = new ArrayList<>();
-        if ("Miembro".equals(targetType)) {
-            if (memberIndex >= 0 && memberIndex < members.size()) {
-                String toEmail = members.get(memberIndex).toLowerCase(Locale.ROOT);
-                if (!toEmail.equals(fromEmail)) {
-                    targets.add(new PaymentTarget(toEmail, null, null));
-                }
-            }
-            return targets;
-        }
-        if ("Habitación".equals(targetType)) {
-            if (roomIndex >= 0 && roomIndex < rooms.size()) {
-                RoomOption room = rooms.get(roomIndex);
-                for (String resident : room.memberEmails) {
-                    String email = resident.toLowerCase(Locale.ROOT);
-                    if (!email.equals(fromEmail)) {
-                        targets.add(new PaymentTarget(email, room.id, room.name));
-                    }
-                }
-            }
-            return targets;
-        }
-
-        for (String member : members) {
-            String email = member.toLowerCase(Locale.ROOT);
-            if (!email.equals(fromEmail)) {
-                targets.add(new PaymentTarget(email, null, null));
-            }
-        }
-        return targets;
     }
 
     private void createReminderDialog() {
@@ -1882,26 +2007,26 @@ public class ExpensesFragment extends Fragment {
                     }
 
                     String myEmail = FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
-                    String intervalKey = intervalConfig.intervalKey.toLowerCase(Locale.ROOT);
-                    Map<String, Object> data = new HashMap<>();
-                    data.put("title", concept);
-                    data.put("interval", intervalKey);
-                    data.put("intervalDays", intervalConfig.intervalDays);
-                    data.put("startAt", startAt);
-                    data.put("startDateText", dateText);
-                    data.put("endAt", endAt);
-                    data.put("endDateText", endAt == null ? "" : endDateText);
-                    data.put("targetType", targetConfig.targetType.toLowerCase(Locale.ROOT));
-                    data.put("targetEmails", targetConfig.targetEmails);
-                    data.put("targetMemberEmail", targetConfig.memberEmail);
-                    data.put("roomId", targetConfig.primaryRoomId);
-                    data.put("roomName", targetConfig.primaryRoomName);
-                    data.put("roomIds", targetConfig.roomIds);
-                    data.put("roomNames", targetConfig.roomNames);
-                    data.put("ownerUid", FirebaseAuth.getInstance().getCurrentUser().getUid());
-                    data.put("ownerEmail", myEmail);
-                    data.put("groupId", currentGroupId);
-                    data.put("groupName", currentGroupName);
+                    Map<String, Object> data = reminderService.buildReminderData(
+                            concept,
+                            intervalConfig.intervalKey,
+                            intervalConfig.intervalDays,
+                            startAt,
+                            dateText,
+                            endAt,
+                            endDateText,
+                            targetConfig.targetType,
+                            targetConfig.targetEmails,
+                            targetConfig.memberEmail,
+                            targetConfig.primaryRoomId,
+                            targetConfig.primaryRoomName,
+                            targetConfig.roomIds,
+                            targetConfig.roomNames,
+                            FirebaseAuth.getInstance().getCurrentUser().getUid(),
+                            myEmail,
+                            currentGroupId,
+                            currentGroupName
+                    );
                     data.put("createdAt", FieldValue.serverTimestamp());
 
                     db.collection("reminders").add(data).addOnSuccessListener(ref -> {
@@ -3488,7 +3613,7 @@ public class ExpensesFragment extends Fragment {
                 ((EditText) form.findViewById(R.id.conceptEt)).setText(row.snapshot.getString("concept"));
                 Double amountValue = row.snapshot.getDouble("amount");
                 ((EditText) form.findViewById(R.id.amountEt)).setText(amountValue == null ? "" : String.valueOf(amountValue));
-                setupTypeSpinner((Spinner) form.findViewById(R.id.categorySpinner), row.snapshot.getString("category"));
+                setupCategoryInput((AutoCompleteTextView) form.findViewById(R.id.categoryEt), row.snapshot.getString("category"));
                 setupPrioritySpinner((Spinner) form.findViewById(R.id.expensePrioritySpinner), row.snapshot.getString("priority"));
                 setupDateField(form.findViewById(R.id.dueDateEt));
                 Date dueAt = row.snapshot.getDate("dueAt");
@@ -3508,7 +3633,7 @@ public class ExpensesFragment extends Fragment {
                         currentSplit
                 );
                 setupTicketControls(form);
-                View scrollableForm = wrapFormForDialogScroll(form);
+                View scrollableForm = ExpenseDialogs.wrapFormForDialogScroll(requireContext(), form);
 
                 DialogUtils.Shell shell = DialogUtils.buildShell(
                         requireContext(),
@@ -3518,9 +3643,9 @@ public class ExpensesFragment extends Fragment {
                         "Cancelar",
                         "Guardar"
                 );
-                tuneLongFormShell(shell);
+                ExpenseDialogs.tuneLongFormShell(shell);
                 AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
-                adjustLongFormDialogWindow(dialog);
+                ExpenseDialogs.adjustLongFormDialogWindow(requireContext(), dialog);
                 shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
                 shell.confirmBtn.setOnClickListener(v -> {
                     if (saveExpense(form, row.id, members, rooms)) {
@@ -3539,34 +3664,6 @@ public class ExpensesFragment extends Fragment {
         db.collection("groups").document(currentGroupId).get().addOnSuccessListener(doc -> {
             callback.onLoaded(castEmails(doc.get("memberEmails")));
                 }).addOnFailureListener(e -> callback.onLoaded(new ArrayList<>()));
-    }
-
-    private View wrapFormForDialogScroll(@NonNull View form) {
-        ScrollView scrollView = new ScrollView(requireContext());
-        scrollView.setFillViewport(true);
-        scrollView.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
-        scrollView.setVerticalScrollBarEnabled(true);
-        scrollView.setNestedScrollingEnabled(true);
-        scrollView.addView(form, new ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-        ));
-        return scrollView;
-    }
-
-    private void tuneLongFormShell(@NonNull DialogUtils.Shell shell) {
-        if (shell.contentContainer.getLayoutParams() instanceof LinearLayout.LayoutParams params) {
-            params.height = 0;
-            params.weight = 1f;
-            shell.contentContainer.setLayoutParams(params);
-        }
-    }
-
-    private void adjustLongFormDialogWindow(@Nullable AlertDialog dialog) {
-        if (dialog == null || dialog.getWindow() == null) return;
-        int width = (int) (requireContext().getResources().getDisplayMetrics().widthPixels * 0.96f);
-        int height = (int) (requireContext().getResources().getDisplayMetrics().heightPixels * 0.90f);
-        dialog.getWindow().setLayout(width, height);
     }
 
     private void loadCurrentGroupRooms(RoomsCallback callback) {
@@ -4146,10 +4243,20 @@ public class ExpensesFragment extends Fragment {
             categoryValues.add(CATEGORY_RENT);
             categoryLabels.add(capitalizeTypeLabel(CATEGORY_RENT));
         } else {
-            for (String type : SPENDING_TYPES) {
-                categoryValues.add(type);
-                categoryLabels.add(capitalizeTypeLabel(type));
-            }
+            loadGroupCategorySuggestions(false, categories -> {
+                if (!isAdded()) return;
+                categoryValues.clear();
+                categoryLabels.clear();
+                categoryValues.add("");
+                categoryLabels.add("Selecciona categoría");
+                for (String category : categories) {
+                    if (category == null || category.trim().isEmpty()) continue;
+                    categoryValues.add(category);
+                    categoryLabels.add(capitalizeTypeLabel(category));
+                }
+                categorySpinner.setAdapter(buildLightSpinnerAdapter(categoryLabels.toArray(new String[0])));
+                selectSpinnerValue(categorySpinner, categoryValues, filterCategory);
+            });
         }
         categorySpinner.setAdapter(buildLightSpinnerAdapter(categoryLabels.toArray(new String[0])));
 
@@ -4845,18 +4952,6 @@ public class ExpensesFragment extends Fragment {
         }
     }
 
-    private static class PaymentTarget {
-        final String toEmail;
-        final String roomId;
-        final String roomName;
-
-        PaymentTarget(String toEmail, @Nullable String roomId, @Nullable String roomName) {
-            this.toEmail = toEmail;
-            this.roomId = roomId;
-            this.roomName = roomName;
-        }
-    }
-
     private static class ReminderIntervalConfig {
         final String intervalKey;
         final int intervalDays;
@@ -4915,6 +5010,26 @@ public class ExpensesFragment extends Fragment {
             }
         };
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        return adapter;
+    }
+
+    private ArrayAdapter<String> buildLightDropdownAdapter(String[] values) {
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_dropdown_item_1line, values) {
+            @NonNull
+            @Override
+            public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+                View view = super.getView(position, convertView, parent);
+                ((TextView) view).setTextColor(requireContext().getColor(R.color.text_light));
+                return view;
+            }
+
+            @Override
+            public View getDropDownView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+                View view = super.getDropDownView(position, convertView, parent);
+                ((TextView) view).setTextColor(requireContext().getColor(R.color.text_light));
+                return view;
+            }
+        };
         return adapter;
     }
 

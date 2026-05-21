@@ -14,6 +14,10 @@
 - Android Gradle Plugin: 8.5.2
 - Gradle Wrapper: 9.0.0
 - Build Tools: 36.1.0
+- Refactor tecnico incremental aplicado:
+  - los fragments conservan capa UI,
+  - la logica de negocio/datos se mueve progresivamente a servicios por dominio.
+  - servicios ya aplicados en pagos/categorias, grupos/invitaciones y modulos de contratos/cobros.
 
 ### 2.2 Android SDK
 - `compileSdk`: 35
@@ -50,6 +54,9 @@
 ### 4.2 Reglas
 - Archivo fuente: `firestore.rules`.
 - Publicar en Firebase Console > Firestore > Rules.
+- En gestion de alquiler:
+  - `rent_collections`, `maintenance_tickets` y `group_documents` permiten crear/leer a miembros del grupo.
+  - Solo el propietario del piso puede actualizar o eliminar en esas tres colecciones.
 
 ### 4.3 Colecciones principales
 - `users`, `usernames`, `groups`, `group_codes`, `rooms_groups`
@@ -105,9 +112,11 @@ Comportamiento:
 - KPI `Pisos`.
 - KPI `Miembros totales`.
 - Boton debug `Seed debug` (solo DEBUG).
+- Buscador de pisos por nombre o direccion (filtrado en tiempo real).
 
 ### Lista de pisos
 - Tap en un piso: abre tarjeta de detalle.
+- Si no hay coincidencias con la busqueda, se muestra mensaje especifico.
 
 ### Botones principales
 - `Crear piso`.
@@ -129,7 +138,7 @@ Elementos:
 - Nombre del piso.
 - Datos descriptivos.
 - Miembros.
-- Botones `Editar`, `Invitar`, `Gestionar habitaciones` (owner), `Eliminar piso` (owner).
+- Botones `Editar` (owner), `Invitar`, `Gestionar habitaciones` (owner), `Eliminar piso` (owner).
 
 Invitar:
 - Por codigo.
@@ -177,12 +186,15 @@ Operaciones:
 
 Campos de gasto:
 - Concepto, importe, categoria, prioridad, fecha limite.
+- En `alquiler variable`, la categoria es editable (texto libre) con sugerencias historicas del propio piso.
 - Reparto (`customSplit`) equitativo o por importes.
 - Habitacion(es) destino.
 
 Campos de pago:
 - Importe, concepto, categoria, prioridad, fecha limite.
+- En `alquiler variable`, la categoria es editable (texto libre) y reutiliza sugerencias historicas al registrar nuevos pagos/gastos.
 - Destino (habitacion, miembro o todos).
+- Si el destino es `Miembro`, se pueden anadir o quitar lineas de destinatario (minimo 1).
 - Estado (`pending`, `confirmed`, `rejected`).
 
 ### 6.4.2 Recordatorios
@@ -218,6 +230,8 @@ Operaciones:
 ## 6.5 Balance personal (`PersonalBalanceFragment`)
 - Selector de piso (o todos).
 - Grafico circular por categorias de gasto/pago.
+- Categorias dinamicas: si se crean nuevas (por ejemplo, `luz`, `agua`), aparecen automaticamente en el balance.
+- Color estable por categoria: la leyenda y el grafico usan el mismo color para cada categoria.
 - Barras mensuales de importe pagado.
 
 ## 6.6 Calendario (`CalendarFragment`)
@@ -276,3 +290,11 @@ En cada tarea nueva:
 2. Actualizar stack/versiones si cambian Gradle o dependencias.
 3. Actualizar Firebase si se crean campos/colecciones nuevas.
 4. Registrar el cambio en `diary.md`.
+
+## 11. Control de versiones (Git)
+- El repositorio ignora caches y artefactos locales para mantener commits limpios.
+- No deben versionarse archivos de entorno local como:
+  - `.gradle-home/`
+  - `.idea/`
+  - `crash.txt` y logs temporales
+- Si alguno de esos archivos ya estaba trackeado, debe retirarse del indice con `git rm --cached` sin borrarlo en local.

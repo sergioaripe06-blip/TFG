@@ -184,6 +184,68 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
   - al abrir la app se muestran invitaciones pendientes con detalle del piso,
   - opcion directa de `Unirme` o `Rechazar` para el usuario invitado.
 
+## 2026-05-21
+- Tipo: Avance reconstruido (sesion actual)
+- Mejora UX del dialogo de registro de pagos:
+  - se anade etiqueta visible para `Prioridad`,
+  - se ordenan y etiquetan mejor `Categoria` y `Destino`,
+  - en destino `Miembro` se habilitan lineas dinamicas (`Anadir/Quitar`) con minimo 1 y borrado solo desde 2.
+- En alquiler variable, la categoria pasa a ser texto libre con autocompletado historico por piso:
+  - sin lista fija inicial,
+  - al registrar nuevas categorias (ej. `luz`, `agua`) quedan sugeridas en siguientes registros.
+- Balance personal actualizado para categorias dinamicas:
+  - las categorias nuevas aparecen automaticamente,
+  - cada categoria conserva un color estable y ese mismo color se refleja en leyenda y grafico.
+- Mejora en `Pisos`:
+  - nuevo buscador en la cabecera para filtrar por nombre o direccion,
+  - filtrado en tiempo real sobre la lista y mensaje especifico cuando no hay coincidencias.
+- Endurecimiento de reglas Firestore en gestion de alquiler:
+  - en `rent_collections`, `maintenance_tickets` y `group_documents`,
+  - solo el propietario puede `update/delete` (miembros mantienen `create/read`).
+- Refuerzo de permisos UI en pisos:
+  - `Editar` y `Eliminar piso` bloqueados para no propietarios tambien en interfaz,
+  - validacion adicional en codigo para impedir accion aunque se fuerce la UI.
+- Refactor incremental (strangler pattern) para reducir complejidad en fragments:
+  - `ExpensesFragment`: extraidos `CategorySuggestionsRepository` (con cache/limit), `PaymentService`, `ExpenseService`, `ReminderService` y `ExpenseDialogs`.
+  - `GroupsFragment`: extraidos `GroupService`, `InvitationService` e `InitialRoomsSetupFlow`.
+  - `RentalManagementFragment`: extraidos servicios por modulo para contratos y cobros (`ContractsService`, `CollectionsService`).
+  - Se mantiene UI en fragment y se desplaza logica de negocio/datos a servicios.
+- Validacion tecnica:
+  - compilacion `assembleDebug` completada en verde.
+- Archivos principales afectados:
+  - `app/src/main/res/layout/dialog_payment.xml`
+  - `app/src/main/res/layout/dialog_expense.xml`
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/PersonalBalanceFragment.java`
+  - `app/src/main/res/layout/fragment_groups.xml`
+  - `app/src/main/java/com/sergio/flatshare/features/groups/GroupsFragment.java`
+  - `firestore.rules`
+  - `FIREBASE_SETUP.md`
+  - `MANUAL_USUARIO.md`
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/services/CategorySuggestionsRepository.java`
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/services/PaymentService.java`
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/services/ExpenseService.java`
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/services/ReminderService.java`
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/services/ExpenseDialogs.java`
+  - `app/src/main/java/com/sergio/flatshare/features/groups/services/GroupService.java`
+  - `app/src/main/java/com/sergio/flatshare/features/groups/services/InvitationService.java`
+  - `app/src/main/java/com/sergio/flatshare/features/groups/services/InitialRoomsSetupFlow.java`
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/services/ContractsService.java`
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/services/CollectionsService.java`
+- Firebase:
+  - revisado `FIREBASE_SETUP.md`; sin cambios de esquema ni reglas en esta tarea.
+
+## 2026-05-21
+- Tipo: Ajuste tecnico de control de versiones
+- Se refuerza `.gitignore` para evitar incluir artefactos locales y de build:
+  - se anaden `.gradle-home/` y exclusion completa de `.idea/`,
+  - se ignora `crash.txt` y logs de error JVM.
+- Se limpian del indice Git archivos no necesarios:
+  - `.idea/*`
+  - `crash.txt`
+- Impacto:
+  - evita commits masivos con miles de archivos temporales de entorno local.
+
 ---
 
 ## Resumen Firebase (estado funcional)

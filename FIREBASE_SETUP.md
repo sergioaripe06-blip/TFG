@@ -333,9 +333,9 @@ Resumen:
 - `expenses`, `payments`, `payment_deadlines`, `reminders`, `activity_logs`: solo miembros del grupo.
 - `payments`: para seed demo, el propietario puede crear pagos con `seed=true` y `fromEmail` tipo `seeduserNNN@seed.flatshare.local` dirigidos a su propio correo.
 - `rental_contracts`: lectura de miembros, gestión del propietario.
-- `rent_collections`: miembros del grupo pueden leer y actualizar estados/cobros.
-- `maintenance_tickets`: miembros del grupo pueden crear/leer/actualizar.
-- `group_documents`: miembros del grupo pueden crear/leer/actualizar.
+- `rent_collections`: miembros del grupo pueden crear/leer; solo el propietario puede actualizar o eliminar.
+- `maintenance_tickets`: miembros del grupo pueden crear/leer; solo el propietario puede actualizar o eliminar.
+- `group_documents`: miembros del grupo pueden crear/leer; solo el propietario puede actualizar o eliminar.
 - `audit_events`: miembros leen y crean; no se permite editar ni borrar.
 - `rent_automations` y `event_reminder_rules`: lectura de miembros, gestión del propietario.
 - `event_reminder_jobs`: miembros leen y crean; no se permite editar ni borrar.

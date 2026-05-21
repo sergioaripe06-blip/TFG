@@ -42,14 +42,19 @@ import java.util.Comparator;
 public class PersonalBalanceFragment extends Fragment {
     private static final String BILLING_FIXED = "fixed";
     private static final String CATEGORY_RENT = "alquiler";
-    private static final String[] TYPES = {"agua", "electricidad", "internet", "alquiler", "comida", "otros"};
-    private static final int[] COLORS = {
+    private static final int[] CATEGORY_COLOR_PALETTE = {
             Color.parseColor("#44D4FF"),
             Color.parseColor("#FFD95A"),
             Color.parseColor("#8EA8FF"),
             Color.parseColor("#FF9E66"),
             Color.parseColor("#78E08F"),
-            Color.parseColor("#C3C3C3")
+            Color.parseColor("#C3C3C3"),
+            Color.parseColor("#E489FF"),
+            Color.parseColor("#66D1C2"),
+            Color.parseColor("#FF7A9C"),
+            Color.parseColor("#9ED36A"),
+            Color.parseColor("#F7A95B"),
+            Color.parseColor("#9AA5B1")
     };
     private static final String GROUP_ALL = "Todas las habitaciones";
     private static final int MONTHLY_BAR_COUNT = 6;
@@ -577,25 +582,38 @@ public class PersonalBalanceFragment extends Fragment {
     }
 
     private Map<String, Double> createZeroTotals() {
-        Map<String, Double> totals = new HashMap<>();
-        for (String type : TYPES) totals.put(type, 0.0);
-        return totals;
+        return new HashMap<>();
     }
 
     private void render(Map<String, Double> totals) {
         if (!canUseUi() || legend == null || chart == null) return;
         Context context = getContext();
         if (context == null) return;
+
+        LinkedHashMap<String, Double> compactTotals = new LinkedHashMap<>();
+        for (Map.Entry<String, Double> entry : totals.entrySet()) {
+            String category = normalizeType(entry.getKey());
+            double amount = entry.getValue() == null ? 0.0 : entry.getValue();
+            if (amount <= 0.0) continue;
+            compactTotals.put(category, compactTotals.getOrDefault(category, 0.0) + amount);
+        }
+
+        List<Map.Entry<String, Double>> rows = new ArrayList<>(compactTotals.entrySet());
+        rows.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
+
         List<PieChartView.Slice> slices = new ArrayList<>();
         legend.removeAllViews();
         DecimalFormat df = new DecimalFormat("0.00");
         double total = 0.0;
-        for (String t : TYPES) total += totals.getOrDefault(t, 0.0);
+        for (Map.Entry<String, Double> row : rows) {
+            total += row.getValue();
+        }
 
-        for (int i = 0; i < TYPES.length; i++) {
-            String type = TYPES[i];
-            float value = totals.getOrDefault(type, 0.0).floatValue();
-            slices.add(new PieChartView.Slice(COLORS[i], value));
+        for (Map.Entry<String, Double> row : rows) {
+            String type = row.getKey();
+            float value = row.getValue().floatValue();
+            int color = resolveCategoryColor(type);
+            slices.add(new PieChartView.Slice(color, value));
 
             double percentage = total <= 0.0 ? 0.0 : (value * 100.0 / total);
             View item = LayoutInflater.from(context).inflate(R.layout.item_balance_legend, legend, false);
@@ -605,11 +623,11 @@ public class PersonalBalanceFragment extends Fragment {
 
             GradientDrawable dotShape = new GradientDrawable();
             dotShape.setShape(GradientDrawable.OVAL);
-            dotShape.setColor(COLORS[i]);
+            dotShape.setColor(color);
             dot.setBackground(dotShape);
 
             typeTv.setText(capitalize(type));
-            typeTv.setTextColor(COLORS[i]);
+            typeTv.setTextColor(color);
             valueTv.setText(df.format(percentage) + "%  -  " + df.format(value) + " EUR");
             legend.addView(item);
         }
@@ -745,10 +763,21 @@ public class PersonalBalanceFragment extends Fragment {
     private String normalizeType(@Nullable String type) {
         if (type == null) return "otros";
         String normalized = type.trim().toLowerCase(Locale.ROOT);
-        for (String t : TYPES) {
-            if (t.equals(normalized)) return t;
-        }
-        return "otros";
+        normalized = normalized.replaceAll("\\s+", " ");
+        if (normalized.isEmpty()) return "otros";
+        return normalized;
+    }
+
+    private int resolveCategoryColor(@Nullable String category) {
+        String normalized = normalizeType(category);
+        if ("agua".equals(normalized)) return Color.parseColor("#44D4FF");
+        if ("electricidad".equals(normalized)) return Color.parseColor("#FFD95A");
+        if ("internet".equals(normalized)) return Color.parseColor("#8EA8FF");
+        if ("alquiler".equals(normalized)) return Color.parseColor("#FF9E66");
+        if ("comida".equals(normalized)) return Color.parseColor("#78E08F");
+        if ("otros".equals(normalized)) return Color.parseColor("#C3C3C3");
+        int index = (normalized.hashCode() & 0x7fffffff) % CATEGORY_COLOR_PALETTE.length;
+        return CATEGORY_COLOR_PALETTE[index];
     }
 
     private List<String> toLowerList(@Nullable Object raw) {

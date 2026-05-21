@@ -187,7 +187,7 @@ service cloud.firestore {
         && isGroupMember(resource.data.groupId);
 
       allow update, delete: if signedIn()
-        && isGroupMember(resource.data.groupId);
+        && isGroupOwner(resource.data.groupId);
     }
 
     match /maintenance_tickets/{ticketId} {
@@ -198,7 +198,7 @@ service cloud.firestore {
         && isGroupMember(resource.data.groupId);
 
       allow update, delete: if signedIn()
-        && isGroupMember(resource.data.groupId);
+        && isGroupOwner(resource.data.groupId);
     }
 
     match /group_documents/{docId} {
@@ -209,7 +209,7 @@ service cloud.firestore {
         && isGroupMember(resource.data.groupId);
 
       allow update, delete: if signedIn()
-        && isGroupMember(resource.data.groupId);
+        && isGroupOwner(resource.data.groupId);
     }
 
     match /audit_events/{eventId} {

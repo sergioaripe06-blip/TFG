@@ -16,8 +16,10 @@ Este proyecto está modularizado por **capas** y por **dominios funcionales** pa
   - `SplashActivity`, `MainActivity`
 - `features/groups/`: gestión de pisos/grupos y habitaciones del propietario.
   - `GroupsFragment`, `OwnerRoomsActivity`
+  - `features/groups/services/`: servicios de grupos e invitaciones (`GroupService`, `InvitationService`, `InitialRoomsSetupFlow`).
 - `features/workspace/`: operación del piso activo (gastos, saldos, recordatorios, gestión alquiler).
   - `ExpensesFragment`, `BalancesFragment`, `PersonalBalanceFragment`, `CalendarFragment`, `TenantsFragment`, `RentalManagementFragment`
+  - `features/workspace/services/`: servicios de dominio para gastos/pagos/recordatorios y utilidades de diálogo (`CategorySuggestionsRepository`, `PaymentService`, `ExpenseService`, `ReminderService`, `ExpenseDialogs`, `ContractsService`, `CollectionsService`).
 - `features/profile/`: perfil de usuario.
   - `ProfileFragment`
 - `features/settings/`: ajustes funcionales de la app.

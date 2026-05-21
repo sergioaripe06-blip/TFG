@@ -99,6 +99,20 @@
 
         </LinearLayout>
 
+        <EditText
+            android:id="@+id/groupsSearchEt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/bg_input_dark_round"
+            android:hint="Buscar piso por nombre o direccion"
+            android:imeOptions="actionDone"
+            android:inputType="text"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="12dp"
+            android:textColor="@color/text_light"
+            android:textColorHint="@color/text_muted" />
+
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"

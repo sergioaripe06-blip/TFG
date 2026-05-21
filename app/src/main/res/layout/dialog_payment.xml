@@ -49,47 +49,114 @@
         android:textColor="@color/text_light"
         android:textColorHint="@color/text_muted" />
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="Destino del pago:"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
     <Spinner
         android:id="@+id/paymentTargetTypeSpinner"
         android:layout_width="match_parent"
         android:layout_height="50dp"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="4dp"
         android:background="@drawable/bg_select_dark_round"
         android:paddingHorizontal="12dp"
         android:popupBackground="@color/surface_dark_alt" />
 
-    <Spinner
-        android:id="@+id/paymentMemberSpinner"
+    <TextView
+        android:id="@+id/paymentMemberLabelTv"
         android:layout_width="match_parent"
-        android:layout_height="50dp"
+        android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
-        android:background="@drawable/bg_select_dark_round"
-        android:paddingHorizontal="12dp"
-        android:popupBackground="@color/surface_dark_alt" />
+        android:text="Miembro(s):"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/paymentMembersContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:orientation="vertical"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/addPaymentMemberLineBtn"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_tab_default"
+        android:text="Añadir línea de miembro"
+        android:textAllCaps="false"
+        android:textColor="@color/text_light"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/removePaymentMemberLineBtn"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_tab_default"
+        android:text="Quitar línea"
+        android:textAllCaps="false"
+        android:textColor="@color/text_light"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/paymentRoomLabelTv"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="Habitación destino:"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
 
     <Spinner
         android:id="@+id/paymentRoomSpinner"
         android:layout_width="match_parent"
         android:layout_height="50dp"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="4dp"
         android:background="@drawable/bg_select_dark_round"
         android:paddingHorizontal="12dp"
-        android:popupBackground="@color/surface_dark_alt" />
+        android:popupBackground="@color/surface_dark_alt"
+        android:visibility="gone" />
 
-    <Spinner
-        android:id="@+id/paymentCategorySpinner"
+    <TextView
         android:layout_width="match_parent"
-        android:layout_height="50dp"
+        android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
-        android:background="@drawable/bg_select_dark_round"
-        android:paddingHorizontal="12dp"
+        android:text="Categoría del pago:"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <AutoCompleteTextView
+        android:id="@+id/paymentCategoryInputEt"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/bg_input_dark_round"
+        android:hint="Ejemplo: luz"
+        android:inputType="textCapWords"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp"
+        android:textColor="@color/text_light"
+        android:textColorHint="@color/text_muted"
         android:popupBackground="@color/surface_dark_alt" />
 
     <TextView
         android:id="@+id/paymentCategoryFixedTv"
         android:layout_width="match_parent"
         android:layout_height="50dp"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="4dp"
         android:background="@drawable/bg_select_dark_round"
         android:gravity="center_vertical"
         android:paddingHorizontal="16dp"
@@ -121,11 +188,20 @@
         android:textColor="@color/text_light"
         android:textColorHint="@color/text_muted" />
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="Prioridad:"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
     <Spinner
         android:id="@+id/paymentPrioritySpinner"
         android:layout_width="match_parent"
         android:layout_height="50dp"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="4dp"
         android:background="@drawable/bg_select_dark_round"
         android:paddingHorizontal="12dp"
         android:popupBackground="@color/surface_dark_alt" />

@@ -1,7 +1,8 @@
 # Android / Gradle
 .gradle/
+.gradle-home/
 build/
-*/build/
+**/build/
 captures/
 .externalNativeBuild/
 .cxx/
@@ -10,17 +11,16 @@ captures/
 local.properties
 
 # Android Studio / IntelliJ
-.idea/caches/
-.idea/libraries/
-.idea/modules.xml
-.idea/workspace.xml
-.idea/navEditor.xml
-.idea/assetWizardSettings.xml
-.idea/deploymentTargetSelector.xml
+.idea/
 *.iml
+*.ipr
+*.iws
 
-# Logs
+# Logs / crash dumps
 *.log
+crash.txt
+hs_err_pid*
+replay_pid*
 
 # OS files
 .DS_Store

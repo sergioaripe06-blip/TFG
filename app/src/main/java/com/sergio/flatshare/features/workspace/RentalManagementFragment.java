@@ -35,6 +35,8 @@ import com.sergio.flatshare.R;
 import com.sergio.flatshare.shared.ui.DialogUtils;
 import com.sergio.flatshare.core.notifications.ReminderScheduler;
 import com.sergio.flatshare.core.session.SessionStore;
+import com.sergio.flatshare.features.workspace.services.CollectionsService;
+import com.sergio.flatshare.features.workspace.services.ContractsService;
 
 import java.text.DecimalFormat;
 import java.text.ParseException;
@@ -66,6 +68,8 @@ public class RentalManagementFragment extends Fragment {
     private static final String EVENT_INCIDENT_PENDING = "incident_pending";
 
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
+    private final ContractsService contractsService = new ContractsService(db);
+    private final CollectionsService collectionsService = new CollectionsService(db);
     private final List<ModuleDef> modules = new ArrayList<>();
     private final List<ManagementRow> rows = new ArrayList<>();
     private final List<String> groupMemberEmails = new ArrayList<>();
@@ -256,12 +260,10 @@ public class RentalManagementFragment extends Fragment {
     }
 
     private void loadContractRows() {
-        db.collection("rental_contracts")
-                .whereEqualTo("groupId", currentGroupId)
-                .get()
-                .addOnSuccessListener(snapshot -> {
+        contractsService.loadContractsByGroup(
+                currentGroupId,
+                docs -> {
                     rows.clear();
-                    List<DocumentSnapshot> docs = new ArrayList<>(snapshot.getDocuments());
                     docs.sort((a, b) -> compareByTimestampDesc(a, b, "updatedAt", "createdAt"));
                     for (DocumentSnapshot doc : docs) {
                         String start = safe(doc.getString("startDate"));
@@ -280,17 +282,16 @@ public class RentalManagementFragment extends Fragment {
                         ));
                     }
                     onRowsReady("Aún no has creado contrato para este piso.");
-                })
-                .addOnFailureListener(e -> onLoadError("No se pudieron cargar contratos"));
+                },
+                error -> onLoadError("No se pudieron cargar contratos")
+        );
     }
 
     private void loadRentRows() {
-        db.collection("rent_collections")
-                .whereEqualTo("groupId", currentGroupId)
-                .get()
-                .addOnSuccessListener(snapshot -> {
+        collectionsService.loadCollectionsByGroup(
+                currentGroupId,
+                docs -> {
                     rows.clear();
-                    List<DocumentSnapshot> docs = new ArrayList<>(snapshot.getDocuments());
                     docs.sort((a, b) -> compareByTimestampDesc(a, b, "updatedAt", "createdAt"));
                     for (DocumentSnapshot doc : docs) {
                         String monthKey = safe(doc.getString("monthKey"));
@@ -311,8 +312,9 @@ public class RentalManagementFragment extends Fragment {
                         rows.add(new ManagementRow(MODULE_RENT, doc.getId(), subtitle, detail, amount, doc, "Cobro"));
                     }
                     onRowsReady("No hay cobros mensuales registrados.");
-                })
-                .addOnFailureListener(e -> onLoadError("No se pudieron cargar cobros"));
+                },
+                error -> onLoadError("No se pudieron cargar cobros")
+        );
     }
 
     private void loadMaintenanceRows() {

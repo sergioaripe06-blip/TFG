@@ -5,7 +5,9 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
+import android.text.Editable;
 import android.text.InputType;
+import android.text.TextWatcher;
 import android.util.SparseBooleanArray;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -45,6 +47,9 @@ import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
 import com.journeyapps.barcodescanner.ScanContract;
 import com.journeyapps.barcodescanner.ScanOptions;
+import com.sergio.flatshare.features.groups.services.GroupService;
+import com.sergio.flatshare.features.groups.services.InitialRoomsSetupFlow;
+import com.sergio.flatshare.features.groups.services.InvitationService;
 import com.sergio.flatshare.R;
 import com.sergio.flatshare.features.shell.MainActivity;
 import com.sergio.flatshare.core.session.SessionStore;
@@ -64,7 +69,11 @@ import java.util.Date;
 
 public class GroupsFragment extends Fragment {
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
+    private final GroupService groupService = new GroupService(db);
+    private final InvitationService invitationService = new InvitationService(db);
+    private final InitialRoomsSetupFlow initialRoomsSetupFlow = new InitialRoomsSetupFlow(db);
     private final List<GroupItem> groups = new ArrayList<>();
+    private final List<GroupItem> allGroups = new ArrayList<>();
     private final SparseBooleanArray animatedPositions = new SparseBooleanArray();
     private static final LinkedHashMap<String, List<String>> PROVINCE_CITIES = buildProvinceCityMap();
     private static final String RENT_MODE_FIXED = "fixed";
@@ -82,8 +91,11 @@ public class GroupsFragment extends Fragment {
     private TextView totalMembersTv;
     private Button manageRoomsBtn;
     private Button deleteGroupBtn;
+    private Button editGroupBtn;
 
     private String selectedGroupId;
+    private String currentGroupSearchQuery = "";
+    private boolean selectedGroupIsOwner = false;
 
     private final ActivityResultLauncher<ScanOptions> qrScannerLauncher =
             registerForActivityResult(new ScanContract(), result -> {
@@ -103,6 +115,7 @@ public class GroupsFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_groups, container, false);
         ListView listView = view.findViewById(R.id.groupsLv);
+        EditText groupsSearchEt = view.findViewById(R.id.groupsSearchEt);
         Button addGroupBtn = view.findViewById(R.id.addGroupBtn);
         Button joinGroupBtn = view.findViewById(R.id.joinGroupBtn);
         detailsCard = view.findViewById(R.id.groupDetailsCard);
@@ -114,7 +127,7 @@ public class GroupsFragment extends Fragment {
         detailMembersTv = view.findViewById(R.id.detailGroupMembersTv);
         manageRoomsBtn = view.findViewById(R.id.manageRoomsBtn);
         deleteGroupBtn = view.findViewById(R.id.deleteGroupBtn);
-        Button editBtn = view.findViewById(R.id.editGroupBtn);
+        editGroupBtn = view.findViewById(R.id.editGroupBtn);
         Button inviteBtn = view.findViewById(R.id.inviteGroupBtn);
         Button closeBtn = view.findViewById(R.id.closeDetailsBtn);
 
@@ -134,12 +147,29 @@ public class GroupsFragment extends Fragment {
             return true;
         });
 
-        editBtn.setOnClickListener(v -> editSelectedGroup());
+        groupsSearchEt.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                currentGroupSearchQuery = s == null ? "" : s.toString().trim();
+                applyGroupSearchFilter();
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+            }
+        });
+
+        editGroupBtn.setOnClickListener(v -> editSelectedGroup());
         inviteBtn.setOnClickListener(v -> showInviteOptionsDialog(selectedGroupId));
         manageRoomsBtn.setOnClickListener(v -> openCurrentGroupWorkspace());
         deleteGroupBtn.setOnClickListener(v -> requestDeleteSelectedGroup());
         closeBtn.setOnClickListener(v -> {
             selectedGroupId = null;
+            selectedGroupIsOwner = false;
             detailsCard.setVisibility(View.GONE);
         });
 
@@ -299,23 +329,19 @@ public class GroupsFragment extends Fragment {
             group.put("variableSplitMode", variableSplitMode);
             group.put("createdAt", FieldValue.serverTimestamp());
 
-            db.collection("groups").add(group).addOnSuccessListener(doc -> {
-                String shareCode = doc.getId().toUpperCase(Locale.ROOT);
-                Map<String, Object> codeData = new HashMap<>();
-                codeData.put("groupId", doc.getId());
-                codeData.put("ownerId", uid);
-                codeData.put("name", name);
-                doc.update("shareCode", shareCode);
-                db.collection("group_codes").document(shareCode).set(codeData);
-
-                selectedGroupId = doc.getId();
+            groupService.createGroup(
+                    group,
+                    uid,
+                    name,
+                    groupId -> {
+                selectedGroupId = groupId;
                 SessionStore.setCurrentGroup(requireContext(), selectedGroupId);
                 loadGroups();
                 dialog.dismiss();
                 Toast.makeText(requireContext(), "Piso creado. Define las habitaciones.", Toast.LENGTH_SHORT).show();
                 startInitialRoomsSetup(selectedGroupId, roomCount);
-            }).addOnFailureListener(e ->
-                    Toast.makeText(requireContext(), "Error creando piso: " + e.getMessage(), Toast.LENGTH_LONG).show()
+                    },
+                    error -> Toast.makeText(requireContext(), "Error creando piso: " + error, Toast.LENGTH_LONG).show()
             );
         });
 
@@ -407,35 +433,32 @@ public class GroupsFragment extends Fragment {
             return;
         }
         String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
-        WriteBatch batch = db.batch();
+        List<InitialRoomsSetupFlow.RoomDraftInput> inputs = new ArrayList<>();
         for (RoomDraft draft : drafts) {
-            Map<String, Object> roomData = new HashMap<>();
-            roomData.put("groupId", groupId);
-            roomData.put("roomNumber", draft.roomNumber);
-            roomData.put("name", draft.name);
-            roomData.put("capacity", draft.capacity);
-            roomData.put("monthlyCost", draft.monthlyCost);
-            roomData.put("memberEmails", new ArrayList<String>());
-            roomData.put("memberCount", 0);
-            roomData.put("createdByUid", uid);
-            roomData.put("updatedByUid", uid);
-            roomData.put("createdAt", FieldValue.serverTimestamp());
-            roomData.put("updatedAt", FieldValue.serverTimestamp());
-            batch.set(db.collection("rooms_groups").document(), roomData);
+            inputs.add(new InitialRoomsSetupFlow.RoomDraftInput(
+                    draft.roomNumber,
+                    draft.name,
+                    draft.capacity,
+                    draft.monthlyCost
+            ));
         }
-        batch.commit()
-                .addOnSuccessListener(v -> {
+        initialRoomsSetupFlow.saveInitialRooms(
+                groupId,
+                uid,
+                inputs,
+                () -> {
                     Toast.makeText(requireContext(), "Habitaciones guardadas", Toast.LENGTH_SHORT).show();
                     openCurrentGroupWorkspace();
-                })
-                .addOnFailureListener(e -> {
+                },
+                error -> {
                     Toast.makeText(
                             requireContext(),
-                            "No se pudieron guardar todas las habitaciones: " + e.getMessage(),
+                            "No se pudieron guardar todas las habitaciones: " + error,
                             Toast.LENGTH_LONG
                     ).show();
                     openCurrentGroupWorkspace();
-                });
+                }
+        );
     }
 
     private void openCurrentGroupWorkspace() {
@@ -530,37 +553,21 @@ public class GroupsFragment extends Fragment {
     private void joinGroupByCode(String code) {
         String email = FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
         String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
-        db.collection("group_codes")
-                .document(code)
-                .get()
-                .addOnSuccessListener(result -> {
-                    if (!result.exists()) {
-                        Toast.makeText(requireContext(), "Código no válido", Toast.LENGTH_SHORT).show();
-                        return;
+        groupService.joinGroupByCode(
+                code,
+                uid,
+                email,
+                groupId -> {
+                    selectedGroupId = groupId;
+                    SessionStore.setCurrentGroup(requireContext(), groupId);
+                    SessionStore.clearCurrentRoom(requireContext());
+                    loadGroups();
+                    if (requireActivity() instanceof MainActivity) {
+                        ((MainActivity) requireActivity()).openCurrentGroupWorkspace();
                     }
-                    String groupId = result.getString("groupId");
-                    if (groupId == null || groupId.trim().isEmpty()) {
-                        Toast.makeText(requireContext(), "Código no válido", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    addUserToGroup(groupId, uid, email);
-                });
-    }
-
-    private void addUserToGroup(String groupId, String uid, String email) {
-        db.collection("groups").document(groupId).update(
-                "members", FieldValue.arrayUnion(uid),
-                "memberEmails", FieldValue.arrayUnion(email),
-                "roles." + uid, "member"
-        ).addOnSuccessListener(v -> {
-            selectedGroupId = groupId;
-            SessionStore.setCurrentGroup(requireContext(), groupId);
-            SessionStore.clearCurrentRoom(requireContext());
-            loadGroups();
-            if (requireActivity() instanceof MainActivity) {
-                ((MainActivity) requireActivity()).openCurrentGroupWorkspace();
-            }
-        });
+                },
+                error -> Toast.makeText(requireContext(), error, Toast.LENGTH_SHORT).show()
+        );
     }
 
     private void showInviteOptionsDialog(String groupId) {
@@ -619,32 +626,14 @@ public class GroupsFragment extends Fragment {
                             ? ""
                             : FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
 
-                    db.collection("groups").document(groupId).get()
-                            .addOnSuccessListener(groupDoc -> {
-                                String currentGroupName = groupDoc.getString("name");
-                                if (currentGroupName == null || currentGroupName.trim().isEmpty()) {
-                                    currentGroupName = "Piso";
-                                }
-                                String currentShareCode = groupDoc.getString("shareCode");
-                                if (currentShareCode == null || currentShareCode.trim().isEmpty()) {
-                                    currentShareCode = groupId.toUpperCase(Locale.ROOT);
-                                }
-
-                                Map<String, Object> inv = new HashMap<>();
-                                inv.put("groupId", groupId);
-                                inv.put("groupName", currentGroupName);
-                                inv.put("shareCode", currentShareCode);
-                                inv.put("invitedEmail", invitedEmail);
-                                inv.put("inviterUid", inviterUid);
-                                inv.put("inviterEmail", inviterEmail);
-                                inv.put("status", "pending");
-                                inv.put("createdAt", FieldValue.serverTimestamp());
-
-                                db.collection("invitations").add(inv)
-                                        .addOnSuccessListener(v -> Toast.makeText(requireContext(), "Invitacion creada", Toast.LENGTH_SHORT).show())
-                                        .addOnFailureListener(e -> Toast.makeText(requireContext(), "No se pudo crear la invitacion", Toast.LENGTH_SHORT).show());
-                            })
-                            .addOnFailureListener(e -> Toast.makeText(requireContext(), "No se pudo leer el piso", Toast.LENGTH_SHORT).show());
+                    invitationService.createEmailInvitation(
+                            groupId,
+                            invitedEmail,
+                            inviterUid,
+                            inviterEmail,
+                            () -> Toast.makeText(requireContext(), "Invitacion creada", Toast.LENGTH_SHORT).show(),
+                            error -> Toast.makeText(requireContext(), error, Toast.LENGTH_SHORT).show()
+                    );
                     return true;
                 }
         );
@@ -894,11 +883,17 @@ public class GroupsFragment extends Fragment {
         );
         AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
         shell.cancelBtn.setOnClickListener(v -> {
-            db.collection("invitations").document(invitationId).update("status", "rejected")
-                    .addOnCompleteListener(t -> {
+            invitationService.rejectInvitation(
+                    invitationId,
+                    () -> {
                         dialog.dismiss();
                         showInvitationDecision(pendingInvitations, index + 1);
-                    });
+                    },
+                    error -> {
+                        dialog.dismiss();
+                        showInvitationDecision(pendingInvitations, index + 1);
+                    }
+            );
         });
         shell.confirmBtn.setOnClickListener(v -> {
             dialog.dismiss();
@@ -909,22 +904,24 @@ public class GroupsFragment extends Fragment {
     private void acceptInvitation(String invitationId, String groupId) {
         String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
         String email = FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
-        db.collection("groups").document(groupId).update(
-                "members", FieldValue.arrayUnion(uid),
-                "memberEmails", FieldValue.arrayUnion(email),
-                "roles." + uid, "member"
-        ).addOnSuccessListener(v -> {
-            db.collection("invitations").document(invitationId).update("status", "accepted");
-            SessionStore.setCurrentGroup(requireContext(), groupId);
-            SessionStore.clearCurrentRoom(requireContext());
-            loadGroups();
-            if (requireActivity() instanceof MainActivity) {
-                ((MainActivity) requireActivity()).openCurrentGroupWorkspace();
-            }
-        }).addOnFailureListener(e -> {
-            if (!isAdded()) return;
-            Toast.makeText(requireContext(), "No se pudo aceptar la invitacion", Toast.LENGTH_SHORT).show();
-        });
+        invitationService.acceptInvitation(
+                invitationId,
+                groupId,
+                uid,
+                email,
+                () -> {
+                    SessionStore.setCurrentGroup(requireContext(), groupId);
+                    SessionStore.clearCurrentRoom(requireContext());
+                    loadGroups();
+                    if (requireActivity() instanceof MainActivity) {
+                        ((MainActivity) requireActivity()).openCurrentGroupWorkspace();
+                    }
+                },
+                error -> {
+                    if (!isAdded()) return;
+                    Toast.makeText(requireContext(), "No se pudo aceptar la invitacion", Toast.LENGTH_SHORT).show();
+                }
+        );
     }
 
     private String buildDetailedMembersLabel(List<String> displayNames, List<String> memberEmails) {
@@ -950,37 +947,74 @@ public class GroupsFragment extends Fragment {
     }
     private void loadGroups() {
         String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
-        db.collection("groups").whereArrayContains("members", uid).get().addOnSuccessListener(res -> {
+        groupService.loadGroupsForUser(uid, (loadedGroups, membersTotal) -> {
+            allGroups.clear();
             groups.clear();
             animatedPositions.clear();
-            int membersTotal = 0;
-            for (DocumentSnapshot doc : res.getDocuments()) {
-                String name = doc.getString("name");
-                String description = doc.getString("description");
-                String ownerId = doc.getString("ownerId");
-                Object membersField = doc.get("members");
-                List<?> members = membersField instanceof List ? (List<?>) membersField : null;
-                int count = members == null ? 0 : members.size();
-                membersTotal += count;
-                groups.add(new GroupItem(
-                        doc.getId(),
-                        name == null ? "Piso" : name,
-                        count,
-                        description == null || description.trim().isEmpty() ? "Sin direccion cargada" : description,
-                        uid.equals(ownerId)
+            for (GroupService.GroupSummary group : loadedGroups) {
+                allGroups.add(new GroupItem(
+                        group.id,
+                        group.name,
+                        group.members,
+                        group.description,
+                        group.isOwner
                 ));
             }
-            adapter.notifyDataSetChanged();
-            totalGroupsTv.setText(String.valueOf(groups.size()));
+            applyGroupSearchFilter();
+            totalGroupsTv.setText(String.valueOf(allGroups.size()));
             totalMembersTv.setText(String.valueOf(membersTotal));
-            if (emptyGroupsTv != null) {
-                emptyGroupsTv.setVisibility(groups.isEmpty() ? View.VISIBLE : View.GONE);
-            }
-        }).addOnFailureListener(e -> {
+        }, error -> {
             if (!isAdded()) return;
-            Toast.makeText(requireContext(), "Error cargando pisos: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            Toast.makeText(requireContext(), "Error cargando pisos: " + error, Toast.LENGTH_LONG).show();
             if (emptyGroupsTv != null) emptyGroupsTv.setVisibility(View.VISIBLE);
         });
+    }
+
+    private void applyGroupSearchFilter() {
+        groups.clear();
+        String query = currentGroupSearchQuery == null ? "" : currentGroupSearchQuery.trim().toLowerCase(Locale.ROOT);
+        for (GroupItem group : allGroups) {
+            if (matchesGroupSearch(group, query)) {
+                groups.add(group);
+            }
+        }
+
+        animatedPositions.clear();
+        adapter.notifyDataSetChanged();
+
+        if (emptyGroupsTv != null) {
+            if (allGroups.isEmpty()) {
+                emptyGroupsTv.setText("Aun no tienes pisos. Pulsa Crear piso.");
+                emptyGroupsTv.setVisibility(View.VISIBLE);
+            } else if (!query.isEmpty() && groups.isEmpty()) {
+                emptyGroupsTv.setText("No hay pisos que coincidan con la busqueda.");
+                emptyGroupsTv.setVisibility(View.VISIBLE);
+            } else {
+                emptyGroupsTv.setVisibility(View.GONE);
+            }
+        }
+
+        if (selectedGroupId != null && detailsCard != null && detailsCard.getVisibility() == View.VISIBLE) {
+            boolean visibleInFiltered = false;
+            for (GroupItem item : groups) {
+                if (selectedGroupId.equals(item.id)) {
+                    visibleInFiltered = true;
+                    break;
+                }
+            }
+            if (!visibleInFiltered) {
+                selectedGroupId = null;
+                selectedGroupIsOwner = false;
+                detailsCard.setVisibility(View.GONE);
+            }
+        }
+    }
+
+    private boolean matchesGroupSearch(GroupItem group, String query) {
+        if (query == null || query.isEmpty()) return true;
+        String name = stringValue(group.name).toLowerCase(Locale.ROOT);
+        String description = stringValue(group.description).toLowerCase(Locale.ROOT);
+        return name.contains(query) || description.contains(query);
     }
 
     private void loadGroupDetails(String groupId) {
@@ -1002,6 +1036,7 @@ public class GroupsFragment extends Fragment {
         String ownerId = doc.getString("ownerId");
         String myUid = FirebaseAuth.getInstance().getCurrentUser().getUid();
         boolean isOwner = ownerId != null && ownerId.equals(myUid);
+        selectedGroupIsOwner = isOwner;
 
         detailNameTv.setText(name == null ? "Grupo" : name);
         detailDescTv.setText(desc);
@@ -1024,6 +1059,7 @@ public class GroupsFragment extends Fragment {
             }
         });
 
+        editGroupBtn.setVisibility(isOwner ? View.VISIBLE : View.GONE);
         manageRoomsBtn.setVisibility(isOwner ? View.VISIBLE : View.GONE);
         deleteGroupBtn.setVisibility(isOwner ? View.VISIBLE : View.GONE);
         detailsCard.setVisibility(View.VISIBLE);
@@ -1170,6 +1206,10 @@ public class GroupsFragment extends Fragment {
             Toast.makeText(requireContext(), "Selecciona un grupo primero", Toast.LENGTH_SHORT).show();
             return;
         }
+        if (!selectedGroupIsOwner) {
+            Toast.makeText(requireContext(), "Solo el propietario puede editar este piso", Toast.LENGTH_SHORT).show();
+            return;
+        }
         View form = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_edit_group, null, false);
         EditText nameEt = form.findViewById(R.id.editGroupNameEt);
         EditText descEt = form.findViewById(R.id.editGroupDescEt);
@@ -1204,6 +1244,10 @@ public class GroupsFragment extends Fragment {
     private void requestDeleteSelectedGroup() {
         if (selectedGroupId == null) {
             Toast.makeText(requireContext(), "Selecciona un piso primero", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (!selectedGroupIsOwner) {
+            Toast.makeText(requireContext(), "Solo el propietario puede eliminar este piso", Toast.LENGTH_SHORT).show();
             return;
         }
         View content = DialogUtils.createMessageView(requireContext(),
