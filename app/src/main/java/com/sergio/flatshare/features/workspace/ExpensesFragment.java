@@ -75,6 +75,7 @@ import com.sergio.flatshare.features.workspace.services.PaymentService;
 import com.sergio.flatshare.features.workspace.services.ReminderService;
 
 import java.text.DecimalFormat;
+import java.text.Normalizer;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -1690,38 +1691,51 @@ public class ExpensesFragment extends Fragment {
 
     private void setupPaymentTargetSelectors(View form, List<String> members, List<RoomOption> rooms, @Nullable String defaultRoomId) {
         Spinner targetTypeSpinner = form.findViewById(R.id.paymentTargetTypeSpinner);
-        Spinner roomSpinner = form.findViewById(R.id.paymentRoomSpinner);
+        LinearLayout roomsContainer = form.findViewById(R.id.paymentRoomsContainer);
+        Button addRoomLineBtn = form.findViewById(R.id.addPaymentRoomLineBtn);
+        Button removeRoomLineBtn = form.findViewById(R.id.removePaymentRoomLineBtn);
         LinearLayout membersContainer = form.findViewById(R.id.paymentMembersContainer);
         Button addMemberLineBtn = form.findViewById(R.id.addPaymentMemberLineBtn);
         Button removeMemberLineBtn = form.findViewById(R.id.removePaymentMemberLineBtn);
 
         targetTypeSpinner.setAdapter(buildLightSpinnerAdapter(PAYMENT_TARGET_TYPES));
-        String[] roomLabels = new String[rooms.size()];
-        for (int i = 0; i < rooms.size(); i++) {
-            roomLabels[i] = rooms.get(i).name;
-        }
-        roomSpinner.setAdapter(buildLightSpinnerAdapter(roomLabels));
 
-        rebindPaymentMemberLines(form, members, null);
+        rebindPaymentRoomLines(form, rooms, members.size(), null);
+        addRoomLineBtn.setOnClickListener(v -> {
+            List<String> currentKeys = collectPaymentRoomLineKeys(roomsContainer);
+            currentKeys.add(firstAvailableRoomKey(rooms, currentKeys));
+            rebindPaymentRoomLines(form, rooms, members.size(), currentKeys);
+            updatePaymentTargetSection(form, targetTypeSpinner.getSelectedItemPosition(), members.size(), rooms.size());
+        });
+        removeRoomLineBtn.setOnClickListener(v -> {
+            List<String> currentKeys = collectPaymentRoomLineKeys(roomsContainer);
+            if (currentKeys.size() > 1) {
+                currentKeys.remove(currentKeys.size() - 1);
+            }
+            rebindPaymentRoomLines(form, rooms, members.size(), currentKeys);
+            updatePaymentTargetSection(form, targetTypeSpinner.getSelectedItemPosition(), members.size(), rooms.size());
+        });
+
+        rebindPaymentMemberLines(form, members, rooms.size(), null);
         addMemberLineBtn.setOnClickListener(v -> {
             List<String> currentKeys = collectPaymentMemberLineKeys(membersContainer);
             currentKeys.add(firstAvailableMemberKey(members, currentKeys));
-            rebindPaymentMemberLines(form, members, currentKeys);
-            updatePaymentTargetSection(form, targetTypeSpinner.getSelectedItemPosition(), members.size());
+            rebindPaymentMemberLines(form, members, rooms.size(), currentKeys);
+            updatePaymentTargetSection(form, targetTypeSpinner.getSelectedItemPosition(), members.size(), rooms.size());
         });
         removeMemberLineBtn.setOnClickListener(v -> {
             List<String> currentKeys = collectPaymentMemberLineKeys(membersContainer);
             if (currentKeys.size() > 1) {
                 currentKeys.remove(currentKeys.size() - 1);
             }
-            rebindPaymentMemberLines(form, members, currentKeys);
-            updatePaymentTargetSection(form, targetTypeSpinner.getSelectedItemPosition(), members.size());
+            rebindPaymentMemberLines(form, members, rooms.size(), currentKeys);
+            updatePaymentTargetSection(form, targetTypeSpinner.getSelectedItemPosition(), members.size(), rooms.size());
         });
 
         targetTypeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                updatePaymentTargetSection(form, position, members.size());
+                updatePaymentTargetSection(form, position, members.size(), rooms.size());
             }
 
             @Override
@@ -1730,26 +1744,37 @@ public class ExpensesFragment extends Fragment {
         });
         int roomIndex = findRoomIndexById(rooms, defaultRoomId);
         if (roomIndex >= 0) {
+            List<String> initialRoomKeys = new ArrayList<>();
+            initialRoomKeys.add(rooms.get(roomIndex).id);
+            rebindPaymentRoomLines(form, rooms, members.size(), initialRoomKeys);
             targetTypeSpinner.setSelection(0);
-            roomSpinner.setSelection(roomIndex);
         } else {
             targetTypeSpinner.setSelection(1);
         }
     }
 
-    private void updatePaymentTargetSection(View form, int targetTypePosition, int membersCount) {
+    private void updatePaymentTargetSection(View form, int targetTypePosition, int membersCount, int roomsCount) {
         TextView memberLabelTv = form.findViewById(R.id.paymentMemberLabelTv);
         LinearLayout membersContainer = form.findViewById(R.id.paymentMembersContainer);
         Button addMemberLineBtn = form.findViewById(R.id.addPaymentMemberLineBtn);
         Button removeMemberLineBtn = form.findViewById(R.id.removePaymentMemberLineBtn);
         TextView roomLabelTv = form.findViewById(R.id.paymentRoomLabelTv);
-        Spinner roomSpinner = form.findViewById(R.id.paymentRoomSpinner);
+        LinearLayout roomsContainer = form.findViewById(R.id.paymentRoomsContainer);
+        Button addRoomLineBtn = form.findViewById(R.id.addPaymentRoomLineBtn);
+        Button removeRoomLineBtn = form.findViewById(R.id.removePaymentRoomLineBtn);
 
         boolean showRoomSection = targetTypePosition == 0;
         boolean showMemberSection = targetTypePosition == 1;
 
         roomLabelTv.setVisibility(showRoomSection ? View.VISIBLE : View.GONE);
-        roomSpinner.setVisibility(showRoomSection ? View.VISIBLE : View.GONE);
+        roomsContainer.setVisibility(showRoomSection ? View.VISIBLE : View.GONE);
+        int remainingRooms = roomsCount - roomsContainer.getChildCount();
+        addRoomLineBtn.setVisibility(showRoomSection && remainingRooms > 0 ? View.VISIBLE : View.GONE);
+        removeRoomLineBtn.setVisibility(showRoomSection ? View.VISIBLE : View.GONE);
+        boolean canRemoveRoom = showRoomSection && roomsContainer.getChildCount() > 1;
+        removeRoomLineBtn.setEnabled(canRemoveRoom);
+        removeRoomLineBtn.setAlpha(canRemoveRoom ? 1f : 0.45f);
+
         memberLabelTv.setVisibility(showMemberSection ? View.VISIBLE : View.GONE);
         membersContainer.setVisibility(showMemberSection ? View.VISIBLE : View.GONE);
 
@@ -1761,7 +1786,7 @@ public class ExpensesFragment extends Fragment {
         removeMemberLineBtn.setAlpha(canRemove ? 1f : 0.45f);
     }
 
-    private void rebindPaymentMemberLines(View form, List<String> members, @Nullable List<String> seedKeys) {
+    private void rebindPaymentMemberLines(View form, List<String> members, int roomsCount, @Nullable List<String> seedKeys) {
         LinearLayout container = form.findViewById(R.id.paymentMembersContainer);
         List<String> selectedKeys = seedKeys == null ? collectPaymentMemberLineKeys(container) : new ArrayList<>(seedKeys);
         if (selectedKeys.isEmpty()) {
@@ -1775,9 +1800,9 @@ public class ExpensesFragment extends Fragment {
             spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
                 @Override
                 public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                    rebindPaymentMemberLines(form, members, null);
+                    rebindPaymentMemberLines(form, members, roomsCount, null);
                     Spinner targetTypeSpinner = form.findViewById(R.id.paymentTargetTypeSpinner);
-                    updatePaymentTargetSection(form, targetTypeSpinner.getSelectedItemPosition(), members.size());
+                    updatePaymentTargetSection(form, targetTypeSpinner.getSelectedItemPosition(), members.size(), roomsCount);
                 }
 
                 @Override
@@ -1846,6 +1871,91 @@ public class ExpensesFragment extends Fragment {
         return keys;
     }
 
+    private void rebindPaymentRoomLines(View form, List<RoomOption> rooms, int membersCount, @Nullable List<String> seedKeys) {
+        LinearLayout container = form.findViewById(R.id.paymentRoomsContainer);
+        List<String> selectedKeys = seedKeys == null ? collectPaymentRoomLineKeys(container) : new ArrayList<>(seedKeys);
+        if (selectedKeys.isEmpty()) {
+            selectedKeys.add(firstAvailableRoomKey(rooms, Collections.emptyList()));
+        }
+        selectedKeys = deduplicateRoomKeys(selectedKeys);
+        container.removeAllViews();
+
+        for (int i = 0; i < selectedKeys.size(); i++) {
+            Spinner spinner = buildPaymentRoomLineSpinner(rooms, selectedKeys, i, selectedKeys.get(i));
+            spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                    rebindPaymentRoomLines(form, rooms, membersCount, null);
+                    Spinner targetTypeSpinner = form.findViewById(R.id.paymentTargetTypeSpinner);
+                    updatePaymentTargetSection(form, targetTypeSpinner.getSelectedItemPosition(), membersCount, rooms.size());
+                }
+
+                @Override
+                public void onNothingSelected(AdapterView<?> parent) {
+                }
+            });
+            container.addView(spinner);
+        }
+    }
+
+    private Spinner buildPaymentRoomLineSpinner(
+            List<RoomOption> rooms,
+            List<String> selectedKeys,
+            int spinnerIndex,
+            String selectedKey
+    ) {
+        Spinner spinner = new Spinner(requireContext(), Spinner.MODE_DROPDOWN);
+        spinner.setBackgroundResource(R.drawable.bg_select_dark_round);
+        spinner.setPadding(dp(12), 0, dp(12), 0);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(50)
+        );
+        if (spinnerIndex > 0) params.topMargin = dp(8);
+        spinner.setLayoutParams(params);
+
+        List<String> optionKeys = new ArrayList<>();
+        List<String> optionLabels = new ArrayList<>();
+        for (RoomOption room : rooms) {
+            boolean selectedElsewhere = false;
+            for (int i = 0; i < selectedKeys.size(); i++) {
+                if (i == spinnerIndex) continue;
+                if (room.id.equals(selectedKeys.get(i))) {
+                    selectedElsewhere = true;
+                    break;
+                }
+            }
+            if (!selectedElsewhere || room.id.equals(selectedKey)) {
+                optionKeys.add(room.id);
+                optionLabels.add(room.name);
+            }
+        }
+        if (optionKeys.isEmpty() && !rooms.isEmpty()) {
+            optionKeys.add(rooms.get(0).id);
+            optionLabels.add(rooms.get(0).name);
+        }
+
+        spinner.setTag(optionKeys);
+        spinner.setAdapter(buildLightSpinnerAdapter(optionLabels.toArray(new String[0])));
+        int selectedIndex = optionKeys.indexOf(selectedKey);
+        spinner.setSelection(selectedIndex >= 0 ? selectedIndex : 0);
+        return spinner;
+    }
+
+    private List<String> collectPaymentRoomLineKeys(LinearLayout container) {
+        List<String> keys = new ArrayList<>();
+        for (int i = 0; i < container.getChildCount(); i++) {
+            View child = container.getChildAt(i);
+            if (!(child instanceof Spinner spinner)) continue;
+            @SuppressWarnings("unchecked")
+            List<String> optionKeys = (List<String>) spinner.getTag();
+            int selected = spinner.getSelectedItemPosition();
+            if (optionKeys == null || selected < 0 || selected >= optionKeys.size()) continue;
+            keys.add(optionKeys.get(selected));
+        }
+        return keys;
+    }
+
     private List<PaymentService.PaymentRoom> toPaymentRooms(List<RoomOption> rooms) {
         List<PaymentService.PaymentRoom> out = new ArrayList<>();
         for (RoomOption room : rooms) {
@@ -1866,8 +1976,9 @@ public class ExpensesFragment extends Fragment {
         String dueDateText = ((EditText) form.findViewById(R.id.paymentDueDateEt)).getText().toString().trim();
         String targetType = ((Spinner) form.findViewById(R.id.paymentTargetTypeSpinner)).getSelectedItem().toString();
         LinearLayout memberLinesContainer = form.findViewById(R.id.paymentMembersContainer);
+        LinearLayout roomLinesContainer = form.findViewById(R.id.paymentRoomsContainer);
         List<String> selectedMemberEmails = collectPaymentMemberLineKeys(memberLinesContainer);
-        int roomIndex = ((Spinner) form.findViewById(R.id.paymentRoomSpinner)).getSelectedItemPosition();
+        List<String> selectedRoomIds = collectPaymentRoomLineKeys(roomLinesContainer);
         Date dueDate = parseDueDateOrNull(dueDateText);
         PaymentService.ValidationResult validation = paymentService.validateAmountAndRequiredFields(amountStr, dueDateText, dueDate);
         if (!validation.valid) {
@@ -1887,7 +1998,7 @@ public class ExpensesFragment extends Fragment {
                 members,
                 toPaymentRooms(rooms),
                 selectedMemberEmails,
-                roomIndex,
+                selectedRoomIds,
                 fromEmail
         );
         if (targets.isEmpty()) {
@@ -1907,6 +2018,10 @@ public class ExpensesFragment extends Fragment {
             }
         }
         String safeConcept = paymentService.resolveConcept(concept, suggestedConcept);
+        String safeTargetType = targetType;
+        if ("Habitación".equals(targetType) && selectedRoomIds.size() > 1) {
+            safeTargetType = "x_habitacion";
+        }
         List<PaymentService.PaymentWrite> writes = paymentService.buildWrites(
                 currentGroupId,
                 amount,
@@ -1916,7 +2031,7 @@ public class ExpensesFragment extends Fragment {
                 dueDate,
                 dueDateText,
                 safeConcept,
-                targetType,
+                safeTargetType,
                 targets
         );
         WriteBatch batch = db.batch();
@@ -2515,7 +2630,7 @@ public class ExpensesFragment extends Fragment {
     }
 
     private String buildReminderSubtitle(DocumentSnapshot doc) {
-        String targetType = doc.getString("targetType");
+        String targetType = safeLowerText(doc.getString("targetType"));
         String startDateText = doc.getString("startDateText");
         String endDateText = doc.getString("endDateText");
         String interval = doc.getString("interval");
@@ -3037,6 +3152,10 @@ public class ExpensesFragment extends Fragment {
         if (!hasRoomContext()) return true;
         String paymentRoomId = doc.getString("roomId");
         if (paymentRoomId != null && paymentRoomId.equals(currentRoomId)) {
+            return true;
+        }
+        List<String> paymentRoomIds = castStrings(doc.get("roomIds"));
+        if (paymentRoomIds.contains(currentRoomId)) {
             return true;
         }
         String from = fromEmail == null ? "" : fromEmail.toLowerCase(Locale.ROOT);
@@ -4548,7 +4667,10 @@ public class ExpensesFragment extends Fragment {
     }
 
     private String safeLowerText(@Nullable String value) {
-        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+        if (value == null) return "";
+        String lower = value.trim().toLowerCase(Locale.ROOT);
+        String normalized = Normalizer.normalize(lower, Normalizer.Form.NFD);
+        return normalized.replaceAll("\\p{M}+", "");
     }
 
     private boolean canManageRooms() {

@@ -205,6 +205,10 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
 - Refuerzo de permisos UI en pisos:
   - `Editar` y `Eliminar piso` bloqueados para no propietarios tambien en interfaz,
   - validacion adicional en codigo para impedir accion aunque se fuerce la UI.
+- Ajuste de pagos para alquiler fijo/variable:
+  - en `Registrar pago`, el destino por `Habitación` pasa de selector simple a selector por líneas (múltiple),
+  - se pueden añadir/quitar habitaciones y repartir solo entre inquilinos de esas habitaciones,
+  - se guardan `roomIds`/`roomNames` en `payments` para trazabilidad y filtros por contexto de habitación.
 - Refactor incremental (strangler pattern) para reducir complejidad en fragments:
   - `ExpensesFragment`: extraidos `CategorySuggestionsRepository` (con cache/limit), `PaymentService`, `ExpenseService`, `ReminderService` y `ExpenseDialogs`.
   - `GroupsFragment`: extraidos `GroupService`, `InvitationService` e `InitialRoomsSetupFlow`.

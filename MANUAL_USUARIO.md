@@ -194,6 +194,8 @@ Campos de pago:
 - Importe, concepto, categoria, prioridad, fecha limite.
 - En `alquiler variable`, la categoria es editable (texto libre) y reutiliza sugerencias historicas al registrar nuevos pagos/gastos.
 - Destino (habitacion, miembro o todos).
+- Si el destino es `Habitación`, ahora se pueden seleccionar una o varias habitaciones (añadiendo/quitar líneas).
+- El reparto del pago se calcula solo con inquilinos de las habitaciones seleccionadas.
 - Si el destino es `Miembro`, se pueden anadir o quitar lineas de destinatario (minimo 1).
 - Estado (`pending`, `confirmed`, `rejected`).
 

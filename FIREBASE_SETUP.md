@@ -106,9 +106,11 @@ Campos principales:
 - `fromEmail`
 - `toEmail`
 - `concept`
-- `targetType` (`habitacion`, `miembro`, `todos`)
+- `targetType` (`habitacion`, `x_habitacion`, `miembro`, `todos`)
 - `roomId` (opcional)
 - `roomName` (opcional)
+- `roomIds` (array opcional): habitaciones seleccionadas cuando aplica.
+- `roomNames` (array opcional): nombres de habitaciones seleccionadas cuando aplica.
 - `category`
 - `priority`
 - `status`

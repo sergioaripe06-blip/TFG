@@ -5,9 +5,11 @@ import androidx.annotation.Nullable;
 
 import com.google.firebase.firestore.FieldValue;
 
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -49,11 +51,25 @@ public class PaymentService {
         public final String toEmail;
         @Nullable public final String roomId;
         @Nullable public final String roomName;
+        @NonNull public final List<String> roomIds;
+        @NonNull public final List<String> roomNames;
 
         public PaymentTarget(@NonNull String toEmail, @Nullable String roomId, @Nullable String roomName) {
+            this(toEmail, roomId, roomName, new ArrayList<>(), new ArrayList<>());
+        }
+
+        public PaymentTarget(
+                @NonNull String toEmail,
+                @Nullable String roomId,
+                @Nullable String roomName,
+                @NonNull List<String> roomIds,
+                @NonNull List<String> roomNames
+        ) {
             this.toEmail = toEmail;
             this.roomId = roomId;
             this.roomName = roomName;
+            this.roomIds = roomIds;
+            this.roomNames = roomNames;
         }
     }
 
@@ -119,11 +135,13 @@ public class PaymentService {
             @NonNull List<String> members,
             @NonNull List<PaymentRoom> rooms,
             @NonNull List<String> selectedMemberEmails,
-            int roomIndex,
+            @NonNull List<String> selectedRoomIds,
             @NonNull String fromEmail
     ) {
         List<PaymentTarget> targets = new ArrayList<>();
-        if ("Miembro".equals(targetType)) {
+        String normalizedTargetType = normalizeText(targetType);
+
+        if ("miembro".equals(normalizedTargetType)) {
             List<String> unique = deduplicate(selectedMemberEmails);
             for (String selected : unique) {
                 String toEmail = selected.toLowerCase(Locale.ROOT);
@@ -134,16 +152,49 @@ public class PaymentService {
             return targets;
         }
 
-        if ("Habitación".equals(targetType)) {
-            if (roomIndex >= 0 && roomIndex < rooms.size()) {
-                PaymentRoom room = rooms.get(roomIndex);
-                for (String resident : room.memberEmails) {
-                    String email = resident.toLowerCase(Locale.ROOT);
-                    if (!email.equals(fromEmail)) {
-                        targets.add(new PaymentTarget(email, room.id, room.name));
-                    }
+        if ("habitacion".equals(normalizedTargetType)) {
+            Map<String, PaymentRoom> roomsById = new LinkedHashMap<>();
+            for (PaymentRoom room : rooms) {
+                roomsById.put(room.id, room);
+            }
+
+            List<String> uniqueRoomIds = deduplicate(selectedRoomIds);
+            List<PaymentRoom> selectedRooms = new ArrayList<>();
+            for (String roomId : uniqueRoomIds) {
+                PaymentRoom room = roomsById.get(roomId);
+                if (room != null) {
+                    selectedRooms.add(room);
                 }
             }
+            if (selectedRooms.isEmpty()) {
+                return targets;
+            }
+
+            List<String> selectedRoomNames = new ArrayList<>();
+            for (PaymentRoom room : selectedRooms) {
+                selectedRoomNames.add(room.name);
+            }
+
+            Map<String, PaymentTarget> targetsByEmail = new LinkedHashMap<>();
+            for (PaymentRoom room : selectedRooms) {
+                for (String resident : room.memberEmails) {
+                    String email = resident.toLowerCase(Locale.ROOT);
+                    if (email.equals(fromEmail) || targetsByEmail.containsKey(email)) {
+                        continue;
+                    }
+                    targetsByEmail.put(
+                            email,
+                            new PaymentTarget(
+                                    email,
+                                    room.id,
+                                    room.name,
+                                    new ArrayList<>(uniqueRoomIds),
+                                    new ArrayList<>(selectedRoomNames)
+                            )
+                    );
+                }
+            }
+            targets.addAll(targetsByEmail.values());
             return targets;
         }
 
@@ -185,9 +236,11 @@ public class PaymentService {
             data.put("dueAt", dueDate);
             data.put("dueDateText", dueDateText);
             data.put("concept", concept);
-            data.put("targetType", targetType.toLowerCase(Locale.ROOT));
+            data.put("targetType", normalizeText(targetType));
             data.put("roomId", target.roomId == null ? "" : target.roomId);
             data.put("roomName", target.roomName == null ? "" : target.roomName);
+            data.put("roomIds", target.roomIds);
+            data.put("roomNames", target.roomNames);
             writes.add(new PaymentWrite(data, target.toEmail, splitAmount));
         }
         return writes;
@@ -201,5 +254,12 @@ public class PaymentService {
         }
         return unique;
     }
-}
 
+    @NonNull
+    private String normalizeText(@Nullable String value) {
+        if (value == null) return "";
+        String lower = value.trim().toLowerCase(Locale.ROOT);
+        String normalized = Normalizer.normalize(lower, Normalizer.Form.NFD);
+        return normalized.replaceAll("\\p{M}+", "");
+    }
+}
