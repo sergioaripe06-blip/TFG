@@ -282,6 +282,12 @@ Ver detalle completo en:
 - `FIREBASE_SETUP.md`
 - `firestore.rules`
 
+## 8.1 Conectividad Android (requisito)
+- La app necesita permisos de red en `AndroidManifest.xml`:
+  - `android.permission.INTERNET`
+  - `android.permission.ACCESS_NETWORK_STATE`
+- Si faltan, pueden aparecer errores de networking como timeouts, fallos de Wi-Fi o imposibilidad de conectar con Firebase.
+
 ## 9. Limitaciones actuales conocidas
 - Hay textos antiguos con codificacion danada en algunos archivos legacy; se corrigen progresivamente al tocar cada modulo.
 - Advertencia actual de AGP con `compileSdk 35` en AGP `8.5.2` (no bloqueante).

@@ -250,6 +250,20 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
 - Impacto:
   - evita commits masivos con miles de archivos temporales de entorno local.
 
+## 2026-05-22
+- Tipo: Corrección técnica (conectividad Android)
+- Se corrige `AndroidManifest.xml` añadiendo permisos de red faltantes:
+  - `android.permission.INTERNET`
+  - `android.permission.ACCESS_NETWORK_STATE`
+- Motivo:
+  - la app mostraba errores de networking (timeouts/Wi-Fi) al acceder a Firebase.
+- Impacto:
+  - restablece la conectividad para login, lecturas y escrituras en Firestore.
+- Archivos afectados:
+  - `app/src/main/AndroidManifest.xml`
+- Firebase:
+  - revisado `FIREBASE_SETUP.md`; sin cambios de esquema ni de reglas.
+
 ---
 
 ## Resumen Firebase (estado funcional)
