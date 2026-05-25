@@ -11,23 +11,9 @@
     </item>
 
     <item
-        android:width="34dp"
-        android:top="1dp"
-        android:bottom="1dp"
-        android:end="1dp"
-        android:gravity="end|fill_vertical">
-        <shape android:shape="rectangle">
-            <corners
-                android:topRightRadius="16dp"
-                android:bottomRightRadius="16dp" />
-            <solid android:color="@color/bg_deep_green_3" />
-        </shape>
-    </item>
-
-    <item
-        android:width="12dp"
-        android:height="12dp"
-        android:end="10dp"
+        android:width="14dp"
+        android:height="14dp"
+        android:end="12dp"
         android:gravity="end|center_vertical"
         android:drawable="@drawable/ic_select_chevron_down" />
 </layer-list>

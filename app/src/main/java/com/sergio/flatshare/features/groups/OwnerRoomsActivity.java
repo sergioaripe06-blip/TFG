@@ -6,16 +6,22 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
+import android.text.Editable;
 import android.text.InputType;
+import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.ScrollView;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -43,14 +49,19 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Hashtable;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 public class OwnerRoomsActivity extends AppCompatActivity {
     public static final String EXTRA_GROUP_ID = "extra_group_id";
     public static final String EXTRA_OPEN_WORKSPACE = "open_workspace";
+    private static final String ROOM_SPLIT_EQUAL = "equal";
+    private static final String ROOM_SPLIT_PERCENTAGE = "percentage";
 
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
     private final List<RoomItem> rooms = new ArrayList<>();
@@ -180,13 +191,20 @@ public class OwnerRoomsActivity extends AppCompatActivity {
                         Long roomNumber = doc.getLong("roomNumber");
                         Long capacity = doc.getLong("capacity");
                         Double monthlyCost = doc.getDouble("monthlyCost");
+                        List<String> memberEmails = castEmails(doc.get("memberEmails"));
+                        String rentSplitMode = normalizeRoomSplitMode(doc.getString("rentSplitMode"));
+                        Map<String, Double> rentSplitPercentages = castPercentages(doc.get("rentSplitPercentages"));
+                        List<String> rentSplitOrder = castEmails(doc.get("rentSplitOrder"));
                         rooms.add(new RoomItem(
                                 doc.getId(),
                                 name == null || name.trim().isEmpty() ? "Habitación" : name,
                                 roomNumber == null ? 0 : roomNumber.intValue(),
                                 capacity == null ? 0 : capacity.intValue(),
                                 monthlyCost == null ? 0.0 : monthlyCost,
-                                castEmails(doc.get("memberEmails"))
+                                memberEmails,
+                                rentSplitMode,
+                                rentSplitPercentages,
+                                rentSplitOrder
                         ));
                     }
                     Collections.sort(rooms, Comparator.comparingInt(a -> a.roomNumber <= 0 ? Integer.MAX_VALUE : a.roomNumber));
@@ -202,11 +220,11 @@ public class OwnerRoomsActivity extends AppCompatActivity {
         EditText roomNameEt = form.findViewById(R.id.roomNameEt);
         EditText roomCapacityEt = form.findViewById(R.id.roomCapacityEt);
         EditText roomCostEt = form.findViewById(R.id.roomCostEt);
-        roomNameEt.setHint("Nombre de la habitación:");
+        roomNameEt.setHint("Nombre de la habitacion:");
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 this,
-                "Nueva habitación",
+                "Nueva habitacion",
                 "Indica nombre, capacidad y coste mensual.",
                 form,
                 "Cancelar",
@@ -219,7 +237,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
             String capacityText = roomCapacityEt.getText().toString().trim();
             String costText = roomCostEt.getText().toString().trim();
             if (roomName.isEmpty() || capacityText.isEmpty() || costText.isEmpty()) {
-                Toast.makeText(this, "Completa todos los datos de la habitación", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Completa todos los datos de la habitacion", Toast.LENGTH_SHORT).show();
                 return;
             }
 
@@ -230,7 +248,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
                 capacity = Integer.parseInt(capacityText);
                 monthlyCost = Double.parseDouble(costText);
             } catch (NumberFormatException e) {
-                Toast.makeText(this, "Capacidad o coste no válidos", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Capacidad o coste no validos", Toast.LENGTH_SHORT).show();
                 return;
             }
             if (capacity <= 0) {
@@ -242,28 +260,42 @@ public class OwnerRoomsActivity extends AppCompatActivity {
                 return;
             }
 
-            String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
-            Map<String, Object> room = new HashMap<>();
-            room.put("groupId", groupId);
-            room.put("roomNumber", roomNumber);
-            room.put("name", roomName);
-            room.put("capacity", capacity);
-            room.put("monthlyCost", monthlyCost);
-            room.put("memberEmails", new ArrayList<String>());
-            room.put("memberCount", 0);
-            room.put("createdByUid", uid);
-            room.put("updatedByUid", uid);
-            room.put("createdAt", FieldValue.serverTimestamp());
-            room.put("updatedAt", FieldValue.serverTimestamp());
+            openRoomResidentsConfigDialog(
+                    "Configurar inquilinos",
+                    "Elige quien ocupa cada plaza y como se reparte el alquiler.",
+                    capacity,
+                    new ArrayList<>(),
+                    ROOM_SPLIT_EQUAL,
+                    new HashMap<>(),
+                    new ArrayList<>(),
+                    result -> {
+                        String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+                        Map<String, Object> room = new HashMap<>();
+                        room.put("groupId", groupId);
+                        room.put("roomNumber", roomNumber);
+                        room.put("name", roomName);
+                        room.put("capacity", capacity);
+                        room.put("monthlyCost", monthlyCost);
+                        room.put("memberEmails", result.members);
+                        room.put("memberCount", result.members.size());
+                        room.put("rentSplitMode", result.splitMode);
+                        room.put("rentSplitPercentages", result.splitPercentages);
+                        room.put("rentSplitOrder", result.splitOrder);
+                        room.put("createdByUid", uid);
+                        room.put("updatedByUid", uid);
+                        room.put("createdAt", FieldValue.serverTimestamp());
+                        room.put("updatedAt", FieldValue.serverTimestamp());
 
-            db.collection("rooms_groups")
-                    .add(room)
-                    .addOnSuccessListener(v2 -> {
-                        Toast.makeText(this, "Habitación creada", Toast.LENGTH_SHORT).show();
-                        loadRooms();
-                        dialog.dismiss();
-                    })
-                    .addOnFailureListener(e -> Toast.makeText(this, "No se pudo crear", Toast.LENGTH_SHORT).show());
+                        db.collection("rooms_groups")
+                                .add(room)
+                                .addOnSuccessListener(v2 -> {
+                                    Toast.makeText(this, "Habitacion creada", Toast.LENGTH_SHORT).show();
+                                    loadRooms();
+                                    dialog.dismiss();
+                                })
+                                .addOnFailureListener(e -> Toast.makeText(this, "No se pudo crear", Toast.LENGTH_SHORT).show());
+                    }
+            );
         });
     }
 
@@ -302,53 +334,22 @@ public class OwnerRoomsActivity extends AppCompatActivity {
     }
 
     private void showAssignResidentsDialog(RoomItem room) {
-        if (groupMembers.isEmpty()) {
-            Toast.makeText(this, "No hay residentes en el piso todavia", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        String[] memberItems = new String[groupMembers.size()];
-        boolean[] checkedItems = new boolean[groupMembers.size()];
-        for (int i = 0; i < groupMembers.size(); i++) {
-            memberItems[i] = formatMemberNameAndEmail(groupMembers.get(i), i + 1);
-            checkedItems[i] = room.memberEmails.contains(groupMembers.get(i));
-        }
-
-        LinearLayout customTitle = new LinearLayout(this);
-        customTitle.setOrientation(LinearLayout.HORIZONTAL);
-        customTitle.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        customTitle.setPadding(dp(24), dp(16), dp(8), dp(8));
-
-        TextView titleTv = new TextView(this);
-        titleTv.setText("Asignar residentes");
-        titleTv.setTextColor(getColor(R.color.text_light));
-        titleTv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 20);
-        titleTv.setTypeface(titleTv.getTypeface(), android.graphics.Typeface.BOLD);
-        titleTv.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-
-        TextView closeXTv = new TextView(this);
-        closeXTv.setText("\u00D7");
-        closeXTv.setTextColor(getColor(R.color.text_muted));
-        closeXTv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 24);
-        closeXTv.setPadding(dp(12), dp(4), dp(12), dp(4));
-
-        customTitle.addView(titleTv);
-        customTitle.addView(closeXTv);
-
-        AlertDialog dialog = new AlertDialog.Builder(this, R.style.ThemeOverlay_FlatShare_Dialog)
-                .setCustomTitle(customTitle)
-                .setMultiChoiceItems(memberItems, checkedItems, (dialogInterface, which, isChecked) -> checkedItems[which] = isChecked)
-                .setNegativeButton("Cancelar", null)
-                .setPositiveButton("Guardar", (dialogInterface, which) -> {
-                    List<String> selected = new ArrayList<>();
-                    for (int i = 0; i < checkedItems.length; i++) {
-                        if (checkedItems[i]) {
-                            selected.add(groupMembers.get(i));
-                        }
-                    }
+        if (!isOwner) return;
+        openRoomResidentsConfigDialog(
+                "Editar inquilinos",
+                "Elige que inquilino va en cada plaza y ajusta el reparto del alquiler.",
+                Math.max(1, room.capacity),
+                room.memberEmails,
+                room.rentSplitMode,
+                room.rentSplitPercentages,
+                room.rentSplitOrder,
+                result -> {
                     Map<String, Object> updates = new HashMap<>();
-                    updates.put("memberEmails", selected);
-                    updates.put("memberCount", selected.size());
+                    updates.put("memberEmails", result.members);
+                    updates.put("memberCount", result.members.size());
+                    updates.put("rentSplitMode", result.splitMode);
+                    updates.put("rentSplitPercentages", result.splitPercentages);
+                    updates.put("rentSplitOrder", result.splitOrder);
                     updates.put("updatedByUid", FirebaseAuth.getInstance().getCurrentUser().getUid());
                     updates.put("updatedAt", FieldValue.serverTimestamp());
 
@@ -359,12 +360,10 @@ public class OwnerRoomsActivity extends AppCompatActivity {
                                 loadRooms();
                             })
                             .addOnFailureListener(e -> Toast.makeText(this, "No se pudo guardar", Toast.LENGTH_SHORT).show());
-                })
-                .create();
-
-        closeXTv.setOnClickListener(v -> dialog.dismiss());
-        dialog.show();
+                }
+        );
     }
+
     private void renameRoomDialog(RoomItem room) {
         showSingleInputDialog(
                 "Renombrar habitación",
@@ -428,7 +427,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 this,
-                "Invitar al piso",
+                "Añadir al piso",
                 "Comparte el acceso con nuevos residentes.",
                 content,
                 "Cerrar",
@@ -466,7 +465,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 this,
                 "QR del piso",
-                "Comparte este QR para invitar residentes.",
+                "Comparte este QR para añadir residentes.",
                 content,
                 null,
                 "Cerrar"
@@ -478,8 +477,8 @@ public class OwnerRoomsActivity extends AppCompatActivity {
     private void inviteByEmailDialog() {
         if (!isOwner) return;
         showSingleInputDialog(
-                "Invitar por email",
-                "Envia una invitacion directa por correo.",
+                "Añadir por email",
+                "Envía una solicitud directa por correo.",
                 "Email del invitado:",
                 InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
                 "Enviar",
@@ -518,6 +517,388 @@ public class OwnerRoomsActivity extends AppCompatActivity {
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         startActivity(intent);
         finish();
+    }
+
+    private void openRoomResidentsConfigDialog(
+            String title,
+            String subtitle,
+            int capacity,
+            List<String> initialMembers,
+            String initialSplitMode,
+            Map<String, Double> initialSplitPercentages,
+            List<String> initialSplitOrder,
+            RoomResidentsConfigCallback onConfigured
+    ) {
+        int safeCapacity = Math.max(0, capacity);
+        int maxResidents = Math.min(safeCapacity, groupMembers.size());
+
+        ScrollView scroll = new ScrollView(this);
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(2), 0, dp(2), 0);
+        scroll.addView(content);
+
+        TextView countLabel = new TextView(this);
+        countLabel.setText("Número de inquilinos en la habitación");
+        countLabel.setTextColor(getColor(R.color.text_light));
+        countLabel.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 13);
+        countLabel.setPadding(0, 0, 0, dp(4));
+        content.addView(countLabel);
+
+        Spinner residentsCountSpinner = new Spinner(this, Spinner.MODE_DROPDOWN);
+        residentsCountSpinner.setBackgroundResource(R.drawable.bg_select_dark_round);
+        residentsCountSpinner.setPadding(dp(12), 0, dp(12), 0);
+        residentsCountSpinner.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(50)
+        ));
+        content.addView(residentsCountSpinner);
+
+        TextView countHintTv = new TextView(this);
+        countHintTv.setTextColor(getColor(R.color.text_muted));
+        countHintTv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12);
+        countHintTv.setPadding(0, dp(6), 0, dp(6));
+        content.addView(countHintTv);
+
+        LinearLayout slotsContainer = new LinearLayout(this);
+        slotsContainer.setOrientation(LinearLayout.VERTICAL);
+        slotsContainer.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        ));
+        content.addView(slotsContainer);
+
+        TextView splitModeLabel = new TextView(this);
+        splitModeLabel.setText("Reparto del alquiler en esta habitación");
+        splitModeLabel.setTextColor(getColor(R.color.text_light));
+        splitModeLabel.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 13);
+        splitModeLabel.setPadding(0, dp(12), 0, dp(4));
+        content.addView(splitModeLabel);
+
+        Spinner splitModeSpinner = new Spinner(this, Spinner.MODE_DROPDOWN);
+        splitModeSpinner.setBackgroundResource(R.drawable.bg_select_dark_round);
+        splitModeSpinner.setPadding(dp(12), 0, dp(12), 0);
+        splitModeSpinner.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(50)
+        ));
+        splitModeSpinner.setAdapter(buildLightSpinnerAdapter(new String[]{"Equitativo", "Porcentual"}));
+        splitModeSpinner.setSelection(ROOM_SPLIT_PERCENTAGE.equals(normalizeRoomSplitMode(initialSplitMode)) ? 1 : 0);
+        content.addView(splitModeSpinner);
+
+        TextView splitHintTv = new TextView(this);
+        splitHintTv.setTextColor(getColor(R.color.text_muted));
+        splitHintTv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12);
+        splitHintTv.setPadding(0, dp(6), 0, dp(6));
+        content.addView(splitHintTv);
+
+        LinearLayout percentageRowsContainer = new LinearLayout(this);
+        percentageRowsContainer.setOrientation(LinearLayout.VERTICAL);
+        percentageRowsContainer.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        ));
+        content.addView(percentageRowsContainer);
+
+        TextView autoPercentPreviewTv = new TextView(this);
+        autoPercentPreviewTv.setTextColor(getColor(R.color.text_muted));
+        autoPercentPreviewTv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12);
+        autoPercentPreviewTv.setPadding(0, dp(6), 0, 0);
+        content.addView(autoPercentPreviewTv);
+
+        int[] countValues = new int[maxResidents + 1];
+        String[] countLabels = new String[maxResidents + 1];
+        for (int i = 0; i <= maxResidents; i++) {
+            countValues[i] = i;
+            countLabels[i] = String.valueOf(i);
+        }
+        residentsCountSpinner.setAdapter(buildLightSpinnerAdapter(countLabels));
+
+        List<String> orderedInitialMembers = buildOrderedMembers(initialMembers, initialSplitOrder);
+        int initialCount = Math.min(orderedInitialMembers.size(), maxResidents);
+        residentsCountSpinner.setSelection(initialCount);
+
+        Map<String, Double> draftPercentages = new LinkedHashMap<>(initialSplitPercentages);
+        List<Spinner> slotSpinners = new ArrayList<>();
+        List<EditText> percentInputs = new ArrayList<>();
+        List<String> percentResidents = new ArrayList<>();
+        boolean[] isBindingSlots = new boolean[]{false};
+        Runnable[] refreshSplitRef = new Runnable[1];
+
+        Runnable rebuildSlots = () -> {
+            int selectedCount = countValues[Math.max(0, residentsCountSpinner.getSelectedItemPosition())];
+            slotsContainer.removeAllViews();
+            slotSpinners.clear();
+
+            if (selectedCount == 0) {
+                countHintTv.setText("Sin inquilinos asignados en esta habitación.");
+                return;
+            }
+            countHintTv.setText("Selecciona quién ocupa cada plaza. Puedes elegir quién va en Inquilino 1, 2, 3...");
+
+            List<String> memberLabels = new ArrayList<>();
+            for (String email : groupMembers) {
+                memberLabels.add(displayNameForEmail(email));
+            }
+            String[] labelArray = memberLabels.toArray(new String[0]);
+
+            Set<String> used = new HashSet<>();
+            for (int i = 0; i < selectedCount; i++) {
+                TextView slotLabel = new TextView(this);
+                slotLabel.setText("Inquilino " + (i + 1) + ":");
+                slotLabel.setTextColor(getColor(R.color.text_light));
+                slotLabel.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12);
+                slotLabel.setPadding(0, i == 0 ? dp(4) : dp(10), 0, dp(4));
+                slotsContainer.addView(slotLabel);
+
+                Spinner slotSpinner = new Spinner(this, Spinner.MODE_DROPDOWN);
+                slotSpinner.setBackgroundResource(R.drawable.bg_select_dark_round);
+                slotSpinner.setPadding(dp(12), 0, dp(12), 0);
+                slotSpinner.setLayoutParams(new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        dp(50)
+                ));
+                slotSpinner.setAdapter(buildLightSpinnerAdapter(labelArray));
+                slotsContainer.addView(slotSpinner);
+                slotSpinners.add(slotSpinner);
+
+                String targetEmail = i < orderedInitialMembers.size() ? orderedInitialMembers.get(i) : "";
+                int index = groupMembers.indexOf(targetEmail);
+                if (index < 0 || used.contains(targetEmail)) {
+                    index = -1;
+                    for (int j = 0; j < groupMembers.size(); j++) {
+                        String candidate = groupMembers.get(j);
+                        if (!used.contains(candidate)) {
+                            index = j;
+                            break;
+                        }
+                    }
+                    if (index < 0) index = 0;
+                }
+                slotSpinner.setSelection(index);
+                used.add(groupMembers.get(index));
+                slotSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                    @Override
+                    public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                        if (isBindingSlots[0]) return;
+                        if (refreshSplitRef[0] != null) refreshSplitRef[0].run();
+                    }
+
+                    @Override
+                    public void onNothingSelected(AdapterView<?> parent) {
+                    }
+                });
+            }
+        };
+
+        Runnable refreshSplit = () -> {
+            List<String> selectedResidents = new ArrayList<>();
+            for (Spinner slotSpinner : slotSpinners) {
+                int pos = slotSpinner.getSelectedItemPosition();
+                if (pos < 0 || pos >= groupMembers.size()) continue;
+                selectedResidents.add(groupMembers.get(pos));
+            }
+
+            boolean canSplit = selectedResidents.size() >= 2;
+            if (!canSplit && splitModeSpinner.getSelectedItemPosition() == 1) {
+                splitModeSpinner.setSelection(0);
+            }
+            splitModeSpinner.setEnabled(canSplit);
+            splitModeSpinner.setAlpha(canSplit ? 1f : 0.55f);
+
+            percentageRowsContainer.removeAllViews();
+            percentInputs.clear();
+            percentResidents.clear();
+
+            if (!canSplit) {
+                splitHintTv.setText("Con menos de 2 inquilinos, el único residente asume el 100%.");
+                percentageRowsContainer.setVisibility(View.GONE);
+                autoPercentPreviewTv.setVisibility(View.GONE);
+                return;
+            }
+
+            boolean percentageMode = splitModeSpinner.getSelectedItemPosition() == 1;
+            if (!percentageMode) {
+                splitHintTv.setText("El alquiler se divide de forma equitativa entre todos.");
+                percentageRowsContainer.setVisibility(View.GONE);
+                autoPercentPreviewTv.setVisibility(View.GONE);
+                return;
+            }
+
+            splitHintTv.setText("Modo porcentual: el último inquilino se calcula automáticamente con el porcentaje restante.");
+            percentageRowsContainer.setVisibility(View.VISIBLE);
+            autoPercentPreviewTv.setVisibility(View.VISIBLE);
+
+            String autoResident = selectedResidents.get(selectedResidents.size() - 1);
+            String autoResidentLabel = "Inquilino " + selectedResidents.size() + " (" + displayNameForEmail(autoResident) + ")";
+
+            for (int i = 0; i < selectedResidents.size() - 1; i++) {
+                String resident = selectedResidents.get(i);
+                TextView residentLabel = new TextView(this);
+                residentLabel.setText("Inquilino " + (i + 1) + " (" + displayNameForEmail(resident) + ") %:");
+                residentLabel.setTextColor(getColor(R.color.text_light));
+                residentLabel.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12);
+                residentLabel.setPadding(0, i == 0 ? dp(4) : dp(8), 0, dp(4));
+                percentageRowsContainer.addView(residentLabel);
+
+                EditText percentEt = new EditText(this);
+                percentEt.setBackgroundResource(R.drawable.bg_input_dark_round);
+                percentEt.setTextColor(getColor(R.color.text_light));
+                percentEt.setHintTextColor(getColor(R.color.text_muted));
+                percentEt.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+                percentEt.setHint("0 - 100");
+                percentEt.setPadding(dp(14), dp(12), dp(14), dp(12));
+                percentEt.setLayoutParams(new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT
+                ));
+                Double persisted = draftPercentages.get(resident);
+                if (persisted == null || persisted < 0.0) {
+                    persisted = 100.0 / selectedResidents.size();
+                }
+                percentEt.setText(formatPercent(persisted));
+                percentInputs.add(percentEt);
+                percentResidents.add(resident);
+                percentageRowsContainer.addView(percentEt);
+            }
+
+            Runnable updateAutoPreview = () -> {
+                double sum = 0.0;
+                for (int i = 0; i < percentInputs.size(); i++) {
+                    double value = parsePercentInput(percentInputs.get(i).getText() == null ? "" : percentInputs.get(i).getText().toString());
+                    if (value < 0.0) value = 0.0;
+                    draftPercentages.put(percentResidents.get(i), value);
+                    sum += value;
+                }
+                double remaining = 100.0 - sum;
+                autoPercentPreviewTv.setText(autoResidentLabel + ": " + formatPercent(Math.max(0.0, remaining)) + "% (automático)");
+                autoPercentPreviewTv.setTextColor(getColor(remaining < 0.0 ? R.color.status_danger : R.color.text_muted));
+            };
+
+            updateAutoPreview.run();
+            for (EditText input : percentInputs) {
+                input.addTextChangedListener(new TextWatcher() {
+                    @Override
+                    public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+                    }
+
+                    @Override
+                    public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    }
+
+                    @Override
+                    public void afterTextChanged(Editable s) {
+                        updateAutoPreview.run();
+                    }
+                });
+            }
+        };
+        refreshSplitRef[0] = refreshSplit;
+
+        residentsCountSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                isBindingSlots[0] = true;
+                rebuildSlots.run();
+                isBindingSlots[0] = false;
+                refreshSplit.run();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
+        splitModeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                refreshSplit.run();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
+
+        rebuildSlots.run();
+        refreshSplit.run();
+
+        DialogUtils.Shell shell = DialogUtils.buildShell(
+                this,
+                title,
+                subtitle,
+                scroll,
+                "Cancelar",
+                "Guardar"
+        );
+        AlertDialog dialog = DialogUtils.show(this, shell.root);
+        shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+        shell.confirmBtn.setOnClickListener(v -> {
+            List<String> selectedResidents = new ArrayList<>();
+            for (Spinner slotSpinner : slotSpinners) {
+                int pos = slotSpinner.getSelectedItemPosition();
+                if (pos < 0 || pos >= groupMembers.size()) continue;
+                selectedResidents.add(groupMembers.get(pos));
+            }
+
+            Set<String> unique = new HashSet<>(selectedResidents);
+            if (unique.size() != selectedResidents.size()) {
+                Toast.makeText(this, "No repitas inquilinos en varias plazas", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            String splitMode = normalizeRoomSplitMode(
+                    splitModeSpinner.getSelectedItemPosition() == 1 ? ROOM_SPLIT_PERCENTAGE : ROOM_SPLIT_EQUAL
+            );
+            if (selectedResidents.size() < 2) {
+                splitMode = ROOM_SPLIT_EQUAL;
+            }
+
+            Map<String, Object> splitPercentages = new LinkedHashMap<>();
+            List<String> splitOrder = new ArrayList<>(selectedResidents);
+            if (ROOM_SPLIT_PERCENTAGE.equals(splitMode)) {
+                if (selectedResidents.isEmpty()) {
+                    Toast.makeText(this, "No hay inquilinos para repartir", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                double sum = 0.0;
+                for (int i = 0; i < percentInputs.size(); i++) {
+                    double value = parsePercentInput(percentInputs.get(i).getText() == null ? "" : percentInputs.get(i).getText().toString());
+                    if (value < 0.0) value = 0.0;
+                    sum += value;
+                    splitPercentages.put(percentResidents.get(i), round2(value));
+                }
+                if (sum > 100.0) {
+                    Toast.makeText(this, "La suma de porcentajes no puede superar 100", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                String autoResident = selectedResidents.get(selectedResidents.size() - 1);
+                splitPercentages.put(autoResident, round2(100.0 - sum));
+            }
+
+            onConfigured.onConfigured(new RoomResidentsConfigResult(
+                    selectedResidents,
+                    splitMode,
+                    splitPercentages,
+                    splitOrder
+            ));
+            dialog.dismiss();
+        });
+    }
+
+    private List<String> buildOrderedMembers(List<String> currentMembers, List<String> persistedOrder) {
+        List<String> normalizedMembers = castEmails(currentMembers);
+        List<String> ordered = new ArrayList<>();
+        for (String email : castEmails(persistedOrder)) {
+            if (normalizedMembers.contains(email) && !ordered.contains(email)) {
+                ordered.add(email);
+            }
+        }
+        for (String email : normalizedMembers) {
+            if (!ordered.contains(email)) {
+                ordered.add(email);
+            }
+        }
+        return ordered;
     }
 
     private void showSingleInputDialog(String title, String subtitle, String hint, int inputType, String actionLabel, SingleInputAction action) {
@@ -618,6 +999,79 @@ public class OwnerRoomsActivity extends AppCompatActivity {
         return values;
     }
 
+    private Map<String, Double> castPercentages(Object raw) {
+        Map<String, Double> percentages = new LinkedHashMap<>();
+        if (!(raw instanceof Map<?, ?> mapRaw)) {
+            return percentages;
+        }
+        for (Map.Entry<?, ?> entry : mapRaw.entrySet()) {
+            if (entry.getKey() == null || entry.getValue() == null) continue;
+            String key = entry.getKey().toString().trim().toLowerCase(Locale.ROOT);
+            if (key.isEmpty()) continue;
+            double value;
+            Object rawValue = entry.getValue();
+            if (rawValue instanceof Number number) {
+                value = number.doubleValue();
+            } else {
+                try {
+                    value = Double.parseDouble(rawValue.toString().trim().replace(',', '.'));
+                } catch (NumberFormatException e) {
+                    continue;
+                }
+            }
+            if (value < 0.0) continue;
+            percentages.put(key, round2(value));
+        }
+        return percentages;
+    }
+
+    private String normalizeRoomSplitMode(@Nullable String raw) {
+        return ROOM_SPLIT_PERCENTAGE.equals(raw) ? ROOM_SPLIT_PERCENTAGE : ROOM_SPLIT_EQUAL;
+    }
+
+    private double parsePercentInput(String rawValue) {
+        if (rawValue == null) return 0.0;
+        String normalized = rawValue.trim().replace(',', '.');
+        if (normalized.isEmpty()) return 0.0;
+        try {
+            return Double.parseDouble(normalized);
+        } catch (NumberFormatException e) {
+            return 0.0;
+        }
+    }
+
+    private String formatPercent(double value) {
+        double rounded = round2(value);
+        if (Math.abs(rounded - Math.rint(rounded)) < 0.01) {
+            return String.valueOf((int) Math.rint(rounded));
+        }
+        return String.format(Locale.ROOT, "%.2f", rounded);
+    }
+
+    private double round2(double value) {
+        return Math.round(value * 100.0) / 100.0;
+    }
+
+    private ArrayAdapter<String> buildLightSpinnerAdapter(String[] values) {
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, R.layout.item_spinner_selected, values) {
+            @Override
+            public @NonNull View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+                View view = super.getView(position, convertView, parent);
+                ((TextView) view).setTextColor(getColor(R.color.text_light));
+                return view;
+            }
+
+            @Override
+            public View getDropDownView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+                View view = super.getDropDownView(position, convertView, parent);
+                ((TextView) view).setTextColor(getColor(R.color.text_light));
+                return view;
+            }
+        };
+        adapter.setDropDownViewResource(R.layout.item_spinner_dropdown);
+        return adapter;
+    }
+
     private void resolveMemberDisplayNames(List<String> memberIds, List<String> memberEmails, Runnable onDone) {
         memberDisplayNamesByEmail.clear();
         for (String email : memberEmails) {
@@ -670,6 +1124,29 @@ public class OwnerRoomsActivity extends AppCompatActivity {
         boolean onConfirm(String value);
     }
 
+    private interface RoomResidentsConfigCallback {
+        void onConfigured(RoomResidentsConfigResult result);
+    }
+
+    private static class RoomResidentsConfigResult {
+        final List<String> members;
+        final String splitMode;
+        final Map<String, Object> splitPercentages;
+        final List<String> splitOrder;
+
+        RoomResidentsConfigResult(
+                List<String> members,
+                String splitMode,
+                Map<String, Object> splitPercentages,
+                List<String> splitOrder
+        ) {
+            this.members = members;
+            this.splitMode = splitMode;
+            this.splitPercentages = splitPercentages;
+            this.splitOrder = splitOrder;
+        }
+    }
+
     private static class RoomItem {
         final String id;
         final String name;
@@ -677,14 +1154,30 @@ public class OwnerRoomsActivity extends AppCompatActivity {
         final int capacity;
         final double monthlyCost;
         final List<String> memberEmails;
+        final String rentSplitMode;
+        final Map<String, Double> rentSplitPercentages;
+        final List<String> rentSplitOrder;
 
-        RoomItem(String id, String name, int roomNumber, int capacity, double monthlyCost, List<String> memberEmails) {
+        RoomItem(
+                String id,
+                String name,
+                int roomNumber,
+                int capacity,
+                double monthlyCost,
+                List<String> memberEmails,
+                String rentSplitMode,
+                Map<String, Double> rentSplitPercentages,
+                List<String> rentSplitOrder
+        ) {
             this.id = id;
             this.name = name;
             this.roomNumber = roomNumber;
             this.capacity = capacity;
             this.monthlyCost = monthlyCost;
             this.memberEmails = memberEmails;
+            this.rentSplitMode = rentSplitMode;
+            this.rentSplitPercentages = rentSplitPercentages;
+            this.rentSplitOrder = rentSplitOrder;
         }
     }
 

@@ -59,7 +59,7 @@
                     android:layout_height="40dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_tab_default"
-                    android:text="Invitar por código"
+                    android:text="Añadir por código"
                     android:textAllCaps="false"
                     android:textColor="@color/text_light" />
 
@@ -70,7 +70,7 @@
                     android:layout_marginStart="8dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_tab_default"
-                    android:text="Invitar por email"
+                    android:text="Añadir por email"
                     android:textAllCaps="false"
                     android:textColor="@color/text_light" />
             </LinearLayout>

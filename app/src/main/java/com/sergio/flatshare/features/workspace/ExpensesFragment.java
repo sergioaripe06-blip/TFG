@@ -18,6 +18,8 @@ import android.os.SystemClock;
 import android.provider.MediaStore;
 import android.text.Editable;
 import android.text.InputType;
+import android.text.Layout;
+import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.util.TypedValue;
 import android.view.KeyEvent;
@@ -68,6 +70,7 @@ import com.sergio.flatshare.R;
 import com.sergio.flatshare.shared.ui.DialogUtils;
 import com.sergio.flatshare.core.notifications.ReminderScheduler;
 import com.sergio.flatshare.core.session.SessionStore;
+import com.sergio.flatshare.core.sound.AppSoundFx;
 import com.sergio.flatshare.features.workspace.services.CategorySuggestionsRepository;
 import com.sergio.flatshare.features.workspace.services.ExpenseDialogs;
 import com.sergio.flatshare.features.workspace.services.ExpenseService;
@@ -103,11 +106,18 @@ public class ExpensesFragment extends Fragment {
     private static final String BILLING_VARIABLE = "variable";
     private static final String VARIABLE_SPLIT_EQUAL = "equal";
     private static final String VARIABLE_SPLIT_PERCENTAGE = "percentage";
+    private static final String ROOM_SPLIT_EQUAL = "equal";
+    private static final String ROOM_SPLIT_PERCENTAGE = "percentage";
     private static final String ROOM_ALL_LABEL = "Todas las habitaciones";
     private static final String FILTER_MODE_CATEGORY = "category";
     private static final String FILTER_MODE_PERSON = "person";
     private static final String FILTER_MODE_DATE = "date";
     private static final String CATEGORY_RENT = "alquiler";
+    private static final String ROW_TYPE_PENDING_DEBT = "pending_debt";
+    private static final String STATUS_REQUESTED = "requested";
+    private static final String STATUS_SUBMITTED = "submitted";
+    private static final String STATUS_PENDING = "pending";
+    private static final String STATUS_CONFIRMED = "confirmed";
     private static final String[] SPENDING_TYPES = {"agua", "electricidad", "internet", "alquiler", "comida", "otros"};
     private static final int[] SPENDING_TYPE_COLORS = {
             Color.parseColor("#44D4FF"),
@@ -139,6 +149,9 @@ public class ExpensesFragment extends Fragment {
 
     private TextView workspaceTitleTv;
     private TextView workspaceMetaTv;
+    private View workspaceHeaderCard;
+    private LinearLayout titleTabsRow;
+    private LinearLayout tabRow;
     private ListView expensesLv;
     private ListView saldosLv;
     private ListView remindersLv;
@@ -148,7 +161,6 @@ public class ExpensesFragment extends Fragment {
     private View workspaceCtaLayout;
     private TextView addMainLabelTv;
     private Button gastosTabBtn;
-    private Button saldosTabBtn;
     private Button remindersTabBtn;
     private Button managementTabBtn;
     private Spinner roomFilterSpinner;
@@ -176,6 +188,9 @@ public class ExpensesFragment extends Fragment {
     private String pendingTicketUri;
     private EditText pendingTicketAmountEt;
     private TextView pendingTicketStatusTv;
+    private Button pendingPaymentConfirmBtn;
+    private boolean requirePaymentProofForCurrentDialog = false;
+    @Nullable private PendingDebtRequest activePendingDebtRequest;
     private boolean isRebindingRoomSelectors = false;
     private boolean isUpdatingRoomFilterSpinner = false;
     private final Map<String, String> memberDisplayNamesByEmail = new HashMap<>();
@@ -189,6 +204,7 @@ public class ExpensesFragment extends Fragment {
     private long lastTabSwitchAtMs = 0L;
     private long lastMainActionAtMs = 0L;
     private boolean expenseActionDialogVisible = false;
+    private boolean tabsUnderTitle = false;
 
     private final ActivityResultLauncher<String> ticketPickerLauncher =
             registerForActivityResult(new ActivityResultContracts.GetContent(), this::handleTicketSelected);
@@ -199,6 +215,9 @@ public class ExpensesFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_expenses, container, false);
         workspaceTitleTv = view.findViewById(R.id.workspaceTitleTv);
         workspaceMetaTv = view.findViewById(R.id.workspaceMetaTv);
+        workspaceHeaderCard = view.findViewById(R.id.workspaceHeaderCard);
+        titleTabsRow = view.findViewById(R.id.titleTabsRow);
+        tabRow = view.findViewById(R.id.tabRow);
         workspaceMetaTv.setVisibility(View.GONE);
         expensesLv = view.findViewById(R.id.expensesLv);
         saldosLv = view.findViewById(R.id.saldosLv);
@@ -209,7 +228,6 @@ public class ExpensesFragment extends Fragment {
         workspaceCtaLayout = view.findViewById(R.id.workspaceCtaLayout);
         addMainLabelTv = view.findViewById(R.id.addMainLabelTv);
         gastosTabBtn = view.findViewById(R.id.gastosTabBtn);
-        saldosTabBtn = view.findViewById(R.id.saldosTabBtn);
         remindersTabBtn = view.findViewById(R.id.remindersTabBtn);
         managementTabBtn = view.findViewById(R.id.tenantsTabBtn);
         roomFilterSpinner = view.findViewById(R.id.roomFilterSpinner);
@@ -227,10 +245,6 @@ public class ExpensesFragment extends Fragment {
         remindersLv.setAdapter(remindersAdapter);
 
         gastosTabBtn.setOnClickListener(v -> requestTabSwitch(TAB_EXPENSES));
-        if (saldosTabBtn != null) {
-            saldosTabBtn.setVisibility(View.GONE);
-            saldosTabBtn.setOnClickListener(v -> requestTabSwitch(TAB_EXPENSES));
-        }
         remindersTabBtn.setOnClickListener(v -> requestTabSwitch(TAB_REMINDERS));
         managementTabBtn.setOnClickListener(v -> requestTabSwitch(TAB_MANAGEMENT));
         roomFilterSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -303,10 +317,16 @@ public class ExpensesFragment extends Fragment {
                     applyBottomContentInset()
             );
         }
+        if (workspaceHeaderCard != null) {
+            workspaceHeaderCard.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) ->
+                    updateTitleTabsPlacement()
+            );
+        }
 
         switchTab(TAB_EXPENSES);
         refreshWorkspace();
         view.post(this::applyBottomContentInset);
+        view.post(this::updateTitleTabsPlacement);
         return view;
     }
 
@@ -326,6 +346,7 @@ public class ExpensesFragment extends Fragment {
             currentBillingModel = BILLING_VARIABLE;
             currentVariableSplitMode = VARIABLE_SPLIT_EQUAL;
             workspaceTitleTv.setText(currentGroupName);
+            updateTitleTabsPlacement();
             workspaceMetaCache = "Entra desde la pestaña de pisos para ver gastos, pagos, recordatorios y gestión del alquiler.";
             workspaceMetaTv.setText(workspaceMetaCache);
             workspaceDescriptionCache = "";
@@ -387,6 +408,7 @@ public class ExpensesFragment extends Fragment {
                         + "\nModelo: " + billingLabel
                         + "\nMiembros (" + memberEmails.size() + "):\n" + membersLabel;
                 workspaceTitleTv.setText(currentGroupName);
+                updateTitleTabsPlacement();
                 workspaceMetaCache = meta;
                 workspaceDescriptionCache = description;
                 workspaceOwnerCache = safeOwner;
@@ -424,9 +446,6 @@ public class ExpensesFragment extends Fragment {
         expensesToolsRow.setVisibility(showExpenses && currentGroupId != null ? View.VISIBLE : View.GONE);
 
         updateTabStyle(gastosTabBtn, showExpenses);
-        if (saldosTabBtn != null) {
-            updateTabStyle(saldosTabBtn, false);
-        }
         updateTabStyle(remindersTabBtn, showReminders);
         updateTabStyle(managementTabBtn, showManagement);
 
@@ -440,6 +459,74 @@ public class ExpensesFragment extends Fragment {
         }
         updateQuickBalancesVisibility();
         updateCtaVisibilityForCurrentTab();
+    }
+
+    private void updateTitleTabsPlacement() {
+        if (!isAdded() || workspaceTitleTv == null || titleTabsRow == null || tabRow == null) return;
+        workspaceTitleTv.post(() -> {
+            if (!isAdded() || workspaceTitleTv == null || titleTabsRow == null || tabRow == null) return;
+
+            applyTitleTabsLayout(false);
+            int rowWidth = titleTabsRow.getWidth() - titleTabsRow.getPaddingLeft() - titleTabsRow.getPaddingRight();
+            int tabsWidth = measureWrapWidth(tabRow);
+            boolean noSpace = rowWidth > 0 && (rowWidth - tabsWidth) < dp(150);
+            boolean ellipsized = isTextEllipsized(workspaceTitleTv);
+            applyTitleTabsLayout(noSpace || ellipsized);
+        });
+    }
+
+    private void applyTitleTabsLayout(boolean placeTabsBelowTitle) {
+        if (workspaceTitleTv == null || titleTabsRow == null || tabRow == null) return;
+        if (tabsUnderTitle == placeTabsBelowTitle
+                && titleTabsRow.getOrientation() == (placeTabsBelowTitle ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL)) {
+            return;
+        }
+        tabsUnderTitle = placeTabsBelowTitle;
+
+        LinearLayout.LayoutParams titleLp = (LinearLayout.LayoutParams) workspaceTitleTv.getLayoutParams();
+        LinearLayout.LayoutParams tabsLp = (LinearLayout.LayoutParams) tabRow.getLayoutParams();
+
+        if (placeTabsBelowTitle) {
+            titleTabsRow.setOrientation(LinearLayout.VERTICAL);
+            titleLp.width = ViewGroup.LayoutParams.MATCH_PARENT;
+            titleLp.weight = 0f;
+            titleLp.bottomMargin = dp(8);
+            workspaceTitleTv.setMaxLines(2);
+            workspaceTitleTv.setEllipsize(TextUtils.TruncateAt.END);
+
+            tabsLp.leftMargin = 0;
+            tabsLp.topMargin = 0;
+        } else {
+            titleTabsRow.setOrientation(LinearLayout.HORIZONTAL);
+            titleLp.width = 0;
+            titleLp.weight = 1f;
+            titleLp.bottomMargin = 0;
+            workspaceTitleTv.setMaxLines(1);
+            workspaceTitleTv.setEllipsize(TextUtils.TruncateAt.END);
+
+            tabsLp.leftMargin = dp(10);
+            tabsLp.topMargin = 0;
+        }
+
+        workspaceTitleTv.setLayoutParams(titleLp);
+        tabRow.setLayoutParams(tabsLp);
+        titleTabsRow.requestLayout();
+    }
+
+    private int measureWrapWidth(@NonNull View view) {
+        int widthSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
+        int heightSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
+        view.measure(widthSpec, heightSpec);
+        return view.getMeasuredWidth();
+    }
+
+    private boolean isTextEllipsized(@NonNull TextView tv) {
+        Layout layout = tv.getLayout();
+        if (layout == null) return false;
+        for (int i = 0; i < layout.getLineCount(); i++) {
+            if (layout.getEllipsisCount(i) > 0) return true;
+        }
+        return false;
     }
 
     private void requestTabSwitch(String tab) {
@@ -783,6 +870,9 @@ public class ExpensesFragment extends Fragment {
                 roomData.put("monthlyCost", parsedCost);
                 roomData.put("memberEmails", new ArrayList<String>());
                 roomData.put("memberCount", 0);
+                roomData.put("rentSplitMode", ROOM_SPLIT_EQUAL);
+                roomData.put("rentSplitPercentages", new HashMap<String, Object>());
+                roomData.put("rentSplitOrder", new ArrayList<String>());
                 roomData.put("createdByUid", uid);
                 roomData.put("updatedByUid", uid);
                 roomData.put("createdAt", FieldValue.serverTimestamp());
@@ -1204,10 +1294,13 @@ public class ExpensesFragment extends Fragment {
                 return;
             }
             List<String> currentResidents = castEmails(row.snapshot.get("memberEmails"));
+            Map<String, Double> persistedSplitPercentages = castPercentages(row.snapshot.get("rentSplitPercentages"));
+            String persistedSplitMode = normalizeRoomSplitMode(row.snapshot.getString("rentSplitMode"));
 
             ScrollView scroll = new ScrollView(requireContext());
             LinearLayout content = new LinearLayout(requireContext());
             content.setOrientation(LinearLayout.VERTICAL);
+            content.setPadding(dp(2), 0, dp(2), 0);
             scroll.addView(content);
 
             List<CheckBox> checks = new ArrayList<>();
@@ -1220,10 +1313,242 @@ public class ExpensesFragment extends Fragment {
                 content.addView(cb);
             }
 
+            TextView splitModeLabel = new TextView(requireContext());
+            splitModeLabel.setText("Reparto de alquiler en esta habitación");
+            splitModeLabel.setTextColor(requireContext().getColor(R.color.text_light));
+            splitModeLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            splitModeLabel.setPadding(0, dp(12), 0, dp(4));
+            content.addView(splitModeLabel);
+
+            Spinner splitModeSpinner = new Spinner(requireContext(), Spinner.MODE_DROPDOWN);
+            splitModeSpinner.setBackgroundResource(R.drawable.bg_select_dark_round);
+            splitModeSpinner.setPadding(dp(12), 0, dp(12), 0);
+            splitModeSpinner.setLayoutParams(new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(50)
+            ));
+            splitModeSpinner.setAdapter(buildLightSpinnerAdapter(new String[]{"Equitativo", "Porcentual"}));
+            splitModeSpinner.setSelection(ROOM_SPLIT_PERCENTAGE.equals(persistedSplitMode) ? 1 : 0);
+            content.addView(splitModeSpinner);
+
+            TextView splitHintTv = new TextView(requireContext());
+            splitHintTv.setTextColor(requireContext().getColor(R.color.text_muted));
+            splitHintTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            splitHintTv.setPadding(0, dp(6), 0, dp(6));
+            content.addView(splitHintTv);
+
+            TextView autoResidentLabelTv = new TextView(requireContext());
+            autoResidentLabelTv.setText("Inquilino automático (porcentaje restante):");
+            autoResidentLabelTv.setTextColor(requireContext().getColor(R.color.text_light));
+            autoResidentLabelTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            autoResidentLabelTv.setPadding(0, dp(6), 0, dp(4));
+            content.addView(autoResidentLabelTv);
+
+            Spinner autoResidentSpinner = new Spinner(requireContext(), Spinner.MODE_DROPDOWN);
+            autoResidentSpinner.setBackgroundResource(R.drawable.bg_select_dark_round);
+            autoResidentSpinner.setPadding(dp(12), 0, dp(12), 0);
+            autoResidentSpinner.setLayoutParams(new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(50)
+            ));
+            content.addView(autoResidentSpinner);
+
+            LinearLayout percentageRowsContainer = new LinearLayout(requireContext());
+            percentageRowsContainer.setOrientation(LinearLayout.VERTICAL);
+            LinearLayout.LayoutParams percentageRowsParams = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+            percentageRowsParams.topMargin = dp(8);
+            percentageRowsContainer.setLayoutParams(percentageRowsParams);
+            content.addView(percentageRowsContainer);
+
+            TextView autoPercentPreviewTv = new TextView(requireContext());
+            autoPercentPreviewTv.setTextColor(requireContext().getColor(R.color.text_muted));
+            autoPercentPreviewTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            autoPercentPreviewTv.setPadding(0, dp(6), 0, 0);
+            content.addView(autoPercentPreviewTv);
+
+            Map<String, Double> draftPercentages = new LinkedHashMap<>(persistedSplitPercentages);
+            String[] autoResidentEmailRef = new String[]{""};
+            boolean[] isRefreshingSplit = new boolean[]{false};
+            boolean[] isBindingAutoSpinner = new boolean[]{false};
+
+            Runnable refreshSplitSection = () -> {
+                if (isRefreshingSplit[0]) return;
+                isRefreshingSplit[0] = true;
+
+                List<String> selectedResidents = deduplicateStringKeys(collectCheckedMembers(checks, members));
+                boolean canUsePercentage = selectedResidents.size() >= 2;
+                boolean percentageMode = canUsePercentage && splitModeSpinner.getSelectedItemPosition() == 1;
+
+                if (!canUsePercentage && splitModeSpinner.getSelectedItemPosition() == 1) {
+                    splitModeSpinner.setSelection(0);
+                }
+                splitModeSpinner.setEnabled(canUsePercentage);
+                splitModeSpinner.setAlpha(canUsePercentage ? 1f : 0.55f);
+
+                if (!canUsePercentage) {
+                    splitHintTv.setText("Con menos de 2 inquilinos se asigna el 100% al único residente.");
+                    autoResidentLabelTv.setVisibility(View.GONE);
+                    autoResidentSpinner.setVisibility(View.GONE);
+                    percentageRowsContainer.setVisibility(View.GONE);
+                    autoPercentPreviewTv.setVisibility(View.GONE);
+                    isRefreshingSplit[0] = false;
+                    return;
+                }
+
+                splitHintTv.setText(percentageMode
+                        ? "Define porcentajes manuales y un inquilino automático para cerrar el 100%."
+                        : "Se divide a partes iguales entre los residentes.");
+
+                if (!percentageMode) {
+                    autoResidentLabelTv.setVisibility(View.GONE);
+                    autoResidentSpinner.setVisibility(View.GONE);
+                    percentageRowsContainer.setVisibility(View.GONE);
+                    autoPercentPreviewTv.setVisibility(View.GONE);
+                    isRefreshingSplit[0] = false;
+                    return;
+                }
+
+                autoResidentLabelTv.setVisibility(View.VISIBLE);
+                autoResidentSpinner.setVisibility(View.VISIBLE);
+                percentageRowsContainer.setVisibility(View.VISIBLE);
+                autoPercentPreviewTv.setVisibility(View.VISIBLE);
+
+                String autoResident = autoResidentEmailRef[0];
+                if (autoResident == null || autoResident.trim().isEmpty() || !selectedResidents.contains(autoResident)) {
+                    autoResident = selectedResidents.get(selectedResidents.size() - 1);
+                    autoResidentEmailRef[0] = autoResident;
+                }
+
+                List<String> autoOptions = new ArrayList<>(selectedResidents);
+                List<String> autoLabels = new ArrayList<>();
+                for (String option : autoOptions) {
+                    autoLabels.add(displayNameForEmail(option));
+                }
+
+                isBindingAutoSpinner[0] = true;
+                autoResidentSpinner.setTag(autoOptions);
+                autoResidentSpinner.setAdapter(buildLightSpinnerAdapter(autoLabels.toArray(new String[0])));
+                int autoIndex = autoOptions.indexOf(autoResident);
+                autoResidentSpinner.setSelection(autoIndex >= 0 ? autoIndex : 0);
+                autoResidentEmailRef[0] = autoOptions.get(autoResidentSpinner.getSelectedItemPosition());
+                isBindingAutoSpinner[0] = false;
+
+                percentageRowsContainer.removeAllViews();
+                List<EditText> editableInputs = new ArrayList<>();
+                List<String> editableResidents = new ArrayList<>();
+                for (String resident : selectedResidents) {
+                    if (resident.equals(autoResidentEmailRef[0])) continue;
+                    editableResidents.add(resident);
+
+                    TextView residentLabel = new TextView(requireContext());
+                    residentLabel.setText(displayNameForEmail(resident) + " (%):");
+                    residentLabel.setTextColor(requireContext().getColor(R.color.text_light));
+                    residentLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+                    residentLabel.setPadding(0, dp(6), 0, dp(4));
+                    percentageRowsContainer.addView(residentLabel);
+
+                    EditText percentEt = new EditText(requireContext());
+                    percentEt.setBackgroundResource(R.drawable.bg_input_dark_round);
+                    percentEt.setTextColor(requireContext().getColor(R.color.text_light));
+                    percentEt.setHintTextColor(requireContext().getColor(R.color.text_muted));
+                    percentEt.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+                    percentEt.setHint("0 - 100");
+                    percentEt.setTag(resident);
+                    percentEt.setPadding(dp(14), dp(12), dp(14), dp(12));
+                    percentEt.setLayoutParams(new LinearLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.WRAP_CONTENT
+                    ));
+                    Double persisted = draftPercentages.get(resident);
+                    if (persisted == null || persisted < 0.0) {
+                        persisted = 100.0 / selectedResidents.size();
+                    }
+                    percentEt.setText(formatPercent(persisted));
+                    percentageRowsContainer.addView(percentEt);
+                    editableInputs.add(percentEt);
+                }
+
+                Runnable updateAutoPreview = () -> {
+                    double editableSum = 0.0;
+                    for (int i = 0; i < editableInputs.size(); i++) {
+                        String resident = editableResidents.get(i);
+                        double value = parsePercentInput(editableInputs.get(i).getText() == null
+                                ? ""
+                                : editableInputs.get(i).getText().toString());
+                        if (value < 0.0) value = 0.0;
+                        draftPercentages.put(resident, value);
+                        editableSum += value;
+                    }
+                    double remaining = 100.0 - editableSum;
+                    autoPercentPreviewTv.setText(
+                            displayNameForEmail(autoResidentEmailRef[0])
+                                    + ": "
+                                    + formatPercent(Math.max(0.0, remaining))
+                                    + "% (automático)"
+                    );
+                    autoPercentPreviewTv.setTextColor(requireContext().getColor(
+                            remaining < 0.0 ? R.color.status_danger : R.color.text_muted
+                    ));
+                };
+                updateAutoPreview.run();
+
+                for (EditText percentEt : editableInputs) {
+                    percentEt.addTextChangedListener(new TextWatcher() {
+                        @Override
+                        public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+                        }
+
+                        @Override
+                        public void onTextChanged(CharSequence s, int start, int before, int count) {
+                        }
+
+                        @Override
+                        public void afterTextChanged(Editable s) {
+                            updateAutoPreview.run();
+                        }
+                    });
+                }
+
+                isRefreshingSplit[0] = false;
+            };
+
+            for (CheckBox check : checks) {
+                check.setOnCheckedChangeListener((buttonView, isChecked) -> refreshSplitSection.run());
+            }
+            splitModeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                    refreshSplitSection.run();
+                }
+
+                @Override
+                public void onNothingSelected(AdapterView<?> parent) {
+                }
+            });
+            autoResidentSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                    if (isBindingAutoSpinner[0]) return;
+                    @SuppressWarnings("unchecked")
+                    List<String> options = (List<String>) autoResidentSpinner.getTag();
+                    if (options == null || position < 0 || position >= options.size()) return;
+                    autoResidentEmailRef[0] = options.get(position);
+                    refreshSplitSection.run();
+                }
+
+                @Override
+                public void onNothingSelected(AdapterView<?> parent) {
+                }
+            });
+            refreshSplitSection.run();
+
             DialogUtils.Shell shell = DialogUtils.buildShell(
                     requireContext(),
                     "Editar inquilinos",
-                    "Marca los miembros que viven en esta habitación.",
+                    "Marca quién vive en esta habitación y ajusta el reparto del alquiler.",
                     scroll,
                     "Cancelar",
                     "Guardar"
@@ -1231,13 +1556,62 @@ public class ExpensesFragment extends Fragment {
             AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
             shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
             shell.confirmBtn.setOnClickListener(view -> {
-                List<String> selected = new ArrayList<>();
-                for (int i = 0; i < checks.size(); i++) {
-                    if (checks.get(i).isChecked()) selected.add(members.get(i));
+                List<String> selected = deduplicateStringKeys(collectCheckedMembers(checks, members));
+
+                String splitMode = normalizeRoomSplitMode(
+                        splitModeSpinner.getSelectedItemPosition() == 1 ? ROOM_SPLIT_PERCENTAGE : ROOM_SPLIT_EQUAL
+                );
+                if (selected.size() < 2) {
+                    splitMode = ROOM_SPLIT_EQUAL;
                 }
+
+                Map<String, Object> splitPercentagesToSave = new LinkedHashMap<>();
+                List<String> splitOrderToSave = new ArrayList<>(selected);
+                if (ROOM_SPLIT_PERCENTAGE.equals(splitMode)) {
+                    @SuppressWarnings("unchecked")
+                    List<String> autoOptions = (List<String>) autoResidentSpinner.getTag();
+                    if (autoOptions == null || autoOptions.isEmpty()) {
+                        Toast.makeText(requireContext(), "No se pudo calcular el reparto porcentual", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    String autoResident = autoResidentEmailRef[0];
+                    if (autoResident == null || autoResident.trim().isEmpty() || !selected.contains(autoResident)) {
+                        autoResident = autoOptions.get(0);
+                    }
+
+                    double editableSum = 0.0;
+                    for (int i = 0; i < percentageRowsContainer.getChildCount(); i++) {
+                        View child = percentageRowsContainer.getChildAt(i);
+                        if (!(child instanceof EditText percentEt)) continue;
+                        Object tag = percentEt.getTag();
+                        if (!(tag instanceof String resident)) continue;
+                        double value = parsePercentInput(percentEt.getText() == null ? "" : percentEt.getText().toString());
+                        if (value < 0.0) value = 0.0;
+                        editableSum += value;
+                        splitPercentagesToSave.put(resident, round2(value));
+                    }
+
+                    if (editableSum > 100.0) {
+                        Toast.makeText(requireContext(), "La suma de porcentajes no puede superar 100", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    double autoValue = round2(100.0 - editableSum);
+                    if (autoValue < 0.0) {
+                        Toast.makeText(requireContext(), "El porcentaje automático no es válido", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    splitPercentagesToSave.put(autoResident, autoValue);
+                    splitOrderToSave.remove(autoResident);
+                    splitOrderToSave.add(autoResident);
+                }
+
                 Map<String, Object> updates = new HashMap<>();
                 updates.put("memberEmails", selected);
                 updates.put("memberCount", selected.size());
+                updates.put("rentSplitMode", splitMode);
+                updates.put("rentSplitPercentages", splitPercentagesToSave);
+                updates.put("rentSplitOrder", splitOrderToSave);
                 updates.put("updatedByUid", FirebaseAuth.getInstance().getCurrentUser().getUid());
                 updates.put("updatedAt", FieldValue.serverTimestamp());
                 db.collection("rooms_groups").document(row.id)
@@ -1251,7 +1625,6 @@ public class ExpensesFragment extends Fragment {
             });
         });
     }
-
     private void requestRoomDeletion(WorkspaceRow row) {
         showDeleteConfirmation(
                 "Eliminar habitación",
@@ -1276,26 +1649,59 @@ public class ExpensesFragment extends Fragment {
     private void showExpenseActionDialog() {
         if (expenseActionDialogVisible) return;
         expenseActionDialogVisible = true;
+        if (!isVariableTenantUser()) {
+            showExpenseActionDialogInternal(null);
+            return;
+        }
+        loadMyPendingDebtRequests(this::showExpenseActionDialogInternal);
+    }
+
+    private void showExpenseActionDialogInternal(@Nullable List<PendingDebtRequest> pendingDebts) {
         LinearLayout content = DialogUtils.createVerticalActions(requireContext());
         boolean fixedBilling = BILLING_FIXED.equals(currentBillingModel);
+        boolean variableTenant = isVariableTenantUser();
+        List<PendingDebtRequest> safePendingDebts = pendingDebts == null ? new ArrayList<>() : pendingDebts;
+        boolean hasPendingDebts = !safePendingDebts.isEmpty();
+
         Button expenseBtn = null;
         if (!fixedBilling) {
             expenseBtn = DialogUtils.createActionButton(requireContext(), "Nuevo gasto", true);
             content.addView(expenseBtn);
         }
-        Button paymentBtn = DialogUtils.createActionButton(requireContext(), "Registrar pago", fixedBilling);
+
+        String paymentLabel = variableTenant ? "Pagar pendiente" : "Registrar pago";
+        Button paymentBtn = DialogUtils.createActionButton(requireContext(), paymentLabel, fixedBilling);
+        if (variableTenant && !hasPendingDebts) {
+            paymentBtn.setEnabled(false);
+            paymentBtn.setAlpha(0.45f);
+            TextView emptyTv = new TextView(requireContext());
+            emptyTv.setText("No tienes pagos pendientes.");
+            emptyTv.setTextColor(requireContext().getColor(R.color.text_muted));
+            emptyTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            emptyTv.setPadding(0, dp(8), 0, dp(2));
+            content.addView(emptyTv);
+        }
         Button exportPdfBtn = DialogUtils.createActionButton(requireContext(), "Exportar PDF", false);
         Button showQrBtn = DialogUtils.createActionButton(requireContext(), "Mostrar QR", false);
         content.addView(paymentBtn);
         content.addView(exportPdfBtn);
         content.addView(showQrBtn);
 
+        String subtitle;
+        if (variableTenant) {
+            subtitle = hasPendingDebts
+                    ? "Selecciona un pago pendiente para registrar el justificante."
+                    : "No tienes deuda pendiente para registrar pago.";
+        } else if (fixedBilling) {
+            subtitle = "Registra un pago, exporta PDF o comparte acceso al piso.";
+        } else {
+            subtitle = "Crea un gasto, registra un pago o comparte acceso al piso.";
+        }
+
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
-                "Nueva acción",
-                fixedBilling
-                        ? "Registra pagos, exporta PDF o comparte acceso al piso."
-                        : "Crea un gasto, registra un pago o comparte acceso al piso.",
+                "Nueva acci?n",
+                subtitle,
                 content,
                 "Cerrar",
                 null
@@ -1311,6 +1717,14 @@ public class ExpensesFragment extends Fragment {
         }
         paymentBtn.setOnClickListener(v -> {
             dialog.dismiss();
+            if (variableTenant) {
+                if (safePendingDebts.isEmpty()) {
+                    Toast.makeText(requireContext(), "No tienes pagos pendientes.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                showPendingDebtPickerDialog(safePendingDebts);
+                return;
+            }
             createPaymentDialog();
         });
         exportPdfBtn.setOnClickListener(v -> {
@@ -1507,6 +1921,7 @@ public class ExpensesFragment extends Fragment {
         data.put("ticketUri", pendingTicketUri == null ? "" : pendingTicketUri);
         data.put("dueAt", dueDate);
         data.put("dueDateText", dueDateText);
+        data.put("status", STATUS_REQUESTED);
         List<String> selectedRoomIds = new ArrayList<>();
         List<String> selectedRoomNames = new ArrayList<>();
         for (RoomOption room : selectedRooms) {
@@ -1564,6 +1979,14 @@ public class ExpensesFragment extends Fragment {
     }
 
     private void createPaymentDialog() {
+        createPaymentDialog(null);
+    }
+
+    private void createPaymentDialog(@Nullable PendingDebtRequest pendingDebtRequest) {
+        activePendingDebtRequest = pendingDebtRequest;
+        pendingTicketUri = null;
+        pendingPaymentConfirmBtn = null;
+        requirePaymentProofForCurrentDialog = pendingDebtRequest != null || !isOwnerUser();
         loadCurrentGroupMembers(members -> {
             if (members.isEmpty()) {
                 Toast.makeText(requireContext(), "No hay miembros disponibles para registrar el pago", Toast.LENGTH_SHORT).show();
@@ -1573,36 +1996,232 @@ public class ExpensesFragment extends Fragment {
                 View form = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_payment, null, false);
                 AutoCompleteTextView paymentCategoryInputEt = form.findViewById(R.id.paymentCategoryInputEt);
                 TextView paymentCategoryFixedTv = form.findViewById(R.id.paymentCategoryFixedTv);
+                View paymentCategoryFixedContainer = form.findViewById(R.id.paymentCategoryFixedContainer);
+                TextView paymentCategoryFixedHintTv = form.findViewById(R.id.paymentCategoryFixedHintTv);
+                EditText paymentAmountEt = form.findViewById(R.id.paymentAmountEt);
                 if (BILLING_FIXED.equals(currentBillingModel)) {
                     paymentCategoryInputEt.setVisibility(View.GONE);
-                    paymentCategoryFixedTv.setVisibility(View.VISIBLE);
+                    paymentCategoryFixedContainer.setVisibility(View.VISIBLE);
                     paymentCategoryFixedTv.setText(capitalizeTypeLabel(CATEGORY_RENT));
+                    paymentCategoryFixedHintTv.setVisibility(View.VISIBLE);
                     setupFixedPaymentConceptSuggestions(form);
                 } else {
-                    paymentCategoryFixedTv.setVisibility(View.GONE);
+                    paymentCategoryFixedContainer.setVisibility(View.GONE);
+                    paymentCategoryFixedHintTv.setVisibility(View.GONE);
                     paymentCategoryInputEt.setVisibility(View.VISIBLE);
                     setupCategoryInput(paymentCategoryInputEt, null);
                 }
                 setupPrioritySpinner((Spinner) form.findViewById(R.id.paymentPrioritySpinner), "media");
                 setupDateField(form.findViewById(R.id.paymentDueDateEt));
                 setupPaymentTargetSelectors(form, members, rooms, hasRoomContext() ? currentRoomId : null);
+                setupPaymentProofControls(form, paymentAmountEt);
+                if (pendingDebtRequest != null) {
+                    configurePaymentDialogForPendingDebt(form, members, rooms, pendingDebtRequest);
+                }
+
+                String dialogTitle = pendingDebtRequest == null ? "Registrar pago" : "Registrar pago pendiente";
+                String dialogSubtitle = pendingDebtRequest == null
+                        ? "Elige si el pago es para una habitaci?n, un miembro o para todos."
+                        : "Revisa los datos, adjunta justificante y env?a el pago.";
+
                 DialogUtils.Shell shell = DialogUtils.buildShell(
                         requireContext(),
-                        "Registrar pago",
-                        "Elige si el pago es para una habitación, un miembro o para todos.",
+                        dialogTitle,
+                        dialogSubtitle,
                         form,
                         "Cancelar",
-                        "Guardar"
+                        "Enviar pago"
                 );
                 AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+                pendingPaymentConfirmBtn = shell.confirmBtn;
+                updatePaymentConfirmButtonState();
                 shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
                 shell.confirmBtn.setOnClickListener(v -> {
                     if (savePayment(form, members, rooms)) {
                         dialog.dismiss();
                     }
                 });
+                dialog.setOnDismissListener(v -> {
+                    pendingPaymentConfirmBtn = null;
+                    requirePaymentProofForCurrentDialog = false;
+                    activePendingDebtRequest = null;
+                    pendingTicketAmountEt = null;
+                    pendingTicketStatusTv = null;
+                    pendingTicketUri = null;
+                });
             });
         });
+    }
+
+    private void setupPaymentProofControls(@NonNull View form, @Nullable EditText amountInputEt) {
+        Button attachBtn = form.findViewById(R.id.attachTicketBtnPayment);
+        TextView proofStatusTv = form.findViewById(R.id.paymentProofStatusTv);
+        if (attachBtn == null || proofStatusTv == null) return;
+        pendingTicketAmountEt = amountInputEt;
+        pendingTicketStatusTv = proofStatusTv;
+        proofStatusTv.setText(pendingTicketUri == null || pendingTicketUri.isEmpty()
+                ? "Sin justificante adjunto"
+                : "Justificante adjunto");
+        attachBtn.setOnClickListener(v -> ticketPickerLauncher.launch("image/*"));
+    }
+
+    private void updatePaymentConfirmButtonState() {
+        if (pendingPaymentConfirmBtn == null) return;
+        boolean enabled = !requirePaymentProofForCurrentDialog
+                || (pendingTicketUri != null && !pendingTicketUri.trim().isEmpty());
+        pendingPaymentConfirmBtn.setEnabled(enabled);
+        pendingPaymentConfirmBtn.setAlpha(enabled ? 1f : 0.45f);
+    }
+
+    private boolean isVariableTenantUser() {
+        return !isOwnerUser();
+    }
+
+    private void loadMyPendingDebtRequests(@NonNull PendingDebtCallback callback) {
+        String myEmail = FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
+        db.collection("payment_deadlines")
+                .whereEqualTo("groupId", currentGroupId)
+                .whereEqualTo("debtorEmail", myEmail)
+                .whereEqualTo("status", "pending")
+                .get()
+                .addOnSuccessListener(result -> {
+                    List<PendingDebtRequest> rows = new ArrayList<>();
+                    for (DocumentSnapshot doc : result.getDocuments()) {
+                        String concept = doc.getString("concept");
+                        if (concept == null || concept.trim().isEmpty()) concept = "Pago pendiente";
+                        Double amount = doc.getDouble("amount");
+                        String creditorEmail = doc.getString("creditorEmail");
+                        String dueDateText = doc.getString("dueDateText");
+                        Date dueAt = doc.getDate("dueAt");
+                        String priority = doc.getString("priority");
+                        rows.add(new PendingDebtRequest(
+                                doc.getId(),
+                                concept,
+                                amount == null ? 0.0 : amount,
+                                creditorEmail == null ? "" : creditorEmail.toLowerCase(Locale.ROOT),
+                                dueDateText == null ? "" : dueDateText,
+                                dueAt,
+                                priority == null ? "media" : priority.toLowerCase(Locale.ROOT),
+                                doc
+                        ));
+                    }
+                    rows.sort((a, b) -> {
+                        long ta = a.dueAt == null ? Long.MAX_VALUE : a.dueAt.getTime();
+                        long tb = b.dueAt == null ? Long.MAX_VALUE : b.dueAt.getTime();
+                        return Long.compare(ta, tb);
+                    });
+                    callback.onLoaded(rows);
+                })
+                .addOnFailureListener(e -> callback.onLoaded(new ArrayList<>()));
+    }
+
+    private void showPendingDebtPickerDialog(@NonNull List<PendingDebtRequest> pendingDebts) {
+        ViewGroup content = DialogUtils.createVerticalActions(requireContext());
+        int maxItems = Math.min(8, pendingDebts.size());
+        for (int i = 0; i < maxItems; i++) {
+            PendingDebtRequest debt = pendingDebts.get(i);
+            String label = debt.concept + " - " + formatCurrency(debt.amount);
+            Button itemBtn = DialogUtils.createActionButton(requireContext(), label, i == 0);
+            itemBtn.setOnClickListener(v -> createPaymentDialog(debt));
+            content.addView(itemBtn);
+        }
+        if (pendingDebts.size() > maxItems) {
+            TextView note = new TextView(requireContext());
+            note.setText("Muestra los primeros " + maxItems + " pendientes. Revisa Movimientos para ver todos.");
+            note.setTextColor(requireContext().getColor(R.color.text_muted));
+            note.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            note.setPadding(0, dp(8), 0, 0);
+            content.addView(note);
+        }
+
+        DialogUtils.Shell shell = DialogUtils.buildShell(
+                requireContext(),
+                "Tus pagos pendientes",
+                "Selecciona un pendiente para registrar el pago.",
+                content,
+                "Cerrar",
+                null
+        );
+        AlertDialog pickerDialog = DialogUtils.show(requireContext(), shell.root);
+        shell.cancelBtn.setOnClickListener(v -> pickerDialog.dismiss());
+    }
+
+    private void configurePaymentDialogForPendingDebt(
+            @NonNull View form,
+            @NonNull List<String> members,
+            @NonNull List<RoomOption> rooms,
+            @NonNull PendingDebtRequest debt
+    ) {
+        EditText amountEt = form.findViewById(R.id.paymentAmountEt);
+        EditText conceptEt = form.findViewById(R.id.paymentConceptEt);
+        EditText dueDateEt = form.findViewById(R.id.paymentDueDateEt);
+        Spinner targetTypeSpinner = form.findViewById(R.id.paymentTargetTypeSpinner);
+        Spinner prioritySpinner = form.findViewById(R.id.paymentPrioritySpinner);
+        AutoCompleteTextView categoryEt = form.findViewById(R.id.paymentCategoryInputEt);
+        TextView proofStatusTv = form.findViewById(R.id.paymentProofStatusTv);
+
+        amountEt.setText(formatPercent(debt.amount));
+        conceptEt.setText(debt.concept);
+        if (debt.dueDateText != null && !debt.dueDateText.trim().isEmpty()) {
+            dueDateEt.setText(debt.dueDateText);
+        } else if (debt.dueAt != null) {
+            dueDateEt.setText(DUE_DATE_FORMAT.format(debt.dueAt));
+        } else {
+            dueDateEt.setText(DUE_DATE_FORMAT.format(new Date()));
+        }
+
+        if (categoryEt.getText() == null || categoryEt.getText().toString().trim().isEmpty()) {
+            categoryEt.setText("Otros", false);
+        }
+        amountEt.setEnabled(false);
+        conceptEt.setEnabled(false);
+        dueDateEt.setEnabled(false);
+        targetTypeSpinner.setEnabled(false);
+        targetTypeSpinner.setAlpha(0.65f);
+
+        int priorityIndex = indexOfPriorityType(debt.priority);
+        if (priorityIndex >= 0) {
+            prioritySpinner.setSelection(priorityIndex);
+        }
+
+        rebindPaymentMemberLines(form, members, rooms.size(), Collections.singletonList(debt.creditorEmail));
+        int memberTargetIndex = indexOfPaymentTargetType("miembro");
+        if (memberTargetIndex < 0) memberTargetIndex = 1;
+        targetTypeSpinner.setSelection(memberTargetIndex);
+        updatePaymentTargetSection(form, memberTargetIndex, members.size(), rooms.size());
+
+        Button addMemberLineBtn = form.findViewById(R.id.addPaymentMemberLineBtn);
+        Button removeMemberLineBtn = form.findViewById(R.id.removePaymentMemberLineBtn);
+        addMemberLineBtn.setVisibility(View.GONE);
+        removeMemberLineBtn.setVisibility(View.GONE);
+        LinearLayout membersContainer = form.findViewById(R.id.paymentMembersContainer);
+        for (int i = 0; i < membersContainer.getChildCount(); i++) {
+            View child = membersContainer.getChildAt(i);
+            child.setEnabled(false);
+            child.setAlpha(0.8f);
+        }
+
+        if (proofStatusTv != null) {
+            proofStatusTv.setText("Debes adjuntar justificante para enviar este pago.");
+        }
+    }
+
+    private int indexOfPriorityType(@Nullable String value) {
+        if (value == null) return -1;
+        String normalized = value.trim().toLowerCase(Locale.ROOT);
+        for (int i = 0; i < PRIORITY_TYPES.length; i++) {
+            if (PRIORITY_TYPES[i].equals(normalized)) return i;
+        }
+        return -1;
+    }
+
+    private int indexOfPaymentTargetType(@NonNull String expectedNormalizedType) {
+        String expected = expectedNormalizedType.trim().toLowerCase(Locale.ROOT);
+        for (int i = 0; i < PAYMENT_TARGET_TYPES.length; i++) {
+            String normalized = safeLowerText(PAYMENT_TARGET_TYPES[i]);
+            if (expected.equals(normalized)) return i;
+        }
+        return -1;
     }
 
     private void setupFixedPaymentConceptSuggestions(View form) {
@@ -1959,7 +2578,14 @@ public class ExpensesFragment extends Fragment {
     private List<PaymentService.PaymentRoom> toPaymentRooms(List<RoomOption> rooms) {
         List<PaymentService.PaymentRoom> out = new ArrayList<>();
         for (RoomOption room : rooms) {
-            out.add(new PaymentService.PaymentRoom(room.id, room.name, room.memberEmails));
+            out.add(new PaymentService.PaymentRoom(
+                    room.id,
+                    room.name,
+                    room.memberEmails,
+                    room.monthlyCost,
+                    room.rentSplitMode,
+                    room.rentSplitPercentages
+            ));
         }
         return out;
     }
@@ -1985,6 +2611,11 @@ public class ExpensesFragment extends Fragment {
             Toast.makeText(requireContext(), validation.message, Toast.LENGTH_SHORT).show();
             return false;
         }
+        boolean missingProof = pendingTicketUri == null || pendingTicketUri.trim().isEmpty();
+        if ((activePendingDebtRequest != null || !isOwnerUser()) && missingProof) {
+            Toast.makeText(requireContext(), "Adjunta una foto del justificante para enviar el pago", Toast.LENGTH_SHORT).show();
+            return false;
+        }
         double amount = validation.amount;
 
         String fromEmail = FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
@@ -1999,7 +2630,8 @@ public class ExpensesFragment extends Fragment {
                 toPaymentRooms(rooms),
                 selectedMemberEmails,
                 selectedRoomIds,
-                fromEmail
+                fromEmail,
+                BILLING_FIXED.equals(currentBillingModel)
         );
         if (targets.isEmpty()) {
             Toast.makeText(requireContext(), "No hay destinatarios válidos para este pago", Toast.LENGTH_SHORT).show();
@@ -2034,10 +2666,26 @@ public class ExpensesFragment extends Fragment {
                 safeTargetType,
                 targets
         );
+        if (writes.isEmpty()) {
+            Toast.makeText(requireContext(), "No se han podido generar pagos v?lidos", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        String proofUri = pendingTicketUri == null ? "" : pendingTicketUri.trim();
+        PendingDebtRequest selectedPendingDebt = activePendingDebtRequest;
         WriteBatch batch = db.batch();
         List<Map<String, Object>> createdPayments = new ArrayList<>();
         for (PaymentService.PaymentWrite write : writes) {
             var paymentRef = db.collection("payments").document();
+            write.data.put("ticketUri", proofUri);
+            write.data.put("status", selectedPendingDebt == null ? STATUS_REQUESTED : STATUS_PENDING);
+            if (selectedPendingDebt != null) {
+                write.data.put("sourceDebtId", selectedPendingDebt.id);
+                write.data.put("sourceDebtType", "payment_deadline");
+                String sourceType = selectedPendingDebt.snapshot.getString("sourceType");
+                String sourceId = selectedPendingDebt.snapshot.getString("sourceId");
+                write.data.put("sourceType", sourceType == null ? "" : sourceType);
+                write.data.put("sourceId", sourceId == null ? "" : sourceId);
+            }
             batch.set(paymentRef, write.data);
             Map<String, Object> created = new HashMap<>();
             created.put("paymentId", paymentRef.getId());
@@ -2046,6 +2694,14 @@ public class ExpensesFragment extends Fragment {
             createdPayments.add(created);
         }
         batch.commit().addOnSuccessListener(v -> {
+            if (selectedPendingDebt != null) {
+                Map<String, Object> debtUpdate = new HashMap<>();
+                debtUpdate.put("status", STATUS_SUBMITTED);
+                debtUpdate.put("submittedAt", FieldValue.serverTimestamp());
+                debtUpdate.put("proofUri", proofUri);
+                selectedPendingDebt.snapshot.getReference().update(debtUpdate);
+                updateExpenseStatusAfterDeadlineChange(selectedPendingDebt.id);
+            }
             for (Map<String, Object> created : createdPayments) {
                 String paymentId = String.valueOf(created.get("paymentId"));
                 String toEmail = String.valueOf(created.get("toEmail"));
@@ -2053,7 +2709,9 @@ public class ExpensesFragment extends Fragment {
                         ? ((Number) created.get("splitAmount")).doubleValue()
                         : 0.0;
                 logActivity("payment_created", "Pago a " + toEmail, splitAmount, "payment");
-                syncPaymentDeadline(paymentId, safeConcept, splitAmount, fromEmail, toEmail, dueDate, safePriority);
+                if (selectedPendingDebt == null) {
+                    syncPaymentDeadline(paymentId, safeConcept, splitAmount, fromEmail, toEmail, dueDate, safePriority);
+                }
             }
             loadExpenses();
             loadFinancialViews();
@@ -2689,7 +3347,6 @@ public class ExpensesFragment extends Fragment {
 
         expenseQuery.get().addOnSuccessListener(result -> {
             for (DocumentSnapshot doc : result.getDocuments()) {
-                if (BILLING_FIXED.equals(currentBillingModel)) continue;
                 if (hasRoomContext() && !matchesExpenseWithCurrentRoom(doc)) continue;
                 Double amountValue = doc.getDouble("amount");
                 String concept = doc.getString("concept");
@@ -2698,9 +3355,12 @@ public class ExpensesFragment extends Fragment {
                 String category = doc.getString("category");
                 String roomName = doc.getString("roomName");
                 String dueDateText = doc.getString("dueDateText");
+                String status = normalizeFlowStatus(doc.getString("status"));
+                String statusLabel = statusLabel(status);
                 String subtitle = (payerEmail == null ? "Gasto compartido" : "Pagado por " + payerLabel)
                         + (roomName == null || roomName.trim().isEmpty() ? "" : " - hab. " + roomName)
                         + (category == null || category.isEmpty() ? "" : " - " + category)
+                        + " - " + statusLabel
                         + (dueDateText == null || dueDateText.isEmpty() ? "" : " - vence " + dueDateText);
                 if (!passesFiltersExpense(doc, payerEmail, category, concept, roomName)) continue;
                 expenseRows.add(new WorkspaceRow(
@@ -2731,9 +3391,13 @@ public class ExpensesFragment extends Fragment {
                     String status = doc.getString("status");
                     Date dueAt = doc.getDate("dueAt");
                     String dueDateText = doc.getString("dueDateText");
-                    boolean confirmed = "confirmed".equals(status);
-                    boolean overdue = !confirmed && dueAt != null && dueAt.getTime() < System.currentTimeMillis();
-                    String statusLabel = confirmed ? "Confirmado" : (overdue ? "Vencido" : "Pendiente");
+                    String normalizedStatus = normalizeFlowStatus(status);
+                    boolean confirmed = STATUS_CONFIRMED.equals(normalizedStatus);
+                    boolean overdue = (STATUS_PENDING.equals(normalizedStatus) || STATUS_REQUESTED.equals(normalizedStatus))
+                            && dueAt != null
+                            && dueAt.getTime() < System.currentTimeMillis();
+                    String statusLabel = statusLabel(normalizedStatus);
+                    if (overdue && !confirmed) statusLabel = "Pendiente (vencido)";
                     String subtitle = (toEmail == null ? "Pago registrado" : "A " + toLabel)
                             + (roomName == null || roomName.trim().isEmpty() ? "" : " - hab. " + roomName)
                             + " - " + statusLabel
@@ -2748,7 +3412,40 @@ public class ExpensesFragment extends Fragment {
                             doc
                     ));
                 }
-                expensesAdapter.notifyDataSetChanged();
+                if (!isVariableTenantUser()) {
+                    expensesAdapter.notifyDataSetChanged();
+                    return;
+                }
+                loadMyPendingDebtRequests(pendingDebts -> {
+                    if (pendingDebts.isEmpty()) {
+                        expenseRows.add(new WorkspaceRow(
+                                "pending_debt_empty",
+                                ROW_TYPE_PENDING_DEBT,
+                                "No tienes pagos pendientes",
+                                "Cuando tengas una deuda asignada aparecer? aqu?.",
+                                "-",
+                                null
+                        ));
+                    }
+                    for (PendingDebtRequest debt : pendingDebts) {
+                        if (!passesPendingDebtFilters(debt)) continue;
+                        String dueLabel = debt.dueDateText == null || debt.dueDateText.trim().isEmpty()
+                                ? ""
+                                : " - vence " + debt.dueDateText;
+                        String subtitle = "A " + memberReferenceInline(debt.creditorEmail)
+                                + " - Solicitado"
+                                + dueLabel;
+                        expenseRows.add(new WorkspaceRow(
+                                debt.id,
+                                ROW_TYPE_PENDING_DEBT,
+                                debt.concept,
+                                subtitle,
+                                df.format(debt.amount) + " EUR",
+                                debt.snapshot
+                        ));
+                    }
+                    expensesAdapter.notifyDataSetChanged();
+                });
             });
         });
     }
@@ -2861,10 +3558,13 @@ public class ExpensesFragment extends Fragment {
                 if (room.memberEmails.isEmpty()) continue;
 
                 double roomCost = room.monthlyCost;
-                double perResident = roomCost / room.memberEmails.size();
-                for (String resident : room.memberEmails) {
+                Map<String, Double> roomPercentages = resolveRoomResidentPercentages(room);
+                for (Map.Entry<String, Double> shareEntry : roomPercentages.entrySet()) {
+                    String resident = shareEntry.getKey();
+                    double percent = shareEntry.getValue();
+                    double residentShare = roomCost * (percent / 100.0);
                     if (net.containsKey(resident)) {
-                        net.put(resident, net.getOrDefault(resident, 0.0) - perResident);
+                        net.put(resident, net.getOrDefault(resident, 0.0) - residentShare);
                     }
                 }
                 if (ownerEmail != null && !ownerEmail.trim().isEmpty() && net.containsKey(ownerEmail)) {
@@ -3185,6 +3885,107 @@ public class ExpensesFragment extends Fragment {
             }
         }
         return values;
+    }
+
+    private Map<String, Double> castPercentages(Object raw) {
+        Map<String, Double> out = new LinkedHashMap<>();
+        if (!(raw instanceof Map<?, ?> map)) return out;
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            if (entry.getKey() == null || entry.getValue() == null) continue;
+            String email = entry.getKey().toString().trim().toLowerCase(Locale.ROOT);
+            if (email.isEmpty()) continue;
+            double value;
+            if (entry.getValue() instanceof Number number) {
+                value = number.doubleValue();
+            } else {
+                try {
+                    value = Double.parseDouble(entry.getValue().toString().trim());
+                } catch (NumberFormatException ignored) {
+                    continue;
+                }
+            }
+            if (value < 0.0) value = 0.0;
+            out.put(email, value);
+        }
+        return out;
+    }
+
+    private List<String> collectCheckedMembers(List<CheckBox> checks, List<String> members) {
+        List<String> selected = new ArrayList<>();
+        int size = Math.min(checks.size(), members.size());
+        for (int i = 0; i < size; i++) {
+            if (checks.get(i).isChecked()) {
+                selected.add(members.get(i));
+            }
+        }
+        return selected;
+    }
+
+    private String normalizeRoomSplitMode(@Nullable String raw) {
+        if (raw == null) return ROOM_SPLIT_EQUAL;
+        return ROOM_SPLIT_PERCENTAGE.equalsIgnoreCase(raw.trim()) ? ROOM_SPLIT_PERCENTAGE : ROOM_SPLIT_EQUAL;
+    }
+
+    private double parsePercentInput(@Nullable String raw) {
+        if (raw == null || raw.trim().isEmpty()) return 0.0;
+        try {
+            return Double.parseDouble(raw.trim().replace(',', '.'));
+        } catch (NumberFormatException ignored) {
+            return 0.0;
+        }
+    }
+
+    private String formatPercent(double value) {
+        double rounded = round2(value);
+        if (Math.abs(rounded - Math.rint(rounded)) < 0.0001) {
+            return String.valueOf((int) Math.rint(rounded));
+        }
+        return new DecimalFormat("0.##").format(rounded);
+    }
+
+    private double round2(double value) {
+        return Math.round(value * 100.0) / 100.0;
+    }
+
+    private Map<String, Double> resolveRoomResidentPercentages(@NonNull RoomOption room) {
+        Map<String, Double> out = new LinkedHashMap<>();
+        List<String> residents = deduplicateStringKeys(room.memberEmails);
+        if (residents.isEmpty()) return out;
+        if (residents.size() == 1) {
+            out.put(residents.get(0), 100.0);
+            return out;
+        }
+
+        String splitMode = normalizeRoomSplitMode(room.rentSplitMode);
+        if (!ROOM_SPLIT_PERCENTAGE.equals(splitMode)) {
+            double equal = 100.0 / residents.size();
+            for (String resident : residents) {
+                out.put(resident, equal);
+            }
+            return out;
+        }
+
+        double providedSum = 0.0;
+        for (String resident : residents) {
+            double value = room.rentSplitPercentages.getOrDefault(resident, 0.0);
+            if (value > 0.0) {
+                providedSum += value;
+            }
+        }
+        if (providedSum <= 0.0) {
+            double equal = 100.0 / residents.size();
+            for (String resident : residents) {
+                out.put(resident, equal);
+            }
+            return out;
+        }
+
+        for (String resident : residents) {
+            double value = room.rentSplitPercentages.getOrDefault(resident, 0.0);
+            if (value < 0.0) value = 0.0;
+            out.put(resident, (value * 100.0) / providedSum);
+        }
+        return out;
     }
 
     private void resolveMemberDisplayNames(List<String> memberIds, List<String> memberEmails, Runnable onDone) {
@@ -3580,6 +4381,31 @@ public class ExpensesFragment extends Fragment {
     }
 
     private void showRowDetail(WorkspaceRow row) {
+        if (ROW_TYPE_PENDING_DEBT.equals(row.type)) {
+            if (row.snapshot == null) {
+                Toast.makeText(requireContext(), "No tienes pagos pendientes.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            String concept = row.snapshot.getString("concept");
+            Double amount = row.snapshot.getDouble("amount");
+            String creditorEmail = row.snapshot.getString("creditorEmail");
+            String dueDateText = row.snapshot.getString("dueDateText");
+            Date dueAt = row.snapshot.getDate("dueAt");
+            String priority = row.snapshot.getString("priority");
+            PendingDebtRequest debt = new PendingDebtRequest(
+                    row.id,
+                    concept == null || concept.trim().isEmpty() ? "Pago pendiente" : concept,
+                    amount == null ? 0.0 : amount,
+                    creditorEmail == null ? "" : creditorEmail.toLowerCase(Locale.ROOT),
+                    dueDateText == null ? "" : dueDateText,
+                    dueAt,
+                    priority == null ? "media" : priority.toLowerCase(Locale.ROOT),
+                    row.snapshot
+            );
+            createPaymentDialog(debt);
+            return;
+        }
+
         if ("reminder".equals(row.type)) {
             if (row.snapshot == null) return;
             String ownerUid = row.snapshot.getString("ownerUid");
@@ -3619,7 +4445,7 @@ public class ExpensesFragment extends Fragment {
 
         if ("payment".equals(row.type)) {
             if (row.snapshot == null) return;
-            String status = safeLowerText(row.snapshot.getString("status"));
+            String status = normalizeFlowStatus(row.snapshot.getString("status"));
             boolean canToggle = canTogglePaymentStatus(row.snapshot);
             boolean canDelete = canDeletePayment(row.snapshot);
             boolean owner = isOwnerUser();
@@ -3629,7 +4455,14 @@ public class ExpensesFragment extends Fragment {
             content.addView(detailBtn);
             Button toggleBtn = null;
             if (canToggle) {
-                String toggleLabel = "pending".equals(status) ? "Marcar como pagado" : "Marcar como pendiente";
+                String toggleLabel;
+                if (STATUS_REQUESTED.equals(status)) {
+                    toggleLabel = "Marcar como pendiente";
+                } else if (STATUS_PENDING.equals(status)) {
+                    toggleLabel = "Marcar como pagado";
+                } else {
+                    toggleLabel = "Marcar como pendiente";
+                }
                 toggleBtn = DialogUtils.createActionButton(requireContext(), toggleLabel, false);
                 content.addView(toggleBtn);
             }
@@ -3653,7 +4486,14 @@ public class ExpensesFragment extends Fragment {
                     Toast.makeText(requireContext(), row.subtitle + " - " + row.amount, Toast.LENGTH_LONG).show()
             );
             if (toggleBtn != null) {
-                String targetStatus = "pending".equals(status) ? "confirmed" : "pending";
+                String targetStatus;
+                if (STATUS_REQUESTED.equals(status)) {
+                    targetStatus = STATUS_PENDING;
+                } else if (STATUS_PENDING.equals(status)) {
+                    targetStatus = STATUS_CONFIRMED;
+                } else {
+                    targetStatus = STATUS_PENDING;
+                }
                 toggleBtn.setOnClickListener(v -> {
                     dialog.dismiss();
                     requestPaymentStatusChange(row, targetStatus);
@@ -3677,6 +4517,20 @@ public class ExpensesFragment extends Fragment {
                         requireContext(),
                         row.title,
                         "Solo lectura (sin permisos para editar/borrar).",
+                        content,
+                        null,
+                        "Cerrar"
+                );
+                AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+                shell.confirmBtn.setOnClickListener(v -> dialog.dismiss());
+                return;
+            }
+            if (!canEditOrDeleteExpense(row.snapshot)) {
+                View content = DialogUtils.createMessageView(requireContext(), row.subtitle + "\n" + row.amount);
+                DialogUtils.Shell shell = DialogUtils.buildShell(
+                        requireContext(),
+                        row.title,
+                        "Solo puedes editar o eliminar en estado Solicitado (rojo).",
                         content,
                         null,
                         "Cerrar"
@@ -3722,6 +4576,10 @@ public class ExpensesFragment extends Fragment {
 
     private void editExpense(WorkspaceRow row) {
         if (row.snapshot == null) return;
+        if (!canEditOrDeleteExpense(row.snapshot)) {
+            Toast.makeText(requireContext(), "Solo puedes editar en estado Solicitado", Toast.LENGTH_SHORT).show();
+            return;
+        }
         loadCurrentGroupMembers(members -> {
             if (members.isEmpty()) {
                 Toast.makeText(requireContext(), "No hay miembros para repartir", Toast.LENGTH_SHORT).show();
@@ -3800,6 +4658,9 @@ public class ExpensesFragment extends Fragment {
                         Long roomNumber = doc.getLong("roomNumber");
                         Long capacity = doc.getLong("capacity");
                         Double monthlyCost = doc.getDouble("monthlyCost");
+                        String rentSplitMode = normalizeRoomSplitMode(doc.getString("rentSplitMode"));
+                        Map<String, Double> rentSplitPercentages = castPercentages(doc.get("rentSplitPercentages"));
+                        List<String> rentSplitOrder = castEmails(doc.get("rentSplitOrder"));
                         String normalizedName = roomName == null || roomName.trim().isEmpty() ? "Habitación" : roomName;
                         String label = (roomNumber == null || roomNumber <= 0)
                                 ? normalizedName
@@ -3810,7 +4671,10 @@ public class ExpensesFragment extends Fragment {
                                 castEmails(doc.get("memberEmails")),
                                 roomNumber == null ? 0 : roomNumber.intValue(),
                                 capacity == null ? 0 : capacity.intValue(),
-                                monthlyCost == null ? 0.0 : monthlyCost
+                                monthlyCost == null ? 0.0 : monthlyCost,
+                                rentSplitMode,
+                                rentSplitPercentages,
+                                rentSplitOrder
                         ));
                     }
                     rooms.sort((a, b) -> Integer.compare(a.roomNumber <= 0 ? Integer.MAX_VALUE : a.roomNumber, b.roomNumber <= 0 ? Integer.MAX_VALUE : b.roomNumber));
@@ -4268,16 +5132,20 @@ public class ExpensesFragment extends Fragment {
     }
 
     private void requestExpenseDeletion(WorkspaceRow row) {
+        if (row.snapshot == null || !canEditOrDeleteExpense(row.snapshot)) {
+            Toast.makeText(requireContext(), "Solo puedes eliminar en estado Solicitado", Toast.LENGTH_SHORT).show();
+            return;
+        }
         showDeleteConfirmation(
                 "Eliminar gasto",
-                "Se eliminará el gasto y sus vencimientos asociados.",
+                "Se eliminar? el gasto y sus vencimientos asociados.",
                 () -> deleteExpense(row)
         );
     }
 
     private void requestPaymentDeletion(WorkspaceRow row) {
         if (row.snapshot == null || !canDeletePayment(row.snapshot)) {
-            Toast.makeText(requireContext(), "Solo el propietario puede borrar pagos no vencidos", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Solo se puede eliminar un pago en estado Solicitado", Toast.LENGTH_SHORT).show();
             return;
         }
         showDeleteConfirmation(
@@ -4292,7 +5160,11 @@ public class ExpensesFragment extends Fragment {
     }
 
     private void deleteExpense(WorkspaceRow row) {
-        if (row.snapshot != null && !canManageExpense(row.snapshot.getString("payerId"))) {
+        if (row.snapshot == null || !canEditOrDeleteExpense(row.snapshot)) {
+            Toast.makeText(requireContext(), "Solo puedes editar o eliminar gastos en estado Solicitado", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (!canManageExpense(row.snapshot.getString("payerId"))) {
             Toast.makeText(requireContext(), "No tienes permisos para borrar este gasto", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -4309,7 +5181,7 @@ public class ExpensesFragment extends Fragment {
 
     private void deletePayment(WorkspaceRow row) {
         if (row.snapshot == null || !canDeletePayment(row.snapshot)) {
-            Toast.makeText(requireContext(), "Solo el propietario puede borrar pagos no vencidos", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Solo se puede eliminar un pago en estado Solicitado", Toast.LENGTH_SHORT).show();
             return;
         }
         db.collection("payments").document(row.id).delete().addOnSuccessListener(v -> {
@@ -4597,6 +5469,41 @@ public class ExpensesFragment extends Fragment {
         return passesDateFilter(doc);
     }
 
+    private boolean passesPendingDebtFilters(@NonNull PendingDebtRequest debt) {
+        if (filterPersonEmail != null) {
+            boolean match = debt.creditorEmail.equalsIgnoreCase(filterPersonEmail);
+            if (!match) return false;
+        }
+        if (filterCategory != null) {
+            return false;
+        }
+        if (filterSearchQuery != null) {
+            String combined = debt.concept + " " + debt.creditorEmail + " " + debt.dueDateText;
+            if (!combined.toLowerCase(Locale.ROOT).contains(filterSearchQuery)) {
+                return false;
+            }
+        }
+        return passesDateFilter(debt.snapshot);
+    }
+
+    private String normalizeFlowStatus(@Nullable String rawStatus) {
+        String normalized = safeLowerText(rawStatus);
+        if (STATUS_CONFIRMED.equals(normalized) || "paid".equals(normalized) || "pagado".equals(normalized)) {
+            return STATUS_CONFIRMED;
+        }
+        if (STATUS_PENDING.equals(normalized) || STATUS_SUBMITTED.equals(normalized)) {
+            return STATUS_PENDING;
+        }
+        return STATUS_REQUESTED;
+    }
+
+    private String statusLabel(@Nullable String rawStatus) {
+        String normalized = normalizeFlowStatus(rawStatus);
+        if (STATUS_CONFIRMED.equals(normalized)) return "Pagado";
+        if (STATUS_PENDING.equals(normalized)) return "Pendiente";
+        return "Solicitado";
+    }
+
     private boolean passesDateFilter(DocumentSnapshot doc) {
         Date createdAt = doc.getDate("createdAt");
         if (createdAt == null) return true;
@@ -4606,14 +5513,29 @@ public class ExpensesFragment extends Fragment {
     }
 
     private void updatePaymentStatus(String paymentId, String status) {
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("status", status);
-        updates.put("updatedAt", FieldValue.serverTimestamp());
-        db.collection("payments").document(paymentId).update(updates).addOnSuccessListener(v -> {
-            logActivity("payment_" + status, "Pago " + status, 0.0, "payment");
-            updateDeadlineStatusBySource("payment", paymentId, status);
-            loadExpenses();
-            loadFinancialViews();
+        db.collection("payments").document(paymentId).get().addOnSuccessListener(paymentDoc -> {
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("status", status);
+            updates.put("updatedAt", FieldValue.serverTimestamp());
+            db.collection("payments").document(paymentId).update(updates).addOnSuccessListener(v -> {
+                if ("confirmed".equalsIgnoreCase(status) && isAdded()) {
+                    AppSoundFx.playByName(requireContext(), AppSoundFx.FX_EXPENSE_ACCEPTED);
+                }
+                logActivity("payment_" + status, "Pago " + status, 0.0, "payment");
+                updateDeadlineStatusBySource("payment", paymentId, status);
+
+                String sourceDebtId = paymentDoc.getString("sourceDebtId");
+                if (sourceDebtId != null && !sourceDebtId.trim().isEmpty()) {
+                    String debtStatus = STATUS_CONFIRMED.equalsIgnoreCase(status) ? STATUS_CONFIRMED : STATUS_SUBMITTED;
+                    db.collection("payment_deadlines").document(sourceDebtId).update(
+                            "status", debtStatus,
+                            "updatedAt", FieldValue.serverTimestamp()
+                    ).addOnSuccessListener(done -> updateExpenseStatusAfterDeadlineChange(sourceDebtId));
+                }
+
+                loadExpenses();
+                loadFinancialViews();
+            });
         });
     }
 
@@ -4623,6 +5545,12 @@ public class ExpensesFragment extends Fragment {
         return payerId != null && payerId.equals(myUid);
     }
 
+    private boolean canEditOrDeleteExpense(@NonNull DocumentSnapshot expenseDoc) {
+        if (!canManageExpense(expenseDoc.getString("payerId"))) return false;
+        String status = normalizeFlowStatus(expenseDoc.getString("status"));
+        return STATUS_REQUESTED.equals(status);
+    }
+
     private boolean isOwnerUser() {
         return "admin".equals(currentUserRole);
     }
@@ -4630,14 +5558,13 @@ public class ExpensesFragment extends Fragment {
     private boolean canTogglePaymentStatus(@NonNull DocumentSnapshot paymentDoc) {
         if (!isOwnerUser()) return false;
         String status = safeLowerText(paymentDoc.getString("status"));
-        return "pending".equals(status) || "confirmed".equals(status);
+        return STATUS_REQUESTED.equals(status) || STATUS_PENDING.equals(status) || STATUS_CONFIRMED.equals(status);
     }
 
     private boolean canDeletePayment(@NonNull DocumentSnapshot paymentDoc) {
         if (!isOwnerUser()) return false;
-        Date dueAt = paymentDoc.getDate("dueAt");
-        if (dueAt == null) return false;
-        return dueAt.getTime() > System.currentTimeMillis();
+        String status = safeLowerText(paymentDoc.getString("status"));
+        return STATUS_REQUESTED.equals(status);
     }
 
     private void requestPaymentStatusChange(@NonNull WorkspaceRow row, @NonNull String targetStatus) {
@@ -4766,6 +5693,52 @@ public class ExpensesFragment extends Fragment {
         return split;
     }
 
+    private void updateExpenseStatusAfterDeadlineChange(@NonNull String deadlineId) {
+        db.collection("payment_deadlines").document(deadlineId).get().addOnSuccessListener(deadlineDoc -> {
+            if (!deadlineDoc.exists()) return;
+            String sourceType = safeLowerText(deadlineDoc.getString("sourceType"));
+            if (!"expense".equals(sourceType)) return;
+            String expenseId = deadlineDoc.getString("sourceId");
+            if (expenseId == null || expenseId.trim().isEmpty()) return;
+            refreshExpenseFlowStatus(expenseId);
+        });
+    }
+
+    private void refreshExpenseFlowStatus(@NonNull String expenseId) {
+        db.collection("payment_deadlines")
+                .whereEqualTo("sourceType", "expense")
+                .whereEqualTo("sourceId", expenseId)
+                .get()
+                .addOnSuccessListener(result -> {
+                    String targetStatus = STATUS_CONFIRMED;
+                    if (result.isEmpty()) {
+                        targetStatus = STATUS_CONFIRMED;
+                    } else {
+                        boolean hasPending = false;
+                        boolean hasSubmitted = false;
+                        for (DocumentSnapshot doc : result.getDocuments()) {
+                            String deadlineStatus = safeLowerText(doc.getString("status"));
+                            if (STATUS_PENDING.equals(deadlineStatus)) {
+                                hasPending = true;
+                            } else if (STATUS_SUBMITTED.equals(deadlineStatus)) {
+                                hasSubmitted = true;
+                            }
+                        }
+                        if (hasPending) {
+                            targetStatus = STATUS_REQUESTED;
+                        } else if (hasSubmitted) {
+                            targetStatus = STATUS_PENDING;
+                        } else {
+                            targetStatus = STATUS_CONFIRMED;
+                        }
+                    }
+                    db.collection("expenses").document(expenseId).update(
+                            "status", targetStatus,
+                            "updatedAt", FieldValue.serverTimestamp()
+                    );
+                });
+    }
+
     private void syncExpenseDeadlines(String expenseId, String concept, double amount, String customSplit, Date dueAt, String priority, String payerEmail) {
         if (currentGroupId == null) return;
         db.collection("payment_deadlines")
@@ -4792,8 +5765,9 @@ public class ExpensesFragment extends Fragment {
                         data.put("debtorEmail", debtor);
                         data.put("creditorEmail", payerEmail);
                         data.put("dueAt", dueAt);
+                        data.put("dueDateText", dueAt == null ? "" : DUE_DATE_FORMAT.format(dueAt));
                         data.put("priority", priority == null ? "media" : priority.toLowerCase(Locale.ROOT));
-                        data.put("status", "pending");
+                        data.put("status", STATUS_PENDING);
                         data.put("createdAt", FieldValue.serverTimestamp());
                         batch.set(db.collection("payment_deadlines").document(), data);
 
@@ -4802,7 +5776,7 @@ public class ExpensesFragment extends Fragment {
                             scheduleDeadlineNotifications(concept, partAmount, dueAt, expenseId + "_" + debtor);
                         }
                     }
-                    batch.commit();
+                    batch.commit().addOnSuccessListener(done -> refreshExpenseFlowStatus(expenseId));
                 });
     }
 
@@ -4828,7 +5802,7 @@ public class ExpensesFragment extends Fragment {
                     data.put("creditorEmail", toEmail);
                     data.put("dueAt", dueAt);
                     data.put("priority", priority == null ? "media" : priority.toLowerCase(Locale.ROOT));
-                    data.put("status", "pending");
+                    data.put("status", STATUS_PENDING);
                     data.put("createdAt", FieldValue.serverTimestamp());
                     batch.set(db.collection("payment_deadlines").document(), data);
                     batch.commit();
@@ -4930,6 +5904,7 @@ public class ExpensesFragment extends Fragment {
     private void handleTicketSelected(@Nullable Uri uri) {
         if (uri == null || !isAdded()) return;
         pendingTicketUri = uri.toString();
+        updatePaymentConfirmButtonState();
         if (pendingTicketStatusTv != null) pendingTicketStatusTv.setText("Ticket adjunto. Procesando OCR...");
         try {
             InputImage inputImage = InputImage.fromFilePath(requireContext(), uri);
@@ -4939,16 +5914,19 @@ public class ExpensesFragment extends Fragment {
                         String detected = extractFirstAmount(text.getText());
                         if (detected != null && pendingTicketAmountEt != null) {
                             pendingTicketAmountEt.setText(detected);
-                            if (pendingTicketStatusTv != null) pendingTicketStatusTv.setText("OCR detectó importe: " + detected);
+                            if (pendingTicketStatusTv != null) pendingTicketStatusTv.setText("OCR detect? importe: " + detected);
                         } else if (pendingTicketStatusTv != null) {
-                            pendingTicketStatusTv.setText("OCR listo, no se encontró importe claro.");
+                            pendingTicketStatusTv.setText("OCR listo, no se encontr? importe claro.");
                         }
+                        updatePaymentConfirmButtonState();
                     })
                     .addOnFailureListener(e -> {
-                        if (pendingTicketStatusTv != null) pendingTicketStatusTv.setText("OCR falló.");
+                        if (pendingTicketStatusTv != null) pendingTicketStatusTv.setText("OCR fall?.");
+                        updatePaymentConfirmButtonState();
                     });
         } catch (Exception e) {
             if (pendingTicketStatusTv != null) pendingTicketStatusTv.setText("No se pudo leer la imagen.");
+            updatePaymentConfirmButtonState();
         }
     }
 
@@ -5044,8 +6022,43 @@ public class ExpensesFragment extends Fragment {
         }
     }
 
+    private static class PendingDebtRequest {
+        final String id;
+        final String concept;
+        final double amount;
+        final String creditorEmail;
+        final String dueDateText;
+        @Nullable final Date dueAt;
+        final String priority;
+        @NonNull final DocumentSnapshot snapshot;
+
+        PendingDebtRequest(
+                @NonNull String id,
+                @NonNull String concept,
+                double amount,
+                @NonNull String creditorEmail,
+                @NonNull String dueDateText,
+                @Nullable Date dueAt,
+                @NonNull String priority,
+                @NonNull DocumentSnapshot snapshot
+        ) {
+            this.id = id;
+            this.concept = concept;
+            this.amount = amount;
+            this.creditorEmail = creditorEmail;
+            this.dueDateText = dueDateText;
+            this.dueAt = dueAt;
+            this.priority = priority;
+            this.snapshot = snapshot;
+        }
+    }
+
     private interface MembersCallback {
         void onLoaded(List<String> members);
+    }
+
+    private interface PendingDebtCallback {
+        void onLoaded(List<PendingDebtRequest> debts);
     }
 
     private interface RoomsCallback {
@@ -5063,14 +6076,30 @@ public class ExpensesFragment extends Fragment {
         final int roomNumber;
         final int capacity;
         final double monthlyCost;
+        final String rentSplitMode;
+        final Map<String, Double> rentSplitPercentages;
+        final List<String> rentSplitOrder;
 
-        RoomOption(String id, String name, List<String> memberEmails, int roomNumber, int capacity, double monthlyCost) {
+        RoomOption(
+                String id,
+                String name,
+                List<String> memberEmails,
+                int roomNumber,
+                int capacity,
+                double monthlyCost,
+                String rentSplitMode,
+                Map<String, Double> rentSplitPercentages,
+                List<String> rentSplitOrder
+        ) {
             this.id = id;
             this.name = name;
             this.memberEmails = memberEmails;
             this.roomNumber = roomNumber;
             this.capacity = capacity;
             this.monthlyCost = monthlyCost;
+            this.rentSplitMode = rentSplitMode;
+            this.rentSplitPercentages = rentSplitPercentages;
+            this.rentSplitOrder = rentSplitOrder;
         }
     }
 
@@ -5115,7 +6144,7 @@ public class ExpensesFragment extends Fragment {
     }
 
     private ArrayAdapter<String> buildLightSpinnerAdapter(String[] values) {
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, values) {
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(), R.layout.item_spinner_selected, values) {
             @NonNull
             @Override
             public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
@@ -5131,7 +6160,7 @@ public class ExpensesFragment extends Fragment {
                 return view;
             }
         };
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        adapter.setDropDownViewResource(R.layout.item_spinner_dropdown);
         return adapter;
     }
 
@@ -5300,28 +6329,48 @@ public class ExpensesFragment extends Fragment {
             subtitleTv.setText(row.subtitle);
             amountTv.setText(row.amount);
 
-            if ("payment".equals(row.type)) {
-                if (row.subtitle.contains("Confirmado")) {
-                    amountTv.setTextColor(requireContext().getColor(R.color.status_success));
-                    subtitleTv.setTextColor(requireContext().getColor(R.color.status_success));
-                    titleTv.setText("Pago confirmado");
-                } else if (row.subtitle.contains("Vencido")) {
-                    amountTv.setTextColor(requireContext().getColor(R.color.status_danger));
-                    subtitleTv.setTextColor(requireContext().getColor(R.color.status_danger));
-                    titleTv.setText("Pago vencido");
-                } else {
-                    amountTv.setTextColor(requireContext().getColor(R.color.status_warning));
-                    subtitleTv.setTextColor(requireContext().getColor(R.color.status_warning));
-                    titleTv.setText("Pago pendiente");
-                }
+            String flowStatus = STATUS_REQUESTED;
+            if (ROW_TYPE_PENDING_DEBT.equals(row.type)) {
+                flowStatus = STATUS_REQUESTED;
+            } else if (row.snapshot != null) {
+                flowStatus = normalizeFlowStatus(row.snapshot.getString("status"));
+            }
+
+            if (STATUS_CONFIRMED.equals(flowStatus)) {
+                amountTv.setTextColor(requireContext().getColor(R.color.status_success));
+                subtitleTv.setTextColor(requireContext().getColor(R.color.status_success));
+            } else if (STATUS_PENDING.equals(flowStatus)) {
+                amountTv.setTextColor(requireContext().getColor(R.color.status_warning));
+                subtitleTv.setTextColor(requireContext().getColor(R.color.status_warning));
             } else {
-                amountTv.setTextColor(requireContext().getColor(R.color.text_light));
-                subtitleTv.setTextColor(requireContext().getColor(R.color.text_muted));
+                amountTv.setTextColor(requireContext().getColor(R.color.status_danger));
+                subtitleTv.setTextColor(requireContext().getColor(R.color.status_danger));
+            }
+
+            if ("payment".equals(row.type)) {
+                if (STATUS_CONFIRMED.equals(flowStatus)) {
+                    titleTv.setText("Pago pagado");
+                } else if (STATUS_PENDING.equals(flowStatus)) {
+                    titleTv.setText("Pago pendiente");
+                } else {
+                    titleTv.setText("Pago solicitado");
+                }
+            } else if ("expense".equals(row.type)) {
+                if (STATUS_CONFIRMED.equals(flowStatus)) {
+                    titleTv.setText("Gasto pagado");
+                } else if (STATUS_PENDING.equals(flowStatus)) {
+                    titleTv.setText("Gasto pendiente");
+                } else {
+                    titleTv.setText("Gasto solicitado");
+                }
+            } else if (ROW_TYPE_PENDING_DEBT.equals(row.type)) {
+                titleTv.setText("Pago solicitado");
             }
             return view;
         }
     }
 }
+
 
 
 

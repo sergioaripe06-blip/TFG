@@ -1,4 +1,4 @@
-# Manual de usuario y operacion - FlatShareApp
+﻿# Manual de usuario y operacion - FlatShareApp
 
 ## 1. Identificacion del proyecto
 - Nombre: FlatShare
@@ -69,7 +69,8 @@
 - `SplashActivity`
   - Crea canal de notificaciones `flatshare_reminders`.
   - Solicita permiso `POST_NOTIFICATIONS` (Android 13+).
-  - Redirige a login o main segun sesion.
+  - Redirige a login o main según sesión.
+  - Si detecta sesión sin correo verificado, cierra sesión y redirige a login.
 
 ### 5.2 Navegacion inferior (MainActivity)
 - `Pisos` (`menu_groups`)
@@ -79,32 +80,34 @@
 
 ## 6. Manual funcional por pantalla
 
-## 6.1 Autenticacion
+## 6.1 Autenticación
 
 ### Login (`LoginActivity`)
 Controles:
 - Campo `Usuario o email`.
-- Campo `Contrasena`.
-- Boton `Iniciar sesion`.
+- Campo `Contraseña`.
+- Botón `Iniciar sesión`.
 - Boton debug `Entrar con cuenta seed` (solo DEBUG).
 - Enlace `Crear cuenta`.
-- Enlace `Olvidaste tu contrasena?`.
+- Enlace `¿Olvidaste tu contraseña?`.
 
 Comportamiento:
 - Login por email directo.
-- Login por username (resolucion en `usernames`).
-- Recuperacion de contrasena solo por correo (Firebase Auth).
+- Login por username (resolución en `usernames`).
+- Recuperación de contraseña solo por correo (Firebase Auth).
+- Si el correo no está verificado, no se permite entrar en la app y se redirige a la pantalla de verificación.
 
 ### Registro (`RegisterActivity`)
 Controles:
-- `Nombre completo`, `username`, `email`, `telefono`, `fecha nacimiento`, `contrasena`.
-- Boton `Crear cuenta`.
+- `Nombre completo`, `username`, `email`, `teléfono`, `fecha nacimiento`, `contraseña`.
+- Botón `Crear cuenta`.
 - Enlace `Ya tengo cuenta` (vuelta a login).
 
 Comportamiento:
 - Crea usuario en Auth.
-- Crea/actualiza documento en `users`.
-- Crea/actualiza indice en `usernames`.
+- Envía correo de verificación (`sendEmailVerification`).
+- Abre `VerifyEmailActivity` para reenvío y confirmación.
+- Solo tras verificar el correo se completa el alta en `users` y `usernames`.
 
 ## 6.2 Pisos (`GroupsFragment`)
 
@@ -138,9 +141,14 @@ Elementos:
 - Nombre del piso.
 - Datos descriptivos.
 - Miembros.
-- Botones `Editar` (owner), `Invitar`, `Gestionar habitaciones` (owner), `Eliminar piso` (owner).
+- Botones `Editar` (owner), `Anadir`, `Gestionar habitaciones` (owner), `Eliminar piso` (owner).
+- Los botones `Editar`, `Anadir` y `Gestionar habitaciones` se muestran centrados en la tarjeta de detalle.
+- En `Editar` (solo propietario) se puede cambiar:
+  - nombre y descripción,
+  - modelo de alquiler (`fijo`/`variable`),
+  - reparto del alquiler variable (`equitativo`/`porcentual`).
 
-Invitar:
+Anadir:
 - Por codigo.
 - Por QR.
 - Por email (coleccion `invitations`).
@@ -150,14 +158,20 @@ Invitar:
 ## 6.3 Habitaciones del propietario (`OwnerRoomsActivity`)
 Controles clave:
 - `Crear habitacion`.
-- `Invitar por codigo`.
-- `Invitar por email`.
+- `A?adir por codigo`.
+- `A?adir por email`.
 - `Terminar`.
+- En creacion/edicion de inquilinos (solo propietario):
+  - seleccion por plaza (`Inquilino 1`, `Inquilino 2`, etc.) para decidir quien ocupa cada posicion;
+  - si hay 2 o mas inquilinos, reparto `equitativo` o `porcentual`;
+  - en porcentual, el ultimo inquilino se calcula automaticamente con el porcentaje restante.
 
 Operaciones por habitacion:
 - Asignar inquilino.
 - Renombrar.
 - Eliminar.
+- Editar inquilinos (solo propietario).
+- Configurar reparto por habitaci?n en alquiler fijo: equitativo o porcentual.
 
 ## 6.4 Workspace del piso (`ExpensesFragment`)
 
@@ -165,6 +179,9 @@ Tabs visibles:
 - `Movimientos`.
 - `Recordatorios`.
 - `Gestion`.
+- Posicion adaptativa en cabecera:
+  - si el nombre del piso cabe en una linea, los 3 tabs se muestran a la derecha del titulo;
+  - si el nombre del piso es largo y se solapa, los tabs bajan automaticamente justo debajo del titulo.
 
 CTA principal inferior:
 - Cambia segun tab (nuevo gasto, nuevo recordatorio, etc.).
@@ -183,21 +200,42 @@ Operaciones:
 - Registro de actividad (`activity_logs`).
 - OCR de ticket para importe.
 - Exportacion PDF resumen mensual.
+- `Nuevo gasto` solo aparece en pisos de `alquiler variable`.
 
 Campos de gasto:
 - Concepto, importe, categoria, prioridad, fecha limite.
 - En `alquiler variable`, la categoria es editable (texto libre) con sugerencias historicas del propio piso.
 - Reparto (`customSplit`) equitativo o por importes.
 - Habitacion(es) destino.
+- Estado visual del flujo:
+  - `Solicitado` (rojo): recien creado y aun sin justificantes enviados.
+  - `Pendiente` (naranja): hay justificantes enviados y falta validacion.
+  - `Pagado` (verde): validado/confirmado.
+- Edicion y borrado: solo permitidos en estado `Solicitado`.
 
 Campos de pago:
 - Importe, concepto, categoria, prioridad, fecha limite.
 - En `alquiler variable`, la categoria es editable (texto libre) y reutiliza sugerencias historicas al registrar nuevos pagos/gastos.
 - Destino (habitacion, miembro o todos).
-- Si el destino es `Habitación`, ahora se pueden seleccionar una o varias habitaciones (añadiendo/quitar líneas).
-- El reparto del pago se calcula solo con inquilinos de las habitaciones seleccionadas.
+- Si el destino es `Habitaci?n`, se pueden seleccionar una o varias habitaciones (a?adiendo/quitar l?neas).
+- En `alquiler fijo`, el reparto se calcula dentro de cada habitaci?n seleccionada:
+  - con 1 residente, ese residente asume el 100% de su habitaci?n;
+  - con 2 o m?s residentes, puede ser equitativo o porcentual (configurable por habitaci?n).
 - Si el destino es `Miembro`, se pueden anadir o quitar lineas de destinatario (minimo 1).
-- Estado (`pending`, `confirmed`, `rejected`).
+- Estado visual del pago:
+  - `Solicitado` (rojo),
+  - `Pendiente` (naranja),
+  - `Pagado` (verde).
+- Edicion y borrado: solo permitidos en estado `Solicitado`.
+
+Flujo de inquilino con deuda (`alquiler fijo` y `alquiler variable`):
+- En `Movimientos` se muestran sus pagos pendientes (`payment_deadlines`) como lista accionable.
+- Cada item muestra concepto, importe, fecha limite, destinatario y estado pendiente.
+- Al pulsar un pendiente, se abre `Registrar pago pendiente` con importe/concepto/fecha/destino precargados y bloqueados.
+- `Adjuntar foto` del justificante es obligatorio para enviar el pago.
+- El boton `Enviar pago` solo se habilita cuando hay justificante adjunto.
+- Si no hay deuda, se muestra `No tienes pagos pendientes`.
+- En el dialogo de acciones, para inquilino variable el acceso a pago general queda desactivado cuando no existen pendientes.
 
 ### 6.4.2 Recordatorios
 Operaciones:
@@ -262,11 +300,37 @@ Controles:
 - Switch modo oscuro.
 - Switch notificaciones.
 - Selector idioma ES/EN.
-- Boton `Cerrar sesion`.
+- Boton `Borrar cuenta`.
+- Boton `Cerrar sesion` al final de la pantalla.
 
 Efecto:
 - Persistencia en `SettingsStore`.
 - Aplicacion de tema e idioma en runtime.
+- Borrado de cuenta:
+  - exige validación previa con correo y contraseña de la cuenta activa,
+  - elimina `users/{uid}` y `usernames/{username}`,
+  - elimina invitaciones donde el usuario invita o fue invitado,
+  - saca al usuario de `groups.members`, `groups.memberEmails` y `groups.roles`,
+  - si era propietario y hay otros miembros, transfiere `ownerId` al primer miembro restante,
+  - no borra historicos de pagos/gastos existentes.
+  - el boton de `Borrar cuenta` usa color rojo fijo en modo claro y oscuro.
+
+### Ajuste visual del modo claro
+- Se incrementa contraste general en fondos y superficies.
+- La barra inferior deja de ser transparente y usa contenedor propio para mejorar legibilidad.
+- Iconos y textos seleccionados de la barra inferior se muestran en color primario para evitar perdida de contraste.
+
+### Sonidos personalizados de acciones
+- Puedes anadir sonidos propios en `app/src/main/res/raw` con estos nombres:
+  - `sfx_group_created` -> suena al crear un piso correctamente.
+  - `sfx_expense_accepted` -> suena al marcar un pago/gasto como aceptado (estado `confirmed`).
+- Formatos recomendados: `wav` o `mp3` cortos (100-500 ms) para respuesta limpia.
+- Si no existe el archivo, la app usa un tono breve de confirmacion como respaldo.
+
+### Ajuste UX en pagos (alquiler fijo)
+- En `Registrar pago`, cuando el piso es de alquiler fijo:
+  - la categoria ya no aparece como desplegable bloqueado,
+  - se muestra como valor fijo de solo lectura (`Alquiler`) con texto explicativo.
 
 ## 7. Seeder de datos de prueba
 Ruta: `tools/firebase-admin-seed`
@@ -276,6 +340,7 @@ Crea:
 - Estructura Firestore de usuarios, pisos y habitaciones.
 - Datos financieros de prueba (`expenses`, `payments`, `payment_deadlines`).
 - Recordatorios (`reminders`).
+- Incluye preset hardcodeado `sergio-demo` con owner fijo `sergioaripe06@gmail.com` y datos completos de demo.
 
 ## 8. Inventario de colecciones de negocio
 Ver detalle completo en:

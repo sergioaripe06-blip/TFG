@@ -15,6 +15,9 @@ import java.util.Locale;
 import java.util.Map;
 
 public class PaymentService {
+    private static final String ROOM_SPLIT_EQUAL = "equal";
+    private static final String ROOM_SPLIT_PERCENTAGE = "percentage";
+
     public static class ValidationResult {
         public final boolean valid;
         public final String message;
@@ -39,11 +42,24 @@ public class PaymentService {
         public final String id;
         public final String name;
         public final List<String> memberEmails;
+        public final double monthlyCost;
+        public final String splitMode;
+        public final Map<String, Double> splitPercentages;
 
-        public PaymentRoom(@NonNull String id, @NonNull String name, @NonNull List<String> memberEmails) {
+        public PaymentRoom(
+                @NonNull String id,
+                @NonNull String name,
+                @NonNull List<String> memberEmails,
+                double monthlyCost,
+                @NonNull String splitMode,
+                @NonNull Map<String, Double> splitPercentages
+        ) {
             this.id = id;
             this.name = name;
             this.memberEmails = memberEmails;
+            this.monthlyCost = monthlyCost;
+            this.splitMode = splitMode;
+            this.splitPercentages = splitPercentages;
         }
     }
 
@@ -53,9 +69,10 @@ public class PaymentService {
         @Nullable public final String roomName;
         @NonNull public final List<String> roomIds;
         @NonNull public final List<String> roomNames;
+        public final double shareWeight;
 
         public PaymentTarget(@NonNull String toEmail, @Nullable String roomId, @Nullable String roomName) {
-            this(toEmail, roomId, roomName, new ArrayList<>(), new ArrayList<>());
+            this(toEmail, roomId, roomName, new ArrayList<>(), new ArrayList<>(), 0.0);
         }
 
         public PaymentTarget(
@@ -65,11 +82,23 @@ public class PaymentService {
                 @NonNull List<String> roomIds,
                 @NonNull List<String> roomNames
         ) {
+            this(toEmail, roomId, roomName, roomIds, roomNames, 0.0);
+        }
+
+        public PaymentTarget(
+                @NonNull String toEmail,
+                @Nullable String roomId,
+                @Nullable String roomName,
+                @NonNull List<String> roomIds,
+                @NonNull List<String> roomNames,
+                double shareWeight
+        ) {
             this.toEmail = toEmail;
             this.roomId = roomId;
             this.roomName = roomName;
             this.roomIds = roomIds;
             this.roomNames = roomNames;
+            this.shareWeight = shareWeight;
         }
     }
 
@@ -136,7 +165,8 @@ public class PaymentService {
             @NonNull List<PaymentRoom> rooms,
             @NonNull List<String> selectedMemberEmails,
             @NonNull List<String> selectedRoomIds,
-            @NonNull String fromEmail
+            @NonNull String fromEmail,
+            boolean splitInsideRoom
     ) {
         List<PaymentTarget> targets = new ArrayList<>();
         String normalizedTargetType = normalizeText(targetType);
@@ -176,12 +206,12 @@ public class PaymentService {
             }
 
             Map<String, PaymentTarget> targetsByEmail = new LinkedHashMap<>();
+            Map<String, Double> weightsByEmail = new LinkedHashMap<>();
             for (PaymentRoom room : selectedRooms) {
                 for (String resident : room.memberEmails) {
                     String email = resident.toLowerCase(Locale.ROOT);
-                    if (email.equals(fromEmail) || targetsByEmail.containsKey(email)) {
-                        continue;
-                    }
+                    if (email.equals(fromEmail) || email.trim().isEmpty()) continue;
+                    if (targetsByEmail.containsKey(email)) continue;
                     targetsByEmail.put(
                             email,
                             new PaymentTarget(
@@ -194,7 +224,42 @@ public class PaymentService {
                     );
                 }
             }
-            targets.addAll(targetsByEmail.values());
+
+            if (!splitInsideRoom) {
+                targets.addAll(targetsByEmail.values());
+                return targets;
+            }
+
+            for (PaymentRoom room : selectedRooms) {
+                List<String> eligibleResidents = new ArrayList<>();
+                for (String resident : room.memberEmails) {
+                    String email = resident.toLowerCase(Locale.ROOT);
+                    if (email.equals(fromEmail) || email.trim().isEmpty()) continue;
+                    if (!eligibleResidents.contains(email)) eligibleResidents.add(email);
+                }
+                if (eligibleResidents.isEmpty()) continue;
+
+                double roomWeight = room.monthlyCost > 0.0 ? room.monthlyCost : 1.0;
+                Map<String, Double> shares = resolveRoomShares(room, eligibleResidents);
+                for (Map.Entry<String, Double> shareEntry : shares.entrySet()) {
+                    String email = shareEntry.getKey();
+                    double residentWeight = roomWeight * shareEntry.getValue();
+                    weightsByEmail.put(email, weightsByEmail.getOrDefault(email, 0.0) + residentWeight);
+                }
+            }
+
+            for (Map.Entry<String, PaymentTarget> entry : targetsByEmail.entrySet()) {
+                String email = entry.getKey();
+                PaymentTarget base = entry.getValue();
+                targets.add(new PaymentTarget(
+                        base.toEmail,
+                        base.roomId,
+                        base.roomName,
+                        base.roomIds,
+                        base.roomNames,
+                        weightsByEmail.getOrDefault(email, 0.0)
+                ));
+            }
             return targets;
         }
 
@@ -222,8 +287,22 @@ public class PaymentService {
     ) {
         List<PaymentWrite> writes = new ArrayList<>();
         if (targets.isEmpty()) return writes;
-        double splitAmount = amount / targets.size();
+
+        double totalWeight = 0.0;
+        boolean hasWeightedTargets = false;
         for (PaymentTarget target : targets) {
+            if (target.shareWeight > 0.0) {
+                hasWeightedTargets = true;
+                totalWeight += target.shareWeight;
+            }
+        }
+
+        double equalSplitAmount = amount / targets.size();
+        for (PaymentTarget target : targets) {
+            double splitAmount = equalSplitAmount;
+            if (hasWeightedTargets && totalWeight > 0.0) {
+                splitAmount = amount * (target.shareWeight / totalWeight);
+            }
             Map<String, Object> data = new HashMap<>();
             data.put("groupId", groupId);
             data.put("amount", splitAmount);
@@ -253,6 +332,45 @@ public class PaymentService {
             if (!unique.contains(value)) unique.add(value);
         }
         return unique;
+    }
+
+    @NonNull
+    private Map<String, Double> resolveRoomShares(@NonNull PaymentRoom room, @NonNull List<String> residents) {
+        Map<String, Double> shares = new LinkedHashMap<>();
+        if (residents.isEmpty()) return shares;
+
+        String mode = normalizeText(room.splitMode);
+        boolean percentageMode = ROOM_SPLIT_PERCENTAGE.equals(mode) && residents.size() >= 2;
+        if (!percentageMode) {
+            double equalShare = 1.0 / residents.size();
+            for (String resident : residents) {
+                shares.put(resident, equalShare);
+            }
+            return shares;
+        }
+
+        double providedSum = 0.0;
+        for (String resident : residents) {
+            double percent = room.splitPercentages.getOrDefault(resident, 0.0);
+            if (percent > 0.0) {
+                providedSum += percent;
+            }
+        }
+
+        if (providedSum <= 0.0) {
+            double equalShare = 1.0 / residents.size();
+            for (String resident : residents) {
+                shares.put(resident, equalShare);
+            }
+            return shares;
+        }
+
+        for (String resident : residents) {
+            double percent = room.splitPercentages.getOrDefault(resident, 0.0);
+            if (percent < 0.0) percent = 0.0;
+            shares.put(resident, percent / providedSum);
+        }
+        return shares;
     }
 
     @NonNull

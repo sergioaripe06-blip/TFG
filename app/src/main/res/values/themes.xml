@@ -55,6 +55,15 @@
         <item name="android:textColor">@color/text_muted</item>
     </style>
 
+    <style name="Widget.FlatShare.Button.DeleteAccount" parent="Widget.Material3.Button">
+        <item name="android:textColor">@android:color/white</item>
+        <item name="backgroundTint">@color/status_danger</item>
+        <item name="cornerRadius">22dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:minHeight">44dp</item>
+    </style>
+
     <style name="TextAppearance.FlatShare.CalendarDate" parent="@style/TextAppearance.Material3.BodySmall">
         <item name="android:textColor">@color/calendar_day_text_selector</item>
     </style>

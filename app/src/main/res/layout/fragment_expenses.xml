@@ -20,14 +20,83 @@
             android:orientation="vertical"
             android:padding="18dp">
 
-            <TextView
-                android:id="@+id/workspaceTitleTv"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:id="@+id/titleTabsRow"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Selecciona un piso"
-                android:textColor="@color/text_light"
-                android:textSize="22sp"
-                android:textStyle="bold" />
+                android:gravity="top"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/workspaceTitleTv"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="Selecciona un piso"
+                    android:textColor="@color/text_light"
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:id="@+id/tabRow"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/gastosTabBtn"
+                        android:layout_width="wrap_content"
+                        android:layout_height="34dp"
+                        android:background="@drawable/bg_tab_selected"
+                        android:gravity="center"
+                        android:maxLines="1"
+                        android:minHeight="34dp"
+                        android:minWidth="0dp"
+                        android:paddingHorizontal="12dp"
+                        android:paddingVertical="0dp"
+                        android:text="Movimientos"
+                        android:textAllCaps="false"
+                        android:textColor="@color/text_light"
+                        android:textSize="10sp" />
+
+                    <Button
+                        android:id="@+id/remindersTabBtn"
+                        android:layout_width="wrap_content"
+                        android:layout_height="34dp"
+                        android:layout_marginStart="6dp"
+                        android:background="@drawable/bg_tab_default"
+                        android:gravity="center"
+                        android:maxLines="1"
+                        android:minHeight="34dp"
+                        android:minWidth="0dp"
+                        android:paddingHorizontal="12dp"
+                        android:paddingVertical="0dp"
+                        android:text="Recordatorios"
+                        android:textAllCaps="false"
+                        android:textColor="@color/text_muted"
+                        android:textSize="10sp" />
+
+                    <Button
+                        android:id="@+id/tenantsTabBtn"
+                        android:layout_width="wrap_content"
+                        android:layout_height="34dp"
+                        android:layout_marginStart="6dp"
+                        android:background="@drawable/bg_tab_default"
+                        android:gravity="center"
+                        android:maxLines="1"
+                        android:minHeight="34dp"
+                        android:minWidth="0dp"
+                        android:paddingHorizontal="12dp"
+                        android:paddingVertical="0dp"
+                        android:text="Gesti&#243;n"
+                        android:textAllCaps="false"
+                        android:textColor="@color/text_muted"
+                        android:textSize="10sp" />
+                </LinearLayout>
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/workspaceMetaTv"
@@ -63,7 +132,7 @@
                     <Spinner
                         android:id="@+id/roomFilterSpinner"
                         android:layout_width="0dp"
-                        android:layout_height="40dp"
+                        android:layout_height="44dp"
                         android:layout_weight="1"
                         android:background="@drawable/bg_select_dark_round"
                         android:paddingHorizontal="12dp"
@@ -72,11 +141,11 @@
                     <Button
                         android:id="@+id/addRoomQuickBtn"
                         android:layout_width="wrap_content"
-                        android:layout_height="42dp"
+                        android:layout_height="44dp"
                         android:layout_marginStart="8dp"
                         android:background="@drawable/bg_tab_default"
                         android:gravity="center"
-                        android:minHeight="42dp"
+                        android:minHeight="44dp"
                         android:paddingHorizontal="12dp"
                         android:paddingVertical="0dp"
                         android:text="Gestionar"
@@ -84,86 +153,6 @@
                         android:textColor="@color/text_light" />
                 </LinearLayout>
             </LinearLayout>
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/tabRow"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:orientation="horizontal">
-
-            <Button
-                android:id="@+id/gastosTabBtn"
-                android:layout_width="0dp"
-                android:layout_height="40dp"
-                android:layout_weight="1"
-                android:background="@drawable/bg_tab_selected"
-                android:gravity="center"
-                android:maxLines="1"
-                android:minHeight="40dp"
-                android:minWidth="0dp"
-                android:paddingHorizontal="6dp"
-                android:paddingVertical="0dp"
-                android:text="Movimientos"
-                android:textAllCaps="false"
-                android:textColor="@color/text_light"
-                android:textSize="11sp" />
-
-            <Button
-                android:id="@+id/saldosTabBtn"
-                android:layout_width="0dp"
-                android:layout_height="40dp"
-                android:layout_marginStart="6dp"
-                android:layout_weight="1"
-                android:background="@drawable/bg_tab_default"
-                android:gravity="center"
-                android:maxLines="1"
-                android:minHeight="40dp"
-                android:minWidth="0dp"
-                android:paddingHorizontal="6dp"
-                android:paddingVertical="0dp"
-                android:text="Pagos"
-                android:textAllCaps="false"
-                android:textColor="@color/text_muted"
-                android:textSize="11sp"
-                android:visibility="gone" />
-
-            <Button
-                android:id="@+id/remindersTabBtn"
-                android:layout_width="0dp"
-                android:layout_height="40dp"
-                android:layout_marginStart="6dp"
-                android:layout_weight="1"
-                android:background="@drawable/bg_tab_default"
-                android:gravity="center"
-                android:maxLines="1"
-                android:minHeight="40dp"
-                android:minWidth="0dp"
-                android:paddingHorizontal="6dp"
-                android:paddingVertical="0dp"
-                android:text="Recordatorios"
-                android:textAllCaps="false"
-                android:textColor="@color/text_muted"
-                android:textSize="11sp" />
-
-            <Button
-                android:id="@+id/tenantsTabBtn"
-                android:layout_width="0dp"
-                android:layout_height="40dp"
-                android:layout_marginStart="6dp"
-                android:layout_weight="1"
-                android:background="@drawable/bg_tab_default"
-                android:gravity="center"
-                android:maxLines="1"
-                android:minHeight="40dp"
-                android:minWidth="0dp"
-                android:paddingHorizontal="6dp"
-                android:paddingVertical="0dp"
-                android:text="Gesti&#243;n"
-                android:textAllCaps="false"
-                android:textColor="@color/text_muted"
-                android:textSize="11sp" />
         </LinearLayout>
 
         <LinearLayout

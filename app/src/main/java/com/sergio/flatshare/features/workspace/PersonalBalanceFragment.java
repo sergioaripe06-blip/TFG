@@ -884,7 +884,7 @@ public class PersonalBalanceFragment extends Fragment {
     }
 
     private ArrayAdapter<String> buildLightSpinnerAdapter(Context context, String[] values) {
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_item, values) {
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(context, R.layout.item_spinner_selected, values) {
             @NonNull
             @Override
             public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
@@ -900,7 +900,7 @@ public class PersonalBalanceFragment extends Fragment {
                 return view;
             }
         };
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        adapter.setDropDownViewResource(R.layout.item_spinner_dropdown);
         return adapter;
     }
 
@@ -945,3 +945,4 @@ public class PersonalBalanceFragment extends Fragment {
         public abstract void onChanged(int position);
     }
 }
+

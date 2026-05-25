@@ -13,6 +13,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.sergio.flatshare.features.auth.LoginActivity;
 
 public class SplashActivity extends AppCompatActivity {
@@ -21,11 +22,39 @@ public class SplashActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         createNotificationChannel();
         requestNotificationPermission();
-        if (FirebaseAuth.getInstance().getCurrentUser() == null) {
-            startActivity(new Intent(this, LoginActivity.class));
-        } else {
-            startActivity(new Intent(this, MainActivity.class));
+        routeBySession();
+    }
+
+    private void routeBySession() {
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (currentUser == null) {
+            openLogin();
+            return;
         }
+
+        currentUser.reload().addOnCompleteListener(task -> {
+            FirebaseUser refreshedUser = FirebaseAuth.getInstance().getCurrentUser();
+            boolean verified = refreshedUser != null && refreshedUser.isEmailVerified();
+            if (verified) {
+                refreshedUser.getIdToken(true).addOnCompleteListener(tokenTask -> {
+                    if (tokenTask.isSuccessful()) {
+                        startActivity(new Intent(this, MainActivity.class));
+                    } else {
+                        FirebaseAuth.getInstance().signOut();
+                        openLogin();
+                    }
+                    finish();
+                });
+            } else {
+                FirebaseAuth.getInstance().signOut();
+                openLogin();
+                finish();
+            }
+        });
+    }
+
+    private void openLogin() {
+        startActivity(new Intent(this, LoginActivity.class));
         finish();
     }
 
@@ -43,4 +72,3 @@ public class SplashActivity extends AppCompatActivity {
         }
     }
 }
-

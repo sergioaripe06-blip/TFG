@@ -69,7 +69,7 @@
         android:paddingVertical="12dp"
         android:textColor="@color/text_light"
         android:textColorHint="@color/text_muted"
-        android:popupBackground="@color/surface_dark_alt" />
+        android:popupBackground="@drawable/bg_spinner_popup" />
 
     <TextView
         android:layout_width="match_parent"
@@ -111,7 +111,7 @@
         android:layout_marginTop="4dp"
         android:background="@drawable/bg_select_dark_round"
         android:paddingHorizontal="12dp"
-        android:popupBackground="@color/surface_dark_alt" />
+        android:popupBackground="@drawable/bg_spinner_popup" />
 
     <TextView
         android:layout_width="match_parent"
@@ -204,7 +204,7 @@
         android:layout_marginTop="4dp"
         android:background="@drawable/bg_select_dark_round"
         android:paddingHorizontal="12dp"
-        android:popupBackground="@color/surface_dark_alt" />
+        android:popupBackground="@drawable/bg_spinner_popup" />
 
     <LinearLayout
         android:id="@+id/splitRowsContainer"
@@ -235,4 +235,5 @@
         android:visibility="gone" />
 
 </LinearLayout>
+
 

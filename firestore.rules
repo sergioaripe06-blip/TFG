@@ -1,8 +1,12 @@
-rules_version = '2';
+﻿rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() {
       return request.auth != null;
+    }
+
+    function signedInAndVerified() {
+      return signedIn() && request.auth.token.email_verified == true;
     }
 
     function authUid() {
@@ -30,11 +34,11 @@ service cloud.firestore {
     }
 
     function isResourceGroupMember() {
-      return signedIn() && resource.data.members.hasAny([authUid()]);
+      return signedInAndVerified() && resource.data.members.hasAny([authUid()]);
     }
 
     function isSelfJoinUpdate() {
-      return signedIn()
+      return signedInAndVerified()
         && request.resource.data.diff(resource.data).changedKeys().hasOnly(['members', 'memberEmails', 'roles'])
         && request.resource.data.members.size() == resource.data.members.size() + 1
         && request.resource.data.members.hasAll(resource.data.members)
@@ -47,44 +51,59 @@ service cloud.firestore {
         && request.resource.data.roles[authUid()] == 'member';
     }
 
+    function isSelfLeaveUpdate() {
+      return signedInAndVerified()
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['members', 'memberEmails', 'roles'])
+        && request.resource.data.members.size() + 1 == resource.data.members.size()
+        && resource.data.members.hasAny([authUid()])
+        && !request.resource.data.members.hasAny([authUid()])
+        && request.resource.data.members.hasAll(resource.data.members.removeAll([authUid()]))
+        && request.resource.data.memberEmails.size() + 1 == resource.data.memberEmails.size()
+        && resource.data.memberEmails.hasAny([authEmail()])
+        && !request.resource.data.memberEmails.hasAny([authEmail()])
+        && request.resource.data.memberEmails.hasAll(resource.data.memberEmails.removeAll([authEmail()]))
+        && !request.resource.data.roles.keys().hasAny([authUid()])
+        && request.resource.data.roles.keys().hasAll(resource.data.roles.keys().removeAll([authUid()]));
+    }
+
     function isPaymentStatusToggleByOwner() {
-      return signedIn()
+      return signedInAndVerified()
         && isGroupOwner(resource.data.groupId)
         && request.resource.data.diff(resource.data).changedKeys().hasOnly(['status', 'updatedAt'])
-        && request.resource.data.status in ['pending', 'confirmed']
-        && resource.data.status in ['pending', 'confirmed'];
+        && request.resource.data.status in ['requested', 'pending', 'confirmed']
+        && resource.data.status in ['requested', 'pending', 'confirmed'];
     }
 
     function canOwnerDeletePaymentBeforeDue() {
-      return signedIn()
+      return signedInAndVerified()
         && isGroupOwner(resource.data.groupId)
-        && (resource.data.dueAt is timestamp)
-        && resource.data.dueAt > request.time;
+        && resource.data.status == 'requested';
     }
 
     match /users/{userId} {
-      allow read: if signedIn();
-      allow write: if signedIn() && authUid() == userId;
+      allow read: if signedInAndVerified();
+      allow write: if signedInAndVerified() && authUid() == userId;
     }
 
     match /usernames/{username} {
       allow read: if true;
-      allow create, update: if signedIn()
+      allow create, update: if signedInAndVerified()
         && request.resource.data.uid == authUid()
         && request.resource.data.email == authEmail();
-      allow delete: if false;
+      allow delete: if signedInAndVerified()
+        && resource.data.uid == authUid();
     }
 
     match /group_codes/{code} {
-      allow read: if signedIn();
-      allow create, update: if signedIn()
+      allow read: if signedInAndVerified();
+      allow create, update: if signedInAndVerified()
         && request.resource.data.ownerId == authUid();
-      allow delete: if signedIn()
+      allow delete: if signedInAndVerified()
         && resource.data.ownerId == authUid();
     }
 
     match /groups/{groupId} {
-      allow create: if signedIn()
+      allow create: if signedInAndVerified()
         && request.resource.data.ownerId == authUid()
         && request.resource.data.members.hasAny([authUid()])
         && request.resource.data.memberEmails.hasAny([authEmail()]);
@@ -92,38 +111,39 @@ service cloud.firestore {
       // For list/queries use resource.data directly; cross-document get() here can deny valid queries.
       allow read: if isResourceGroupMember();
 
-      allow update: if signedIn() && (
+      allow update: if signedInAndVerified() && (
         isGroupOwner(groupId) ||
-        isSelfJoinUpdate()
+        isSelfJoinUpdate() ||
+        isSelfLeaveUpdate()
       );
 
-      allow delete: if signedIn() && isGroupOwner(groupId);
+      allow delete: if signedInAndVerified() && isGroupOwner(groupId);
     }
 
     match /rooms_groups/{roomId} {
-      allow create: if signedIn()
+      allow create: if signedInAndVerified()
         && request.resource.data.createdByUid == authUid()
         && request.resource.data.updatedByUid == authUid()
         && isGroupOwner(request.resource.data.groupId);
 
-      allow read: if signedIn()
+      allow read: if signedInAndVerified()
         && isGroupMember(resource.data.groupId);
 
-      allow update, delete: if signedIn()
+      allow update, delete: if signedInAndVerified()
         && isGroupOwner(resource.data.groupId);
     }
 
     match /expenses/{expenseId} {
-      allow create: if signedIn()
+      allow create: if signedInAndVerified()
         && request.resource.data.payerId == authUid()
         && isGroupMember(request.resource.data.groupId);
 
-      allow read, update, delete: if signedIn()
+      allow read, update, delete: if signedInAndVerified()
         && isGroupMember(resource.data.groupId);
     }
 
     match /payments/{paymentId} {
-      allow create: if signedIn()
+      allow create: if signedInAndVerified()
         && isGroupMember(request.resource.data.groupId)
         && (
           request.resource.data.fromEmail == authEmail()
@@ -135,7 +155,7 @@ service cloud.firestore {
           )
         );
 
-      allow read: if signedIn()
+      allow read: if signedInAndVerified()
         && isGroupMember(resource.data.groupId);
 
       allow update: if isPaymentStatusToggleByOwner();
@@ -144,129 +164,129 @@ service cloud.firestore {
     }
 
     match /payment_deadlines/{deadlineId} {
-      allow create: if signedIn()
+      allow create: if signedInAndVerified()
         && isGroupMember(request.resource.data.groupId);
 
-      allow read, update, delete: if signedIn()
+      allow read, update, delete: if signedInAndVerified()
         && isGroupMember(resource.data.groupId);
     }
 
     match /reminders/{reminderId} {
-      allow create: if signedIn()
+      allow create: if signedInAndVerified()
         && request.resource.data.ownerUid == authUid()
         && isGroupMember(request.resource.data.groupId);
 
-      allow read, update, delete: if signedIn()
+      allow read, update, delete: if signedInAndVerified()
         && isGroupMember(resource.data.groupId);
     }
 
     match /activity_logs/{logId} {
-      allow create: if signedIn()
+      allow create: if signedInAndVerified()
         && isGroupMember(request.resource.data.groupId);
 
-      allow read, update, delete: if signedIn()
+      allow read, update, delete: if signedInAndVerified()
         && isGroupMember(resource.data.groupId);
     }
 
     match /rental_contracts/{contractId} {
-      allow create: if signedIn()
+      allow create: if signedInAndVerified()
         && isGroupOwner(request.resource.data.groupId);
 
-      allow read: if signedIn()
+      allow read: if signedInAndVerified()
         && isGroupMember(resource.data.groupId);
 
-      allow update, delete: if signedIn()
+      allow update, delete: if signedInAndVerified()
         && isGroupOwner(resource.data.groupId);
     }
 
     match /rent_collections/{rentId} {
-      allow create: if signedIn()
+      allow create: if signedInAndVerified()
         && isGroupMember(request.resource.data.groupId);
 
-      allow read: if signedIn()
+      allow read: if signedInAndVerified()
         && isGroupMember(resource.data.groupId);
 
-      allow update, delete: if signedIn()
+      allow update, delete: if signedInAndVerified()
         && isGroupOwner(resource.data.groupId);
     }
 
     match /maintenance_tickets/{ticketId} {
-      allow create: if signedIn()
+      allow create: if signedInAndVerified()
         && isGroupMember(request.resource.data.groupId);
 
-      allow read: if signedIn()
+      allow read: if signedInAndVerified()
         && isGroupMember(resource.data.groupId);
 
-      allow update, delete: if signedIn()
+      allow update, delete: if signedInAndVerified()
         && isGroupOwner(resource.data.groupId);
     }
 
     match /group_documents/{docId} {
-      allow create: if signedIn()
+      allow create: if signedInAndVerified()
         && isGroupMember(request.resource.data.groupId);
 
-      allow read: if signedIn()
+      allow read: if signedInAndVerified()
         && isGroupMember(resource.data.groupId);
 
-      allow update, delete: if signedIn()
+      allow update, delete: if signedInAndVerified()
         && isGroupOwner(resource.data.groupId);
     }
 
     match /audit_events/{eventId} {
-      allow create: if signedIn()
+      allow create: if signedInAndVerified()
         && isGroupMember(request.resource.data.groupId);
 
-      allow read: if signedIn()
+      allow read: if signedInAndVerified()
         && isGroupMember(resource.data.groupId);
 
       allow update, delete: if false;
     }
 
     match /rent_automations/{ruleId} {
-      allow create: if signedIn()
+      allow create: if signedInAndVerified()
         && isGroupOwner(request.resource.data.groupId);
 
-      allow read: if signedIn()
+      allow read: if signedInAndVerified()
         && isGroupMember(resource.data.groupId);
 
-      allow update, delete: if signedIn()
+      allow update, delete: if signedInAndVerified()
         && isGroupOwner(resource.data.groupId);
     }
 
     match /event_reminder_rules/{ruleId} {
-      allow create: if signedIn()
+      allow create: if signedInAndVerified()
         && isGroupOwner(request.resource.data.groupId);
 
-      allow read: if signedIn()
+      allow read: if signedInAndVerified()
         && isGroupMember(resource.data.groupId);
 
-      allow update, delete: if signedIn()
+      allow update, delete: if signedInAndVerified()
         && isGroupOwner(resource.data.groupId);
     }
 
     match /event_reminder_jobs/{jobId} {
-      allow create: if signedIn()
+      allow create: if signedInAndVerified()
         && isGroupMember(request.resource.data.groupId);
 
-      allow read: if signedIn()
+      allow read: if signedInAndVerified()
         && isGroupMember(resource.data.groupId);
 
       allow update, delete: if false;
     }
 
     match /invitations/{invitationId} {
-      allow create: if signedIn()
+      allow create: if signedInAndVerified()
         && request.resource.data.inviterUid == authUid()
         && isGroupMember(request.resource.data.groupId);
 
-      allow read: if signedIn()
+      allow read: if signedInAndVerified()
         && (
           resource.data.inviterUid == authUid() ||
           resource.data.invitedEmail == authEmail() ||
           isGroupOwner(resource.data.groupId)
         );
 
-      allow update, delete: if signedIn()
+      allow update, delete: if signedInAndVerified()
         && (
           resource.data.inviterUid == authUid() ||
           resource.data.invitedEmail == authEmail() ||
@@ -275,3 +295,4 @@ service cloud.firestore {
     }
   }
 }
+

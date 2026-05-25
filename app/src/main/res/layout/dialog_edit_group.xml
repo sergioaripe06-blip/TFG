@@ -52,4 +52,43 @@
         android:textColor="@color/text_light"
         android:textColorHint="@color/text_muted" />
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="Tipo de alquiler:"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <Spinner
+        android:id="@+id/editGroupRentModeSpinner"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/bg_select_dark_round"
+        android:paddingHorizontal="12dp"
+        android:popupBackground="@drawable/bg_spinner_popup" />
+
+    <TextView
+        android:id="@+id/editGroupVariableSplitLabelTv"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="Reparto del alquiler variable:"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
+    <Spinner
+        android:id="@+id/editGroupVariableSplitSpinner"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/bg_select_dark_round"
+        android:paddingHorizontal="12dp"
+        android:popupBackground="@drawable/bg_spinner_popup"
+        android:visibility="gone" />
+
 </LinearLayout>

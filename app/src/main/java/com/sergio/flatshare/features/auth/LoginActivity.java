@@ -18,6 +18,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.sergio.flatshare.R;
 import com.sergio.flatshare.core.session.SessionStore;
@@ -45,9 +46,9 @@ public class LoginActivity extends AppCompatActivity {
 
         boolean rememberEnabled = SessionStore.isRememberMeEnabled(this);
         rememberMeSwitch.setChecked(rememberEnabled);
-        if (rememberEnabled && FirebaseAuth.getInstance().getCurrentUser() != null) {
-            UserSync.ensureCurrentUserDocument();
-            openMain();
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (rememberEnabled && currentUser != null) {
+            handleRememberedSession(currentUser);
             return;
         }
 
@@ -59,6 +60,25 @@ public class LoginActivity extends AppCompatActivity {
     private void openMain() {
         startActivity(new Intent(this, MainActivity.class));
         finish();
+    }
+
+    private void handleRememberedSession(FirebaseUser currentUser) {
+        currentUser.reload().addOnCompleteListener(task -> {
+            FirebaseUser refreshedUser = FirebaseAuth.getInstance().getCurrentUser();
+            boolean verified = refreshedUser != null && refreshedUser.isEmailVerified();
+            if (verified) {
+                refreshedUser.getIdToken(true)
+                        .addOnSuccessListener(result -> {
+                            UserSync.ensureCurrentUserDocument();
+                            openMain();
+                        })
+                        .addOnFailureListener(e -> Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show());
+                return;
+            }
+            SessionStore.setRememberMeEnabled(this, false);
+            FirebaseAuth.getInstance().signOut();
+            Toast.makeText(this, "Debes verificar tu correo antes de entrar", Toast.LENGTH_LONG).show();
+        });
     }
 
     private void login() {
@@ -97,11 +117,47 @@ public class LoginActivity extends AppCompatActivity {
     private void signIn(String email, String password, boolean rememberMe) {
         FirebaseAuth.getInstance().signInWithEmailAndPassword(email, password)
                 .addOnSuccessListener(result -> {
-                    UserSync.ensureCurrentUserDocument();
-                    SessionStore.setRememberMeEnabled(this, rememberMe);
-                    openMain();
+                    FirebaseUser user = result.getUser();
+                    if (user == null) {
+                        Toast.makeText(this, "No se pudo iniciar sesión", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+
+                    user.reload().addOnCompleteListener(task -> {
+                        FirebaseUser refreshedUser = FirebaseAuth.getInstance().getCurrentUser();
+                        if (refreshedUser == null) {
+                            Toast.makeText(this, "Sesión no disponible", Toast.LENGTH_LONG).show();
+                            return;
+                        }
+
+                        if (!refreshedUser.isEmailVerified()) {
+                            SessionStore.setRememberMeEnabled(this, false);
+                            Toast.makeText(this, "Tu correo aún no está verificado", Toast.LENGTH_LONG).show();
+                            openVerifyEmailScreen(refreshedUser.getEmail());
+                            return;
+                        }
+
+                        refreshedUser.getIdToken(true)
+                                .addOnSuccessListener(tokenResult -> {
+                                    UserSync.ensureCurrentUserDocument();
+                                    SessionStore.setRememberMeEnabled(this, rememberMe);
+                                    openMain();
+                                })
+                                .addOnFailureListener(e -> Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show());
+                    });
                 })
                 .addOnFailureListener(e -> Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show());
+    }
+
+    private void openVerifyEmailScreen(String email) {
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (currentUser != null) {
+            currentUser.sendEmailVerification();
+        }
+        Intent intent = new Intent(this, VerifyEmailActivity.class);
+        intent.putExtra(VerifyEmailActivity.EXTRA_EMAIL, email == null ? "" : email.trim().toLowerCase(Locale.ROOT));
+        startActivity(intent);
+        finish();
     }
 
     private void showForgotPasswordDialog() {

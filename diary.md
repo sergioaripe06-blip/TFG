@@ -1,4 +1,4 @@
-# Diario de proyecto - FlatShareApp
+﻿# Diario de proyecto - FlatShareApp
 
 ## Alcance y criterio de veracidad
 Este diario esta preparado para entrega academica y sigue estas reglas:
@@ -225,6 +225,7 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
   - `app/src/main/java/com/sergio/flatshare/features/groups/GroupsFragment.java`
   - `firestore.rules`
   - `FIREBASE_SETUP.md`
+  - `firestore.rules`
   - `MANUAL_USUARIO.md`
   - `app/src/main/java/com/sergio/flatshare/features/workspace/services/CategorySuggestionsRepository.java`
   - `app/src/main/java/com/sergio/flatshare/features/workspace/services/PaymentService.java`
@@ -264,6 +265,136 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
 - Firebase:
   - revisado `FIREBASE_SETUP.md`; sin cambios de esquema ni de reglas.
 
+## 2026-05-25
+- Tipo: Avance reconstruido (sesión actual)
+- Implementación de verificación real de correo en el flujo de autenticación:
+  - tras registro se envía email de verificación con Firebase Auth,
+  - nueva pantalla `VerifyEmailActivity` para reenvío y confirmación,
+  - el alta funcional de perfil (`users`, `usernames`, términos) se completa al verificar.
+- Endurecimiento de acceso:
+  - login bloquea usuarios con `emailVerified=false`,
+  - splash cierra sesión no verificada y vuelve a login,
+  - reglas Firestore pasan a requerir usuario autenticado y correo verificado.
+- Corrección de textos visibles en autenticación con acentos en español.
+- Archivos principales afectados:
+  - `app/src/main/java/com/sergio/flatshare/features/auth/RegisterActivity.java`
+  - `app/src/main/java/com/sergio/flatshare/features/auth/LoginActivity.java`
+  - `app/src/main/java/com/sergio/flatshare/features/auth/VerifyEmailActivity.java`
+  - `app/src/main/java/com/sergio/flatshare/features/shell/SplashActivity.java`
+  - `app/src/main/java/com/sergio/flatshare/core/sync/UserSync.java`
+  - `app/src/main/res/layout/activity_verify_email.xml`
+  - `app/src/main/AndroidManifest.xml`
+  - `firestore.rules`
+  - `MANUAL_USUARIO.md`
+  - `FIREBASE_SETUP.md`
+  - `firestore.rules`
+## 2026-05-25
+- Tipo: Avance reconstruido (sesión actual)
+- Ajustes: nueva barra de volumen y música ambiental en bucle en `SettingsFragment`.
+- Cuenta: nuevo botón `Borrar cuenta` con flujo de eliminación controlada.
+- Borrado funcional implementado:
+  - elimina perfil en `users` y alias en `usernames`,
+  - elimina invitaciones relacionadas,
+  - saca al usuario de grupos (`members`, `memberEmails`, `roles`),
+  - transfiere propiedad de grupo al primer miembro restante si el usuario era owner,
+  - conserva históricos (`payments`, `expenses`, etc.).
+- Reglas Firestore reforzadas para soportar el flujo:
+  - nueva función `isSelfLeaveUpdate` en `groups`,
+  - `usernames` permite delete del propio usuario.
+- Archivos principales afectados:
+  - `app/src/main/java/com/sergio/flatshare/features/settings/SettingsFragment.java`
+  - `app/src/main/res/layout/fragment_settings.xml`
+  - `app/src/main/res/raw/elevator_music.wav`
+  - `app/src/main/java/com/sergio/flatshare/core/settings/SettingsStore.java`
+  - `firestore.rules`
+  - `MANUAL_USUARIO.md`
+  - `FIREBASE_SETUP.md`
+  - `firestore.rules`
+## 2026-05-25
+- Tipo: Avance reconstruido (sesión actual)
+- Ajustes UI solicitados:
+  - botón `Cerrar sesión` movido al final y estilo rojo,
+  - etiqueta de música simplificada a `Volumen`,
+  - música de fondo ajustada para menor pausa entre notas.
+- Pago en alquiler fijo:
+  - mejora visual en categoría para evitar apariencia de desplegable bloqueado,
+  - se muestra `Alquiler` como campo de solo lectura con ayuda contextual.
+- Archivos principales afectados:
+  - `app/src/main/res/layout/fragment_settings.xml`
+  - `app/src/main/java/com/sergio/flatshare/features/settings/SettingsFragment.java`
+  - `app/src/main/res/raw/elevator_music.wav`
+  - `app/src/main/res/layout/dialog_payment.xml`
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
+  - `app/src/main/res/values/strings.xml`
+  - `app/src/main/res/drawable/bg_button_pill_danger.xml`
+
+## 2026-05-25
+- Tipo: Avance reconstruido (sesión actual)
+- Corrección visual puntual en Ajustes:
+  - `Borrar cuenta` pasa a estilo exclusivo rojo con `MaterialButton` para evitar herencia de tint turquesa.
+  - mismo rojo en modo claro y oscuro (`status_danger` unificado).
+- Archivos principales afectados:
+  - `app/src/main/res/layout/fragment_settings.xml`
+  - `app/src/main/res/values/themes.xml`
+  - `app/src/main/res/values-night/colors.xml`
+
+## 2026-05-25
+- Tipo: Avance reconstruido (sesión actual)
+- Mejora visual del modo claro por contraste:
+  - ajuste de paleta clara (fondo/superficies/divisores/texto secundario),
+  - barra inferior con fondo propio (no transparente),
+  - color seleccionado de icono/texto en navegación inferior a primario para lectura estable.
+- Archivos principales afectados:
+  - `app/src/main/res/values/colors.xml`
+  - `app/src/main/res/layout/activity_main.xml`
+  - `app/src/main/res/color/bottom_nav_item_colors.xml`
+  - `MANUAL_USUARIO.md`
+
+## 2026-05-25
+- Tipo: Avance reconstruido (sesión actual)
+- Sonidos de feedback en acciones clave:
+  - nuevo helper `AppSoundFx` para reproducir efectos por nombre desde `res/raw`,
+  - sonido al crear piso (`sfx_group_created`),
+  - sonido al confirmar pago/gasto (`sfx_expense_accepted`, cuando estado pasa a `confirmed`),
+  - fallback con tono breve si el audio aun no existe.
+- Archivos principales afectados:
+  - `app/src/main/java/com/sergio/flatshare/core/sound/AppSoundFx.java`
+  - `app/src/main/java/com/sergio/flatshare/features/groups/GroupsFragment.java`
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
+  - `MANUAL_USUARIO.md`
+
+## 2026-05-25
+- Tipo: Avance reconstruido (sesión actual)
+- Ajuste de música de fondo en Ajustes:
+  - se elimina la aceleración de reproducción para mantener un ambiente más calmado,
+  - carga dinámica de pista con prioridad a `ambient_calm` en `res/raw`,
+  - fallback automático a `elevator_music` si no existe la pista nueva.
+- Archivos principales afectados:
+  - `app/src/main/java/com/sergio/flatshare/features/settings/SettingsFragment.java`
+  - `MANUAL_USUARIO.md`
+
+## 2026-05-25
+- Tipo: Avance reconstruido (sesión actual)
+- Ajustes simplificados por UX:
+  - se elimina por completo el bloque de `Volumen` en Ajustes,
+  - se retira la reproducción de música de fondo de `SettingsFragment`.
+- Archivos principales afectados:
+  - `app/src/main/res/layout/fragment_settings.xml`
+  - `app/src/main/java/com/sergio/flatshare/features/settings/SettingsFragment.java`
+  - `app/src/main/res/values/strings.xml`
+  - `MANUAL_USUARIO.md`
+
+## 2026-05-25
+- Tipo: Avance reconstruido (sesión actual)
+- Seguridad en borrado de cuenta:
+  - el flujo de validación previa ahora exige correo y contraseña,
+  - se comprueba que el correo introducido coincide con la cuenta autenticada antes de reautenticar,
+  - mensaje de error unificado para credenciales incorrectas.
+- Archivos principales afectados:
+  - `app/src/main/java/com/sergio/flatshare/features/settings/SettingsFragment.java`
+  - `app/src/main/res/values/strings.xml`
+  - `app/src/main/res/values-en/strings.xml`
+  - `MANUAL_USUARIO.md`
 ---
 
 ## Resumen Firebase (estado funcional)
@@ -281,3 +412,154 @@ En cada avance relevante anadir:
 3. Que se hizo.
 4. Impacto funcional/tecnico.
 5. Archivos principales afectados.
+
+
+
+
+
+## 2026-05-25
+- Tipo: Avance reconstruido (sesión actual)
+- Reparto de pagos de alquiler por habitación (alquiler fijo):
+  - cuando el destino es `Habitación`, el importe se reparte primero entre habitaciones seleccionadas,
+  - dentro de cada habitación, si hay 1 residente asume el 100% de su parte, y si hay 2 o más se divide entre residentes,
+  - se mantiene el reparto anterior en pagos no vinculados a alquiler fijo para evitar regresiones.
+- Archivos principales afectados:
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/services/PaymentService.java`
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
+  - `MANUAL_USUARIO.md`
+## 2026-05-25
+- Tipo: Avance reconstruido (sesión actual)
+- Habitaciones: configuración de reparto de alquiler por habitación (solo propietario):
+  - en `Editar inquilinos` se puede definir reparto `equitativo` o `porcentual` cuando hay 2 o más residentes,
+  - en modo porcentual se elige un inquilino automático y el resto de porcentajes se editan manualmente,
+  - se guardan nuevos campos en `rooms_groups`: `rentSplitMode`, `rentSplitPercentages`, `rentSplitOrder`.
+- Cálculo financiero actualizado:
+  - en alquiler fijo, los saldos y pagos por habitación respetan el reparto porcentual configurado,
+  - si no hay configuración válida, se aplica reparto equitativo como fallback.
+- Archivos principales afectados:
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/services/PaymentService.java`
+  - `MANUAL_USUARIO.md`
+  - `FIREBASE_SETUP.md`
+  - `firestore.rules`
+## 2026-05-25
+- Tipo: Avance reconstruido (sesión actual)
+- Ajuste de copy en acciones de invitación/alta de residentes:
+  - se cambia el texto visible de `Invitar por código/email` a `Añadir por código/email` en los 4 puntos solicitados.
+- Archivos principales afectados:
+  - `app/src/main/res/layout/activity_owner_rooms.xml`
+  - `app/src/main/java/com/sergio/flatshare/features/groups/GroupsFragment.java`
+  - `MANUAL_USUARIO.md`
+## 2026-05-25
+- Tipo: Avance reconstruido (sesión actual)
+- Ajuste visual del encabezado del piso en Workspace:
+  - los tabs `Movimientos`, `Recordatorios` y `Gestion` pasan a estar junto al nombre del piso;
+  - si el nombre es largo y no cabe, los tabs se recolocan automáticamente justo debajo del título.
+- Limpieza técnica asociada:
+  - se elimina la referencia residual a `saldosTabBtn` para evitar error de compilación por id inexistente.
+- Archivos principales afectados:
+  - `app/src/main/res/layout/fragment_expenses.xml`
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
+  - `MANUAL_USUARIO.md`
+## 2026-05-25
+- Tipo: Avance reconstruido (sesión actual)
+- Homogeneización de copy en UI de pisos/habitaciones:
+  - se reemplaza `Invitar` por `Añadir` en botones, diálogos y descripciones de alta de residentes;
+  - también se ajusta la cadena equivalente en inglés (`Invite` -> `Add`).
+- Archivos principales afectados:
+  - `app/src/main/res/layout/fragment_groups.xml`
+  - `app/src/main/java/com/sergio/flatshare/features/groups/GroupsFragment.java`
+  - `app/src/main/java/com/sergio/flatshare/features/groups/OwnerRoomsActivity.java`
+  - `app/src/main/res/values-en/strings.xml`
+## 2026-05-25
+- Tipo: Avance reconstruido (sesión actual)
+- Habitaciones (solo propietario): reparto y posicion por inquilino también en creación y edición.
+  - al crear o editar una habitación, se elige explícitamente quién va en `Inquilino 1`, `Inquilino 2`, etc.;
+  - si hay 2+ inquilinos, se puede elegir reparto `equitativo` o `porcentual`;
+  - en reparto porcentual, el último inquilino queda automático con el porcentaje restante.
+- Persistencia en `rooms_groups`:
+  - `memberEmails` (ordenado por plaza), `rentSplitMode`, `rentSplitPercentages`, `rentSplitOrder`.
+- Archivos principales afectados:
+  - `app/src/main/java/com/sergio/flatshare/features/groups/OwnerRoomsActivity.java`
+  - `MANUAL_USUARIO.md`
+## 2026-05-25
+- Tipo: Avance reconstruido (sesión actual)
+- Ajuste visual en pantalla `Pisos`:
+  - se centran los tres botones de acciones del detalle (`Editar`, `Añadir`, `Gestionar habitaciones`).
+- Archivos principales afectados:
+  - `app/src/main/res/layout/fragment_groups.xml`
+  - `MANUAL_USUARIO.md`
+
+## 2026-05-25
+- Tipo: Avance reconstruido (sesion actual)
+- Flujo de pagos pendientes para inquilino en alquiler variable:
+  - en `Movimientos` se anade listado de pendientes propios desde `payment_deadlines` con acceso directo al pago,
+  - al pulsar un pendiente, `Registrar pago` abre con importe/concepto/fecha/destino precargados y bloqueados,
+  - el justificante en foto pasa a ser obligatorio y el boton `Enviar pago` solo se habilita al adjuntarlo,
+  - si no hay deuda, se muestra `No tienes pagos pendientes` y el pago generico queda desactivado para este perfil.
+- Persistencia y trazabilidad:
+  - en `payments` se guardan `ticketUri`, `sourceDebtId`, `sourceDebtType` cuando aplica,
+  - el pendiente original en `payment_deadlines` pasa a estado `submitted` y guarda `submittedAt` y `proofUri`.
+- Validacion tecnica:
+  - no fue posible ejecutar compilacion local porque el entorno activo usa JVM 8 y Gradle exige JVM 17.
+- Archivos principales afectados:
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
+  - `app/src/main/res/layout/dialog_payment.xml`
+  - `MANUAL_USUARIO.md`
+  - `FIREBASE_SETUP.md`
+  - `firestore.rules`
+
+## 2026-05-25
+- Tipo: Avance reconstruido (sesion actual)
+- Mejora premium de flujo en `Movimientos` para gastos y pagos:
+  - se habilita registro de gasto tambien en alquiler fijo y se normaliza el flujo en ambos modelos,
+  - estados visuales unificados por color: `Solicitado` (rojo) -> `Pendiente` (naranja) -> `Pagado` (verde),
+  - los deudores deben adjuntar foto justificante para enviar pago,
+  - el propietario (o acreedor) valida y confirma el pago para cerrar el flujo.
+- Restricciones de seguridad funcional:
+  - gastos: solo se pueden editar/eliminar en estado `Solicitado`,
+  - pagos: solo se pueden eliminar en estado `Solicitado`; fuera de ese estado no se permite.
+- Persistencia:
+  - `expenses.status` (`requested|pending|confirmed`),
+  - `payments.status` ampliado con `requested` y trazabilidad de deuda origen,
+  - sincronizacion de `payment_deadlines` y recalculo automatico de estado del gasto.
+- Archivos principales afectados:
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
+  - `MANUAL_USUARIO.md`
+  - `FIREBASE_SETUP.md`
+  - `firestore.rules`
+
+## 2026-05-25
+- Tipo: Avance reconstruido (sesión actual)
+- Ajuste solicitado en `Movimientos`:
+  - se oculta la opcion `Nuevo gasto` cuando el piso esta en `alquiler fijo`,
+  - `Nuevo gasto` queda disponible solo para `alquiler variable`.
+- Archivos principales afectados:
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
+  - `MANUAL_USUARIO.md`
+
+## 2026-05-25
+- Tipo: Avance reconstruido (sesión actual)
+- Piso: mejora en `Editar piso` (solo propietario):
+  - ahora permite cambiar el modelo de alquiler entre `fijo` y `variable`,
+  - si se selecciona `variable`, permite elegir reparto `equitativo` o `porcentual`.
+- Persistencia:
+  - actualiza `groups.billingModel` y `groups.variableSplitMode` junto a nombre/descripción.
+- Archivos principales afectados:
+  - `app/src/main/java/com/sergio/flatshare/features/groups/GroupsFragment.java`
+  - `app/src/main/res/layout/dialog_edit_group.xml`
+  - `MANUAL_USUARIO.md`
+
+## 2026-05-25
+- Tipo: Avance reconstruido (sesión actual)
+- Seeder admin: preset hardcodeado para demo rápida solicitada:
+  - nuevo preset `sergio-demo` con owner fijo `sergioaripe06@gmail.com`,
+  - crea 1 piso demo con inquilinos inventados, habitaciones con distintos importes, gastos, pagos y recordatorios.
+- Productivización:
+  - nuevo script `npm run seed:sergio-demo` para ejecutar el preset en un comando.
+- Archivos principales afectados:
+  - `tools/firebase-admin-seed/seed.js`
+  - `tools/firebase-admin-seed/package.json`
+  - `tools/firebase-admin-seed/README.md`
+  - `FIREBASE_SETUP.md`
+  - `MANUAL_USUARIO.md`

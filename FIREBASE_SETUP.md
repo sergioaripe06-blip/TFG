@@ -1,4 +1,4 @@
-# Firebase Setup
+﻿# Firebase Setup
 
 Este documento es la referencia viva de Firebase para `FlatShare`.
 Actualízalo cuando cambie la app, la estructura de datos o las reglas.
@@ -69,6 +69,9 @@ Campos principales:
 - `monthlyCost`
 - `memberEmails`
 - `memberCount`
+- `rentSplitMode` (`equal`, `percentage`)
+- `rentSplitPercentages` (map `email -> porcentaje`)
+- `rentSplitOrder` (orden de edición para reparto porcentual)
 - `createdByUid`
 - `updatedByUid`
 - `createdAt`
@@ -89,6 +92,7 @@ Campos principales:
 - `category`
 - `priority`
 - `ticketUri`
+- `status` (`requested`, `pending`, `confirmed`)
 - `dueAt`
 - `dueDateText`
 - `roomId`
@@ -113,11 +117,36 @@ Campos principales:
 - `roomNames` (array opcional): nombres de habitaciones seleccionadas cuando aplica.
 - `category`
 - `priority`
-- `status`
+- `status` (`requested`, `pending`, `confirmed`)
 - `dueAt`
 - `dueDateText`
 - `createdAt`
 - `seed` (opcional, booleano): marca pagos de demo generados por seed.
+- `ticketUri` (opcional): URI del justificante de pago adjunto por el usuario.
+- `sourceDebtId` (opcional): id de `payment_deadlines` cuando el pago nace desde un pendiente.
+- `sourceDebtType` (opcional): valor `payment_deadline` para trazabilidad del flujo de pendientes.
+
+### `payment_deadlines/{deadlineId}`
+
+Vencimientos y deudas pendientes por miembro.
+
+Campos principales:
+
+- `groupId`
+- `groupName`
+- `sourceType` (`expense` o `payment`)
+- `sourceId`
+- `concept`
+- `amount`
+- `debtorEmail`
+- `creditorEmail`
+- `priority`
+- `status` (`pending`, `submitted`, `confirmed`)
+- `dueAt`
+- `dueDateText` (opcional)
+- `createdAt`
+- `submittedAt` (opcional, cuando el inquilino envia justificante)
+- `proofUri` (opcional, copia del justificante enviado en flujo pendiente)
 
 ### `reminders/{reminderId}`
 
@@ -330,6 +359,7 @@ El archivo fuente de reglas es [firestore.rules](./firestore.rules).
 
 Resumen:
 
+- Acceso de aplicación restringido a usuarios autenticados con correo verificado (`request.auth.token.email_verified == true`).
 - `groups`: solo miembros leen, propietario gestiona.
 - `rooms_groups`: miembros leen, propietario crea/edita/elimina.
 - `expenses`, `payments`, `payment_deadlines`, `reminders`, `activity_logs`: solo miembros del grupo.
@@ -342,6 +372,8 @@ Resumen:
 - `rent_automations` y `event_reminder_rules`: lectura de miembros, gestión del propietario.
 - `event_reminder_jobs`: miembros leen y crean; no se permite editar ni borrar.
 - `invitations`: acceso para quien invita o quien recibe.
+- `groups`: se permite auto-salida segura del propio usuario (`isSelfLeaveUpdate`) para soportar borrado de cuenta.
+- `usernames`: el propietario del username puede eliminar su propio documento al borrar cuenta.
 
 ## Cómo aplicarlo en Firebase
 
@@ -359,6 +391,10 @@ Resumen:
 En `Authentication > Sign-in method` activa:
 
 - `Email/Password`
+- Verificación de correo obligatoria en flujo de app:
+  - Registro envía correo de verificación.
+  - Login y Splash bloquean acceso si `emailVerified` es `false`.
+  - Firestore exige email verificado mediante reglas.
 
 ### Firestore
 
@@ -394,14 +430,17 @@ Uso rápido:
    - `cd tools/firebase-admin-seed`
    - `npm install`
    - `node seed.js --service-account ./service-account.json --owner-email TU_EMAIL --owner-password TU_PASSWORD --users 12 --groups 4 --rooms 3 --members-per-group 4`
+   - O preset hardcodeado solicitado: `npm run seed:sergio-demo` (owner fijo `sergioaripe06@gmail.com`)
 3. Revisa el archivo de salida de credenciales en:
    - `tools/firebase-admin-seed/output/seed-users-YYYYMMDD-HHMMSS.json`
 
 ## Politica de pagos (owner-centric)
-- Solo el propietario (ownerId) puede cambiar estado de un pago entre pending y confirmed.
+- Solo el propietario (ownerId) puede cambiar estado de un pago entre requested, pending y confirmed.
 - Inquilinos: solo lectura para estados de pago.
-- Solo el propietario puede eliminar un pago y solo si dueAt aun no ha vencido.
+- Solo el propietario puede eliminar un pago cuando esta en estado requested.
 - Para mostrar nombres reales en UI, se lee users.name (con fallback si no existe).
 - En registro, el usuario debe aceptar términos y se guardan `users.termsAccepted=true` y `users.termsAcceptedAt`.
+
+
 
 

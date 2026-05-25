@@ -145,7 +145,7 @@ public class RentalManagementFragment extends Fragment {
         for (int i = 0; i < modules.size(); i++) labels[i] = modules.get(i).label;
         ArrayAdapter<String> adapter = new ArrayAdapter<String>(
                 requireContext(),
-                android.R.layout.simple_spinner_item,
+                R.layout.item_spinner_selected,
                 labels
         ) {
             @NonNull
@@ -163,7 +163,7 @@ public class RentalManagementFragment extends Fragment {
                 return v;
             }
         };
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        adapter.setDropDownViewResource(R.layout.item_spinner_dropdown);
         moduleSpinner.setAdapter(adapter);
         moduleSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
@@ -1289,7 +1289,7 @@ public class RentalManagementFragment extends Fragment {
         spinner.setPadding(dp(10), 0, dp(10), 0);
         ArrayAdapter<String> adapter = new ArrayAdapter<String>(
                 requireContext(),
-                android.R.layout.simple_spinner_item,
+                R.layout.item_spinner_selected,
                 values
         ) {
             @NonNull
@@ -1307,7 +1307,7 @@ public class RentalManagementFragment extends Fragment {
                 return v;
             }
         };
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        adapter.setDropDownViewResource(R.layout.item_spinner_dropdown);
         spinner.setAdapter(adapter);
         parent.addView(spinner);
         return spinner;
@@ -1648,3 +1648,4 @@ public class RentalManagementFragment extends Fragment {
         }
     }
 }
+

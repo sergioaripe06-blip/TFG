@@ -46,6 +46,7 @@ node seed.js \
 
 ## Opciones
 
+- `--preset`: preset de demo. Disponible: `sergio-demo`.
 - `--service-account`: ruta al JSON de service account.
 - `--owner-email`: cuenta propietaria de todos los pisos (obligatorio).
 - `--owner-password`: solo se usa si el owner no existe y hay que crearlo.
@@ -61,6 +62,27 @@ node seed.js \
 - `--email-domain`: dominio de email de inquilinos.
 - `--project-id`: project id de Firebase (opcional).
 - `--dry-run`: no escribe nada; solo muestra el plan.
+
+## Preset hardcodeado: `sergio-demo`
+
+Este preset crea un piso demo con:
+
+- owner fijo: `sergioaripe06@gmail.com`,
+- 4 inquilinos inventados (Juan, María, Lucía y Álvaro),
+- 4 habitaciones con precios distintos,
+- gastos, pagos, vencimientos y recordatorios de prueba.
+
+Comando rápido:
+
+```bash
+npm run seed:sergio-demo
+```
+
+Si el owner no existe todavía en Firebase Auth, añade también `--owner-password`:
+
+```bash
+node seed.js --service-account ./service-account.json --preset sergio-demo --owner-password TuPasswordSegura123!
+```
 
 ## Resultado
 

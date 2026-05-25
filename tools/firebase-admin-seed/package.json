@@ -5,7 +5,8 @@
   "description": "Seeder temporal para crear cuentas reales (Auth) y datos base (Firestore) en FlatShare",
   "main": "seed.js",
   "scripts": {
-    "seed": "node seed.js"
+    "seed": "node seed.js",
+    "seed:sergio-demo": "node seed.js --service-account ./service-account.json --preset sergio-demo"
   },
   "dependencies": {
     "firebase-admin": "^12.7.0"

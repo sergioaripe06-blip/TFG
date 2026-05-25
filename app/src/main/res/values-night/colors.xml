@@ -14,5 +14,5 @@
     <color name="divider_soft">#30465F</color>
     <color name="status_success">#34D399</color>
     <color name="status_warning">#FBBF24</color>
-    <color name="status_danger">#F87171</color>
+    <color name="status_danger">#B91C1C</color>
 </resources>

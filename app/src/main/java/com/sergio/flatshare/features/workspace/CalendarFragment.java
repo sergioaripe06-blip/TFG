@@ -780,7 +780,7 @@ public class CalendarFragment extends Fragment {
     }
 
     private ArrayAdapter<String> buildLightSpinnerAdapter(String[] values) {
-        ArrayAdapter<String> adapter = new ArrayAdapter<String>(requireContext(), android.R.layout.simple_spinner_item, values) {
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(requireContext(), R.layout.item_spinner_selected, values) {
             @NonNull
             @Override
             public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
@@ -796,7 +796,7 @@ public class CalendarFragment extends Fragment {
                 return view;
             }
         };
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        adapter.setDropDownViewResource(R.layout.item_spinner_dropdown);
         return adapter;
     }
 
@@ -877,4 +877,5 @@ public class CalendarFragment extends Fragment {
         }
     }
 }
+
 

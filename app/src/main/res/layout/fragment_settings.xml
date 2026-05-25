@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/bg_screen_gradient"
@@ -51,17 +52,27 @@
             android:layout_marginTop="6dp"
             android:background="@drawable/bg_select_dark_round"
             android:paddingHorizontal="12dp"
-            android:popupBackground="@color/surface_dark_alt" />
+            android:popupBackground="@drawable/bg_spinner_popup" />
 
         <Button
             android:id="@+id/settingsLogoutBtn"
             android:layout_width="match_parent"
             android:layout_height="44dp"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="14dp"
             android:background="@drawable/bg_button_pill_secondary"
             android:text="@string/logout"
             android:textAllCaps="false"
             android:textColor="@color/text_light" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/deleteAccountBtn"
+            style="@style/Widget.FlatShare.Button.DeleteAccount"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:layout_marginTop="12dp"
+            android:text="@string/settings_delete_account"
+            android:textAllCaps="false" />
     </LinearLayout>
 
 </FrameLayout>
+

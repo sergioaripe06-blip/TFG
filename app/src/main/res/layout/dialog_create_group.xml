@@ -247,7 +247,7 @@
             android:background="@drawable/bg_select_dark_round"
             android:paddingHorizontal="16dp"
             android:paddingVertical="0dp"
-            android:popupBackground="@color/surface_dark_alt"
+            android:popupBackground="@drawable/bg_spinner_popup"
             android:spinnerMode="dropdown" />
 
         <TextView
@@ -268,7 +268,7 @@
             android:background="@drawable/bg_select_dark_round"
             android:paddingHorizontal="16dp"
             android:paddingVertical="0dp"
-            android:popupBackground="@color/surface_dark_alt"
+            android:popupBackground="@drawable/bg_spinner_popup"
             android:spinnerMode="dropdown"
             android:visibility="gone" />
     </LinearLayout>
@@ -276,4 +276,5 @@
     </LinearLayout>
 
 </ScrollView>
+
 

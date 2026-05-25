@@ -4,6 +4,42 @@ const fs = require("fs");
 const path = require("path");
 const admin = require("firebase-admin");
 
+const SERGIO_DEMO_PRESET = {
+  key: "sergio-demo",
+  ownerEmail: "sergioaripe06@gmail.com",
+  ownerDisplayName: "Sergio Aripe",
+  groupName: "Piso Demo Sergio",
+  groupDescription: "Piso demo para validar flujo completo de alquiler variable.",
+  location: {
+    street: "Calle Alcalá 123",
+    portal: "Portal A",
+    postalCode: "28009",
+    city: "Madrid",
+    province: "Madrid"
+  },
+  roomTemplates: [
+    { name: "Suite exterior", monthlyCost: 520 },
+    { name: "Habitación balcón", monthlyCost: 470 },
+    { name: "Habitación interior", monthlyCost: 420 },
+    { name: "Habitación estudio", monthlyCost: 390 }
+  ],
+  tenants: [
+    { email: "juan.demo@seed.flatshare.local", username: "juan_demo", displayName: "Juan Pérez", passwordSuffix: "juan01" },
+    { email: "maria.demo@seed.flatshare.local", username: "maria_demo", displayName: "María García", passwordSuffix: "maria02" },
+    { email: "lucia.demo@seed.flatshare.local", username: "lucia_demo", displayName: "Lucía Torres", passwordSuffix: "lucia03" },
+    { email: "alvaro.demo@seed.flatshare.local", username: "alvaro_demo", displayName: "Álvaro Ruiz", passwordSuffix: "alvaro04" }
+  ],
+  config: {
+    groupsCount: 1,
+    roomsPerGroup: 4,
+    usersCount: 4,
+    membersPerGroup: 4,
+    expensesPerGroup: 10,
+    paymentsPerGroup: 8,
+    remindersPerGroup: 4
+  }
+};
+
 function parseArgs(argv) {
   const args = {};
   for (let i = 0; i < argv.length; i++) {
@@ -65,7 +101,8 @@ Uso:
     --payments-per-group 6 \\
     --reminders-per-group 4
 
-Opciones:
+ Opciones:
+  --preset <id>                  Preset de demo. Disponible: sergio-demo
   --service-account <ruta-json>   Ruta al JSON de service account (opcional si usas GOOGLE_APPLICATION_CREDENTIALS)
   --owner-email <email>           Email de la cuenta propietaria (obligatorio)
   --owner-password <password>     Password del owner si hay que crearlo
@@ -528,15 +565,42 @@ async function main() {
     return;
   }
 
-  const ownerEmail = normalizeEmail(args["owner-email"]);
+  const presetKey = String(args.preset || "").trim().toLowerCase();
+  const useSergioDemoPreset = presetKey === SERGIO_DEMO_PRESET.key;
+  if (presetKey && !useSergioDemoPreset) {
+    throw new Error(`Preset no soportado: ${presetKey}. Usa "${SERGIO_DEMO_PRESET.key}".`);
+  }
+
+  const ownerEmail = normalizeEmail(useSergioDemoPreset ? SERGIO_DEMO_PRESET.ownerEmail : args["owner-email"]);
   const ownerPassword = args["owner-password"] ? String(args["owner-password"]) : "";
-  const groupsCount = asInt(args.groups, 4);
-  const roomsPerGroup = asInt(args.rooms, 3);
-  const usersCount = asInt(args.users, 12);
-  const membersPerGroup = asInt(args["members-per-group"], 4);
-  const expensesPerGroup = asInt(args["expenses-per-group"], 8);
-  const paymentsPerGroup = asInt(args["payments-per-group"], 6);
-  const remindersPerGroup = asInt(args["reminders-per-group"], 4);
+  const groupsCount = asInt(
+    args.groups,
+    useSergioDemoPreset ? SERGIO_DEMO_PRESET.config.groupsCount : 4
+  );
+  const roomsPerGroup = asInt(
+    args.rooms,
+    useSergioDemoPreset ? SERGIO_DEMO_PRESET.config.roomsPerGroup : 3
+  );
+  const usersCount = asInt(
+    args.users,
+    useSergioDemoPreset ? SERGIO_DEMO_PRESET.config.usersCount : 12
+  );
+  const membersPerGroup = asInt(
+    args["members-per-group"],
+    useSergioDemoPreset ? SERGIO_DEMO_PRESET.config.membersPerGroup : 4
+  );
+  const expensesPerGroup = asInt(
+    args["expenses-per-group"],
+    useSergioDemoPreset ? SERGIO_DEMO_PRESET.config.expensesPerGroup : 8
+  );
+  const paymentsPerGroup = asInt(
+    args["payments-per-group"],
+    useSergioDemoPreset ? SERGIO_DEMO_PRESET.config.paymentsPerGroup : 6
+  );
+  const remindersPerGroup = asInt(
+    args["reminders-per-group"],
+    useSergioDemoPreset ? SERGIO_DEMO_PRESET.config.remindersPerGroup : 4
+  );
   const passwordPrefix = String(args["password-prefix"] || "FlatShareSeed!");
   const emailPrefix = String(args["email-prefix"] || "seeduser");
   const emailDomain = String(args["email-domain"] || "seed.flatshare.local");
@@ -576,6 +640,9 @@ async function main() {
   const db = admin.firestore();
 
   console.log("Iniciando seed admin...");
+  if (useSergioDemoPreset) {
+    console.log(`Preset activo: ${SERGIO_DEMO_PRESET.key}`);
+  }
   console.log(`Owner: ${ownerEmail}`);
   console.log(
     `Configuracion: users=${usersCount}, groups=${groupsCount}, rooms=${roomsPerGroup}, membersPerGroup=${membersPerGroup}, expensesPerGroup=${expensesPerGroup}, paymentsPerGroup=${paymentsPerGroup}, remindersPerGroup=${remindersPerGroup}`
@@ -584,32 +651,65 @@ async function main() {
     console.log("Modo dry-run: no se escribira nada en Firebase.");
   }
 
-  const owner = await ensureAuthUser(auth, ownerEmail, ownerPassword, "Owner Seed");
+  const owner = await ensureAuthUser(
+    auth,
+    ownerEmail,
+    ownerPassword,
+    useSergioDemoPreset ? SERGIO_DEMO_PRESET.ownerDisplayName : "Owner Seed"
+  );
   console.log(`Owner ${owner.created ? "creado" : "encontrado"}: ${owner.uid}`);
 
   const generatedUsers = [];
-  for (let i = 1; i <= usersCount; i++) {
-    const suffix = String(i).padStart(3, "0");
-    const email = `${emailPrefix}${suffix}@${emailDomain}`.toLowerCase();
-    const password = `${passwordPrefix}${suffix}`;
-    const displayName = `Inquilino Seed ${i}`;
-    if (!dryRun) {
-      const authUser = await ensureAuthUser(auth, email, password, displayName);
-      generatedUsers.push({
-        uid: authUser.uid,
-        email: authUser.email,
-        password,
-        username: `${emailPrefix}${suffix}`,
-        displayName
-      });
-    } else {
-      generatedUsers.push({
-        uid: `dry_uid_${suffix}`,
-        email,
-        password,
-        username: `${emailPrefix}${suffix}`,
-        displayName
-      });
+  if (useSergioDemoPreset) {
+    const selectedTenants = SERGIO_DEMO_PRESET.tenants.slice(0, usersCount);
+    for (let i = 0; i < selectedTenants.length; i++) {
+      const tenant = selectedTenants[i];
+      const suffix = String(i + 1).padStart(3, "0");
+      const email = normalizeEmail(tenant.email);
+      const password = `${passwordPrefix}${tenant.passwordSuffix}`;
+      if (!dryRun) {
+        const authUser = await ensureAuthUser(auth, email, password, tenant.displayName);
+        generatedUsers.push({
+          uid: authUser.uid,
+          email: authUser.email,
+          password,
+          username: tenant.username,
+          displayName: tenant.displayName
+        });
+      } else {
+        generatedUsers.push({
+          uid: `dry_uid_${suffix}`,
+          email,
+          password,
+          username: tenant.username,
+          displayName: tenant.displayName
+        });
+      }
+    }
+  } else {
+    for (let i = 1; i <= usersCount; i++) {
+      const suffix = String(i).padStart(3, "0");
+      const email = `${emailPrefix}${suffix}@${emailDomain}`.toLowerCase();
+      const password = `${passwordPrefix}${suffix}`;
+      const displayName = `Inquilino Seed ${i}`;
+      if (!dryRun) {
+        const authUser = await ensureAuthUser(auth, email, password, displayName);
+        generatedUsers.push({
+          uid: authUser.uid,
+          email: authUser.email,
+          password,
+          username: `${emailPrefix}${suffix}`,
+          displayName
+        });
+      } else {
+        generatedUsers.push({
+          uid: `dry_uid_${suffix}`,
+          email,
+          password,
+          username: `${emailPrefix}${suffix}`,
+          displayName
+        });
+      }
     }
   }
 
@@ -674,7 +774,7 @@ async function main() {
     }
 
     const groupId = dryRun ? `dry_group_${String(g).padStart(3, "0")}` : db.collection("groups").doc().id;
-    const groupName = `Piso Seed Admin ${g}`;
+    const groupName = useSergioDemoPreset && g === 1 ? SERGIO_DEMO_PRESET.groupName : `Piso Seed Admin ${g}`;
     const shareCode = groupId.toUpperCase();
 
     if (dryRun) {
@@ -689,14 +789,18 @@ async function main() {
     const seededRooms = [];
     batch.set(groupRef, {
       name: groupName,
-      description: "Piso de pruebas generado por firebase-admin seed",
-      location: {
-        street: `Calle Seed ${g}`,
-        portal: `Portal ${g}`,
-        postalCode: `28${String(g).padStart(3, "0")}`,
-        city: "Madrid",
-        province: "Madrid"
-      },
+      description: useSergioDemoPreset && g === 1
+        ? SERGIO_DEMO_PRESET.groupDescription
+        : "Piso de pruebas generado por firebase-admin seed",
+      location: useSergioDemoPreset && g === 1
+        ? { ...SERGIO_DEMO_PRESET.location }
+        : {
+            street: `Calle Seed ${g}`,
+            portal: `Portal ${g}`,
+            postalCode: `28${String(g).padStart(3, "0")}`,
+            city: "Madrid",
+            province: "Madrid"
+          },
       ownerId: owner.uid,
       roles,
       members: memberUids,
@@ -719,13 +823,17 @@ async function main() {
       const roomMember = groupMembers[(r - 1) % groupMembers.length];
       const roomMemberEmails = roomMember ? [roomMember.email] : [];
       const roomRef = db.collection("rooms_groups").doc();
-      const roomName = `Habitacion ${r}`;
+      const roomTemplate = useSergioDemoPreset && g === 1
+        ? SERGIO_DEMO_PRESET.roomTemplates[(r - 1) % SERGIO_DEMO_PRESET.roomTemplates.length]
+        : null;
+      const roomName = roomTemplate ? roomTemplate.name : `Habitacion ${r}`;
+      const monthlyCost = roomTemplate ? roomTemplate.monthlyCost : 350 + r * 30;
       batch.set(roomRef, {
         groupId,
         roomNumber: r,
         name: roomName,
         capacity: 2,
-        monthlyCost: 350 + r * 30,
+        monthlyCost,
         memberEmails: roomMemberEmails,
         memberCount: roomMemberEmails.length,
         createdByUid: owner.uid,

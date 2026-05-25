@@ -2,6 +2,7 @@ package com.sergio.flatshare.features.auth;
 
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
+import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -15,18 +16,15 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.UserProfileChangeRequest;
-import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.sergio.flatshare.R;
-import com.sergio.flatshare.core.sync.UserSync;
+import com.sergio.flatshare.core.session.SessionStore;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.Locale;
-import java.util.Map;
 
 public class RegisterActivity extends AppCompatActivity {
     @Override
@@ -50,7 +48,7 @@ public class RegisterActivity extends AppCompatActivity {
         registerBtn.setOnClickListener(v -> {
             String fullName = fullNameEt.getText().toString().trim();
             String username = usernameEt.getText().toString().trim().toLowerCase(Locale.ROOT);
-            String email = emailEt.getText().toString().trim();
+            String email = emailEt.getText().toString().trim().toLowerCase(Locale.ROOT);
             String phone = phoneEt.getText().toString().trim();
             String birthDate = birthDateEt.getText().toString().trim();
             String password = passwordEt.getText().toString().trim();
@@ -83,22 +81,32 @@ public class RegisterActivity extends AppCompatActivity {
 
                         FirebaseAuth.getInstance().createUserWithEmailAndPassword(email, password)
                                 .addOnSuccessListener(authResult -> {
-                                    if (authResult.getUser() != null) {
-                                        UserProfileChangeRequest profile = new UserProfileChangeRequest.Builder()
-                                                .setDisplayName(fullName)
-                                                .build();
-                                        authResult.getUser().updateProfile(profile);
-                                        Map<String, Object> termsData = new HashMap<>();
-                                        termsData.put("termsAccepted", true);
-                                        termsData.put("termsAcceptedAt", FieldValue.serverTimestamp());
-                                        FirebaseFirestore.getInstance()
-                                                .collection("users")
-                                                .document(authResult.getUser().getUid())
-                                                .set(termsData, com.google.firebase.firestore.SetOptions.merge());
+                                    if (authResult.getUser() == null) {
+                                        Toast.makeText(this, "No se pudo crear la cuenta. Inténtalo de nuevo.", Toast.LENGTH_LONG).show();
+                                        return;
                                     }
-                                    UserSync.saveCurrentUserProfile(fullName, username, phone, birthDate);
-                                    Toast.makeText(this, "Cuenta creada", Toast.LENGTH_SHORT).show();
-                                    finish();
+                                    UserProfileChangeRequest profile = new UserProfileChangeRequest.Builder()
+                                            .setDisplayName(fullName)
+                                            .build();
+                                    authResult.getUser().updateProfile(profile);
+                                    SessionStore.savePendingRegistrationProfile(
+                                            this,
+                                            email,
+                                            fullName,
+                                            username,
+                                            phone,
+                                            birthDate,
+                                            true
+                                    );
+                                    authResult.getUser().sendEmailVerification()
+                                            .addOnSuccessListener(unused -> {
+                                                Toast.makeText(this, "Te hemos enviado un correo de verificación", Toast.LENGTH_LONG).show();
+                                                openVerifyEmailScreen(email, fullName, username, phone, birthDate, true);
+                                            })
+                                            .addOnFailureListener(e -> {
+                                                Toast.makeText(this, "Cuenta creada, pero no pudimos enviar el correo de verificación. Puedes reenviarlo desde la siguiente pantalla.", Toast.LENGTH_LONG).show();
+                                                openVerifyEmailScreen(email, fullName, username, phone, birthDate, true);
+                                            });
                                 })
                                 .addOnFailureListener(e -> Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show());
                     })
@@ -184,5 +192,17 @@ public class RegisterActivity extends AppCompatActivity {
         );
         dialog.getDatePicker().setMaxDate(System.currentTimeMillis());
         dialog.show();
+    }
+
+    private void openVerifyEmailScreen(String email, String fullName, String username, String phone, String birthDate, boolean termsAccepted) {
+        Intent intent = new Intent(this, VerifyEmailActivity.class);
+        intent.putExtra(VerifyEmailActivity.EXTRA_EMAIL, email);
+        intent.putExtra(VerifyEmailActivity.EXTRA_FULL_NAME, fullName);
+        intent.putExtra(VerifyEmailActivity.EXTRA_USERNAME, username);
+        intent.putExtra(VerifyEmailActivity.EXTRA_PHONE, phone);
+        intent.putExtra(VerifyEmailActivity.EXTRA_BIRTH_DATE, birthDate);
+        intent.putExtra(VerifyEmailActivity.EXTRA_TERMS_ACCEPTED, termsAccepted);
+        startActivity(intent);
+        finish();
     }
 }

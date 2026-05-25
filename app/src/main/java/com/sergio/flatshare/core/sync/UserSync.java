@@ -2,6 +2,7 @@ package com.sergio.flatshare.core.sync;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.SetOptions;
 
@@ -41,6 +42,18 @@ public class UserSync {
             publicData.put("displayName", data.get("displayName"));
             FirebaseFirestore.getInstance().collection("usernames").document(normalizedUsername).set(publicData, SetOptions.merge());
         }
+    }
+
+    public static void saveTermsAcceptance() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) return;
+        Map<String, Object> termsData = new HashMap<>();
+        termsData.put("termsAccepted", true);
+        termsData.put("termsAcceptedAt", FieldValue.serverTimestamp());
+        FirebaseFirestore.getInstance()
+                .collection("users")
+                .document(user.getUid())
+                .set(termsData, SetOptions.merge());
     }
 }
 

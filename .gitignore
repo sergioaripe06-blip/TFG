@@ -43,7 +43,7 @@ google-services.json
 keystore.properties
 
 # Firebase local emulator / export artifacts
-firebase-debug.log
+firebase-debug.loge
 firestore-debug.log
 ui-debug.log
 *.overall_export_metadata

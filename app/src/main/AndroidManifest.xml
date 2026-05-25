@@ -13,6 +13,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.FlatShare">
         <activity android:name="com.sergio.flatshare.features.groups.OwnerRoomsActivity" />
+        <activity android:name="com.sergio.flatshare.features.auth.VerifyEmailActivity" />
         <activity android:name="com.sergio.flatshare.features.auth.RegisterActivity" />
         <activity android:name="com.sergio.flatshare.features.auth.LoginActivity" />
         <activity android:name="com.sergio.flatshare.features.shell.MainActivity" />

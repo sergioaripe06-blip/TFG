@@ -65,7 +65,7 @@
         android:layout_marginTop="4dp"
         android:background="@drawable/bg_select_dark_round"
         android:paddingHorizontal="12dp"
-        android:popupBackground="@color/surface_dark_alt" />
+        android:popupBackground="@drawable/bg_spinner_popup" />
 
     <TextView
         android:id="@+id/paymentMemberLabelTv"
@@ -170,18 +170,69 @@
         android:paddingVertical="12dp"
         android:textColor="@color/text_light"
         android:textColorHint="@color/text_muted"
-        android:popupBackground="@color/surface_dark_alt" />
+        android:popupBackground="@drawable/bg_spinner_popup" />
+
+    <LinearLayout
+        android:id="@+id/paymentCategoryFixedContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/bg_readonly_premium"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="12dp"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_lock_teal_24" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/paymentCategoryFixedTv"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_light"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="Categoría bloqueada"
+                android:textColor="@color/text_muted"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_chip_readonly"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:text="Fijo"
+            android:textColor="@color/text_light"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 
     <TextView
-        android:id="@+id/paymentCategoryFixedTv"
+        android:id="@+id/paymentCategoryFixedHintTv"
         android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:layout_marginTop="4dp"
-        android:background="@drawable/bg_select_dark_round"
-        android:gravity="center_vertical"
-        android:paddingHorizontal="16dp"
-        android:textColor="@color/text_light"
-        android:textStyle="bold"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="@string/payment_category_fixed_hint"
+        android:textColor="@color/text_muted"
+        android:textSize="12sp"
         android:visibility="gone" />
 
     <TextView
@@ -224,6 +275,35 @@
         android:layout_marginTop="4dp"
         android:background="@drawable/bg_select_dark_round"
         android:paddingHorizontal="12dp"
-        android:popupBackground="@color/surface_dark_alt" />
+        android:popupBackground="@drawable/bg_spinner_popup" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="Justificante del pago:"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <Button
+        android:id="@+id/attachTicketBtnPayment"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="6dp"
+        android:background="@drawable/bg_tab_default"
+        android:text="Adjuntar foto"
+        android:textAllCaps="false"
+        android:textColor="@color/text_light" />
+
+    <TextView
+        android:id="@+id/paymentProofStatusTv"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="Sin justificante adjunto"
+        android:textColor="@color/text_muted"
+        android:textSize="12sp" />
 
 </LinearLayout>
+
