@@ -234,6 +234,16 @@
         android:textColor="@color/text_light"
         android:visibility="gone" />
 
+    <TextView
+        android:id="@+id/splitRemainingTv"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Falta por repartir: 0,00 EUR"
+        android:textColor="@color/status_danger"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
 </LinearLayout>
 
 

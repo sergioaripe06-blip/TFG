@@ -66,6 +66,8 @@
 
     <style name="TextAppearance.FlatShare.CalendarDate" parent="@style/TextAppearance.Material3.BodySmall">
         <item name="android:textColor">@color/calendar_day_text_selector</item>
+        <item name="android:textColorPrimary">@color/calendar_day_text</item>
+        <item name="android:textColorPrimaryInverse">@color/calendar_day_text</item>
     </style>
 
     <style name="TextAppearance.FlatShare.CalendarWeekday" parent="@style/TextAppearance.Material3.BodySmall">

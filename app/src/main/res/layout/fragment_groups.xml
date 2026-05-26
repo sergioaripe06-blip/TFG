@@ -99,38 +99,45 @@
 
         </LinearLayout>
 
-        <EditText
-            android:id="@+id/groupsSearchEt"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:background="@drawable/bg_input_dark_round"
-            android:hint="Buscar piso por nombre o direccion"
-            android:imeOptions="actionDone"
-            android:inputType="text"
-            android:paddingHorizontal="16dp"
-            android:paddingVertical="12dp"
-            android:textColor="@color/text_light"
-            android:textColorHint="@color/text_muted" />
-
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="10dp"
             android:layout_weight="1"
             android:background="@drawable/bg_group_row"
             android:clipChildren="true"
             android:clipToPadding="true">
 
-            <ListView
-                android:id="@+id/groupsLv"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:clipToPadding="true"
-                android:divider="@android:color/transparent"
-                android:dividerHeight="0dp"
-                android:listSelector="@android:color/transparent"
-                android:padding="10dp" />
+                android:orientation="vertical"
+                android:padding="10dp">
+
+                <EditText
+                    android:id="@+id/groupsSearchEt"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_input_dark_round"
+                    android:hint="Buscar piso por nombre o direcciÃƒÂ³n"
+                    android:imeOptions="actionDone"
+                    android:inputType="text"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="12dp"
+                    android:textColor="@color/text_light"
+                    android:textColorHint="@color/text_muted" />
+
+                <ListView
+                    android:id="@+id/groupsLv"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:layout_marginTop="10dp"
+                    android:clipToPadding="true"
+                    android:divider="@android:color/transparent"
+                    android:dividerHeight="0dp"
+                    android:listSelector="@android:color/transparent" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/emptyGroupsTv"
@@ -138,7 +145,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:gravity="center"
-                android:text="Aun no tienes pisos. Pulsa Crear piso."
+                android:text="AÃƒÂºn no tienes pisos. Pulsa Crear piso."
                 android:textColor="@color/text_muted"
                 android:textSize="14sp" />
         </FrameLayout>
@@ -245,7 +252,7 @@
                 android:layout_width="132dp"
                 android:layout_height="40dp"
                 android:backgroundTint="@color/primary_green"
-                android:text="Editar"
+                android:text="Editar piso"
                 android:textColor="@color/on_primary_green" />
 
             <Button
@@ -254,7 +261,7 @@
                 android:layout_height="40dp"
                 android:layout_marginStart="8dp"
                 android:backgroundTint="@color/surface_chip"
-                android:text="Añadir"
+                android:text="Añadir inquilinos"
                 android:textColor="@color/text_light" />
         </LinearLayout>
 

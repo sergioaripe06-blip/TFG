@@ -7,6 +7,7 @@ import android.graphics.drawable.ColorDrawable;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -16,6 +17,9 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.sergio.flatshare.R;
+
+import java.util.List;
+import java.util.Map;
 
 public final class DialogUtils {
     private DialogUtils() {
@@ -86,6 +90,10 @@ public final class DialogUtils {
         }
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            dialog.getWindow().setSoftInputMode(
+                    WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+                            | WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN
+            );
         }
         return dialog;
     }
@@ -109,6 +117,136 @@ public final class DialogUtils {
         LinearLayout layout = new LinearLayout(context);
         layout.setOrientation(LinearLayout.VERTICAL);
         return layout;
+    }
+
+    public static LinearLayout createInfoRowsView(@NonNull Context context, @NonNull Map<String, String> rows) {
+        LinearLayout root = new LinearLayout(context);
+        root.setOrientation(LinearLayout.VERTICAL);
+
+        for (Map.Entry<String, String> entry : rows.entrySet()) {
+            String label = entry.getKey() == null ? "" : entry.getKey().trim();
+            String value = entry.getValue() == null || entry.getValue().trim().isEmpty() ? "Sin datos" : entry.getValue().trim();
+
+            LinearLayout card = new LinearLayout(context);
+            card.setOrientation(LinearLayout.VERTICAL);
+            card.setBackgroundResource(R.drawable.bg_input_dark_round);
+            card.setPadding(dp(context, 12), dp(context, 10), dp(context, 12), dp(context, 10));
+
+            LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+            );
+            cardParams.topMargin = dp(context, 8);
+            card.setLayoutParams(cardParams);
+
+            TextView labelTv = new TextView(context);
+            labelTv.setText(label);
+            labelTv.setTextColor(context.getColor(R.color.text_muted));
+            labelTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            card.addView(labelTv);
+
+            TextView valueTv = new TextView(context);
+            valueTv.setText(value);
+            valueTv.setTextColor(context.getColor(R.color.text_light));
+            valueTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+            valueTv.setLineSpacing(0f, 1.12f);
+            LinearLayout.LayoutParams valueParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+            );
+            valueParams.topMargin = dp(context, 3);
+            valueTv.setLayoutParams(valueParams);
+            card.addView(valueTv);
+
+            root.addView(card);
+        }
+
+        return root;
+    }
+
+    public static LinearLayout createReminderDetailView(
+            @NonNull Context context,
+            @NonNull String groupName,
+            @NonNull String targetTitle,
+            @NonNull List<String> targetItems,
+            @NonNull String frequency,
+            @NonNull String fromDate,
+            @NonNull String toDate
+    ) {
+        LinearLayout root = new LinearLayout(context);
+        root.setOrientation(LinearLayout.VERTICAL);
+
+        root.addView(createInfoCard(context, "Nombre del piso", groupName));
+
+        StringBuilder targetsText = new StringBuilder();
+        if (targetItems.isEmpty()) {
+            targetsText.append("• Sin datos");
+        } else {
+            for (int i = 0; i < targetItems.size(); i++) {
+                if (i > 0) targetsText.append("\n");
+                targetsText.append("• ").append(targetItems.get(i));
+            }
+        }
+        root.addView(createInfoCard(context, targetTitle, targetsText.toString()));
+        root.addView(createInfoCard(context, "Frecuencia", frequency));
+
+        LinearLayout datesRow = new LinearLayout(context);
+        datesRow.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        rowParams.topMargin = dp(context, 8);
+        datesRow.setLayoutParams(rowParams);
+
+        View fromCard = createInfoCard(context, "Desde", fromDate);
+        View toCard = createInfoCard(context, "Hasta", toDate);
+
+        LinearLayout.LayoutParams fromParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        fromCard.setLayoutParams(fromParams);
+
+        LinearLayout.LayoutParams toParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        toParams.leftMargin = dp(context, 8);
+        toCard.setLayoutParams(toParams);
+
+        datesRow.addView(fromCard);
+        datesRow.addView(toCard);
+        root.addView(datesRow);
+        return root;
+    }
+
+    private static LinearLayout createInfoCard(@NonNull Context context, @NonNull String label, @NonNull String value) {
+        LinearLayout card = new LinearLayout(context);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackgroundResource(R.drawable.bg_input_dark_round);
+        card.setPadding(dp(context, 12), dp(context, 10), dp(context, 12), dp(context, 10));
+
+        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        cardParams.topMargin = dp(context, 8);
+        card.setLayoutParams(cardParams);
+
+        TextView labelTv = new TextView(context);
+        labelTv.setText(label);
+        labelTv.setTextColor(context.getColor(R.color.text_muted));
+        labelTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        card.addView(labelTv);
+
+        TextView valueTv = new TextView(context);
+        valueTv.setText(value == null || value.trim().isEmpty() ? "Sin datos" : value.trim());
+        valueTv.setTextColor(context.getColor(R.color.text_light));
+        valueTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+        valueTv.setLineSpacing(0f, 1.12f);
+        LinearLayout.LayoutParams valueParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        valueParams.topMargin = dp(context, 3);
+        valueTv.setLayoutParams(valueParams);
+        card.addView(valueTv);
+        return card;
     }
 
     public static Button createActionButton(@NonNull Context context, @NonNull String label, boolean primary) {

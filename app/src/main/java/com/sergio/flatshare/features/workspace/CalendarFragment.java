@@ -50,6 +50,7 @@ import java.util.Set;
 
 public class CalendarFragment extends Fragment {
     private static final SimpleDateFormat REMINDER_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT);
+    private static final SimpleDateFormat SELECTED_DATE_LABEL_FORMAT = new SimpleDateFormat("dd/MM/yyyy", Locale.ROOT);
     private static final String[] REMINDER_INTERVAL_LABELS = {"Único", "Diario", "Semanal", "Mensual", "Personalizado"};
     private static final String[] REMINDER_INTERVAL_KEYS = {"unico", "diario", "semanal", "mensual", "personalizado"};
 
@@ -75,6 +76,9 @@ public class CalendarFragment extends Fragment {
         updateSelectedDateLabel();
         calendarView.setDateTextAppearance(R.style.TextAppearance_FlatShare_CalendarDate);
         calendarView.setWeekDayTextAppearance(R.style.TextAppearance_FlatShare_CalendarWeekday);
+        calendarView.setFocusedMonthDateColor(requireContext().getColor(R.color.calendar_day_text));
+        calendarView.setUnfocusedMonthDateColor(requireContext().getColor(R.color.calendar_day_text_muted));
+        calendarView.setSelectedWeekBackgroundColor(requireContext().getColor(R.color.surface_chip));
 
         calendarView.setOnDateChangeListener((v, year, month, dayOfMonth) -> {
             Calendar c = Calendar.getInstance();
@@ -97,8 +101,7 @@ public class CalendarFragment extends Fragment {
     }
 
     private void updateSelectedDateLabel() {
-        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT);
-        selectedDateTv.setText("Fecha seleccionada: " + format.format(new Date(selectedDateMs)));
+        selectedDateTv.setText("Fecha seleccionada: " + SELECTED_DATE_LABEL_FORMAT.format(new Date(selectedDateMs)));
     }
 
     private void loadDeadlines() {
@@ -239,9 +242,8 @@ public class CalendarFragment extends Fragment {
             String targetType = doc.getString("targetType");
             String interval = doc.getString("interval");
             Long intervalDays = doc.getLong("intervalDays");
-            String subtitle = (groupName == null || groupName.trim().isEmpty() ? "Piso" : groupName)
-                    + " - "
-                    + buildReminderTargetLabel(targetType, doc);
+            String subtitle = "Piso: " + (groupName == null || groupName.trim().isEmpty() ? "Piso actual" : groupName)
+                    + " · Para: " + buildReminderTargetLabel(targetType, doc);
             allRows.add(new CalendarRow(
                     title == null || title.trim().isEmpty() ? "Recordatorio" : title,
                     subtitle,
@@ -259,29 +261,29 @@ public class CalendarFragment extends Fragment {
     private String buildReminderTargetLabel(@Nullable String targetType, DocumentSnapshot doc) {
         if ("miembro".equals(targetType)) {
             String email = doc.getString("targetMemberEmail");
-            return "Miembro: " + displayNameWithEmail(email);
+            return "por miembro: " + displayNameWithEmail(email);
         }
         if ("x_miembro".equals(targetType)) {
             List<String> members = castStrings(doc.get("targetEmails"));
-            if (members.isEmpty()) return "X miembros";
+            if (members.isEmpty()) return "por miembros";
             List<String> labels = new ArrayList<>();
             for (String email : members) {
                 labels.add(displayNameWithEmail(email));
             }
-            return "X miembros: " + String.join(", ", labels);
+            return "por miembros: " + String.join(", ", labels);
         }
         if ("habitacion".equals(targetType)) {
             String room = doc.getString("roomName");
-            return "Habitación: " + (room == null ? "sin nombre" : room);
+            return "por habitación: " + (room == null ? "sin nombre" : room);
         }
         if ("x_habitacion".equals(targetType)) {
             List<String> roomNames = castStrings(doc.get("roomNames"));
-            return roomNames.isEmpty() ? "X habitación" : "X habitación: " + String.join(", ", roomNames);
+            return roomNames.isEmpty() ? "por habitaciones" : "por habitaciones: " + String.join(", ", roomNames);
         }
         if ("todos_inquilinos".equals(targetType)) {
-            return "Todos los inquilinos";
+            return "todos los inquilinos";
         }
-        return "Todos los miembros";
+        return "todos los miembros";
     }
 
     private void openReminderLongPressDialog(@NonNull CalendarRow row) {
@@ -339,18 +341,21 @@ public class CalendarFragment extends Fragment {
         if (groupName == null || groupName.trim().isEmpty()) {
             groupName = "Piso";
         }
-        String targetLabel = buildReminderTargetLabel(reminderDoc.getString("targetType"), reminderDoc);
+        String targetTitle = buildReminderTargetTitle(reminderDoc);
+        List<String> targetItems = buildReminderTargetItems(reminderDoc);
         String fromDate = resolveReminderDateText(reminderDoc, "startDateText", "startAt");
         String toDate = resolveReminderDateText(reminderDoc, "endDateText", "endAt");
         if ("Sin fecha".equals(toDate)) toDate = "Sin fecha fin";
 
-        String details = "Piso: " + groupName
-                + "\nDirigido a: " + targetLabel
-                + "\nFrecuencia: " + reminderIntervalLabel(reminderDoc)
-                + "\nDesde: " + fromDate
-                + "\nHasta: " + toDate;
-
-        View content = DialogUtils.createMessageView(requireContext(), details);
+        View content = DialogUtils.createReminderDetailView(
+                requireContext(),
+                groupName,
+                targetTitle,
+                targetItems,
+                reminderIntervalLabel(reminderDoc),
+                fromDate,
+                toDate
+        );
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 row.title,
@@ -361,6 +366,43 @@ public class CalendarFragment extends Fragment {
         );
         AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
         shell.confirmBtn.setOnClickListener(v -> dialog.dismiss());
+    }
+
+    private String buildReminderTargetTitle(@NonNull DocumentSnapshot doc) {
+        String targetType = safeLower(doc.getString("targetType"));
+        if ("habitacion".equals(targetType) || "x_habitacion".equals(targetType)) return "Dirigido a habitaciones";
+        if ("miembro".equals(targetType) || "x_miembro".equals(targetType)) return "Dirigido a personas";
+        return "Dirigido a";
+    }
+
+    private List<String> buildReminderTargetItems(@NonNull DocumentSnapshot doc) {
+        String targetType = safeLower(doc.getString("targetType"));
+        List<String> items = new ArrayList<>();
+        if ("miembro".equals(targetType)) {
+            items.add(displayNameWithEmail(doc.getString("targetMemberEmail")));
+            return items;
+        }
+        if ("x_miembro".equals(targetType)) {
+            for (String email : castStrings(doc.get("targetEmails"))) {
+                items.add(displayNameWithEmail(email));
+            }
+            return items;
+        }
+        if ("habitacion".equals(targetType)) {
+            String roomName = doc.getString("roomName");
+            items.add(roomName == null || roomName.trim().isEmpty() ? "Sin nombre" : roomName.trim());
+            return items;
+        }
+        if ("x_habitacion".equals(targetType)) {
+            items.addAll(castStrings(doc.get("roomNames")));
+            return items;
+        }
+        if ("todos_inquilinos".equals(targetType)) {
+            items.add("Todos los inquilinos");
+            return items;
+        }
+        items.add("Todos los miembros");
+        return items;
     }
 
     private void showReminderEditDialog(@NonNull DocumentSnapshot reminderDoc) {

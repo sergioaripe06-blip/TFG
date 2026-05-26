@@ -15,6 +15,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthUserCollisionException;
 import com.google.firebase.auth.UserProfileChangeRequest;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.sergio.flatshare.R;
@@ -108,7 +109,13 @@ public class RegisterActivity extends AppCompatActivity {
                                                 openVerifyEmailScreen(email, fullName, username, phone, birthDate, true);
                                             });
                                 })
-                                .addOnFailureListener(e -> Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show());
+                                .addOnFailureListener(e -> {
+                                    if (e instanceof FirebaseAuthUserCollisionException) {
+                                        Toast.makeText(this, "Ese correo ya tiene una cuenta registrada", Toast.LENGTH_LONG).show();
+                                        return;
+                                    }
+                                    Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
+                                });
                     })
                     .addOnFailureListener(e -> Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show());
         });

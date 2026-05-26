@@ -166,7 +166,6 @@ public class GroupsFragment extends Fragment {
 
         editGroupBtn.setOnClickListener(v -> editSelectedGroup());
         inviteBtn.setOnClickListener(v -> showInviteOptionsDialog(selectedGroupId));
-        manageRoomsBtn.setOnClickListener(v -> openCurrentGroupWorkspace());
         deleteGroupBtn.setOnClickListener(v -> requestDeleteSelectedGroup());
         closeBtn.setOnClickListener(v -> {
             selectedGroupId = null;
@@ -578,17 +577,17 @@ public class GroupsFragment extends Fragment {
             return;
         }
         View content = DialogUtils.createVerticalActions(requireContext());
-        Button codeBtn = DialogUtils.createActionButton(requireContext(), "AÃ±adir por cÃ³digo", true);
-        Button qrBtn = DialogUtils.createActionButton(requireContext(), "AÃ±adir por QR", false);
-        Button emailBtn = DialogUtils.createActionButton(requireContext(), "AÃ±adir por email", false);
+        Button codeBtn = DialogUtils.createActionButton(requireContext(), "Añadir inquilinos por código", true);
+        Button qrBtn = DialogUtils.createActionButton(requireContext(), "Añadir inquilinos por QR", false);
+        Button emailBtn = DialogUtils.createActionButton(requireContext(), "Añadir inquilinos por email", false);
         ((LinearLayout) content).addView(codeBtn);
         ((LinearLayout) content).addView(qrBtn);
         ((LinearLayout) content).addView(emailBtn);
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
-                "AÃ±adir al piso",
-                "Elige cÃ³mo quieres compartir el acceso.",
+                "Añadir inquilinos",
+                "Elige cómo quieres compartir el acceso.",
                 content,
                 "Cerrar",
                 null
@@ -611,7 +610,7 @@ public class GroupsFragment extends Fragment {
 
     private void inviteByEmail(String groupId) {
         showSingleInputDialog(
-                "AÃ±adir por email",
+                "Añadir inquilinos por email",
                 "Comparte el piso por correo con otra persona.",
                 "Email del invitado:",
                 InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
@@ -1029,7 +1028,7 @@ public class GroupsFragment extends Fragment {
         if (!isAdded() || doc == null || !doc.exists()) return;
         String name = doc.getString("name");
         String desc = doc.getString("description");
-        if (desc == null || desc.trim().isEmpty()) desc = "Sin descripción";
+        if (desc == null || desc.trim().isEmpty()) desc = "Sin descripciÃ³n";
 
         Object emailsField = doc.get("memberEmails");
         List<String> emails = emailsField instanceof List ? (List<String>) emailsField : new ArrayList<>();
@@ -1045,24 +1044,25 @@ public class GroupsFragment extends Fragment {
         resolveMemberDisplayNames(memberIds, emails, labels -> {
             if (!isAdded()) return;
             if (labels.isEmpty() || emails.isEmpty()) {
-                detailMembersTv.setText("Miembros: sin datos");
+                detailMembersTv.setText("Inquilinos\nSin datos");
             } else {
-                StringBuilder membersText = new StringBuilder("Miembros:");
+                StringBuilder membersText = new StringBuilder("Inquilinos");
                 int count = Math.min(labels.size(), emails.size());
                 for (int i = 0; i < count; i++) {
                     String label = labels.get(i) == null ? "" : labels.get(i).trim();
                     String email = emails.get(i) == null ? "" : emails.get(i).trim().toLowerCase(Locale.ROOT);
                     if (label.isEmpty()) label = email.isEmpty() ? "Sin datos" : email;
-                    membersText.append("\nMiembro ").append(i + 1).append(":");
-                    membersText.append("\nNombre: ").append(label);
-                    membersText.append("\nCorreo: ").append(email.isEmpty() ? "sin correo" : email);
+
+                    membersText.append("\n\n• ").append(label);
+                    membersText.append("\n  ").append(email.isEmpty() ? "sin correo" : email);
                 }
                 detailMembersTv.setText(membersText.toString());
             }
+            detailMembersTv.setLineSpacing(0f, 1.15f);
         });
 
         editGroupBtn.setVisibility(isOwner ? View.VISIBLE : View.GONE);
-        manageRoomsBtn.setVisibility(isOwner ? View.VISIBLE : View.GONE);
+        manageRoomsBtn.setVisibility(View.GONE);
         deleteGroupBtn.setVisibility(isOwner ? View.VISIBLE : View.GONE);
         detailsCard.setVisibility(View.VISIBLE);
     }
@@ -1241,7 +1241,7 @@ public class GroupsFragment extends Fragment {
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 "Editar piso",
-                "Actualiza nombre, descripción y tipo de alquiler.",
+                "Actualiza nombre, descripciÃ³n y tipo de alquiler.",
                 form,
                 "Cancelar",
                 "Guardar"
@@ -1266,7 +1266,7 @@ public class GroupsFragment extends Fragment {
             String variableSplitMode = splitModeSelection == 2 ? VARIABLE_SPLIT_PERCENTAGE : VARIABLE_SPLIT_EQUAL;
             Map<String, Object> updates = new HashMap<>();
             updates.put("name", newName);
-            updates.put("description", newDesc.isEmpty() ? "Sin descripción" : newDesc);
+            updates.put("description", newDesc.isEmpty() ? "Sin descripciÃ³n" : newDesc);
             updates.put("billingModel", rentMode);
             updates.put("variableSplitMode", variableSplitMode);
             db.collection("groups").document(selectedGroupId).update(updates).addOnSuccessListener(task -> {
@@ -1658,6 +1658,3 @@ public class GroupsFragment extends Fragment {
         }
     }
 }
-
-
-

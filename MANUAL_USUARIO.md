@@ -179,12 +179,17 @@ Tabs visibles:
 - `Movimientos`.
 - `Recordatorios`.
 - `Gestion`.
+- Tamaño de botones de tabs aumentado para mejorar legibilidad y área táctil.
+- Cuando los tabs bajan debajo del título, se expanden en 3 columnas iguales ocupando todo el ancho disponible.
+- El nombre del piso en cabecera se muestra centrado y con tamaño ligeramente mayor para dar prioridad visual.
 - Posicion adaptativa en cabecera:
   - si el nombre del piso cabe en una linea, los 3 tabs se muestran a la derecha del titulo;
-  - si el nombre del piso es largo y se solapa, los tabs bajan automaticamente justo debajo del titulo.
+  - si el nombre del piso es largo y se solapa, los tabs bajan automaticamente justo debajo del titulo;
+  - cuando bajan debajo del titulo, se muestran centrados horizontalmente.
 
 CTA principal inferior:
 - Cambia segun tab (nuevo gasto, nuevo recordatorio, etc.).
+- El botón principal muestra el texto de acción dentro del propio botón (sin icono `+` ni etiqueta inferior separada).
 
 ### 6.4.1 Movimientos
 Controles:
@@ -212,6 +217,7 @@ Campos de gasto:
   - `Pendiente` (naranja): hay justificantes enviados y falta validacion.
   - `Pagado` (verde): validado/confirmado.
 - Edicion y borrado: solo permitidos en estado `Solicitado`.
+- El detalle de gasto se muestra en tarjetas de datos (etiqueta/valor), evitando texto corrido.
 
 Campos de pago:
 - Importe, concepto, categoria, prioridad, fecha limite.
@@ -227,6 +233,7 @@ Campos de pago:
   - `Pendiente` (naranja),
   - `Pagado` (verde).
 - Edicion y borrado: solo permitidos en estado `Solicitado`.
+- Cambio manual de estado del pago: solo permitido mientras está en `Solicitado`.
 
 Flujo de inquilino con deuda (`alquiler fijo` y `alquiler variable`):
 - En `Movimientos` se muestran sus pagos pendientes (`payment_deadlines`) como lista accionable.
@@ -240,6 +247,14 @@ Flujo de inquilino con deuda (`alquiler fijo` y `alquiler variable`):
 ### 6.4.2 Recordatorios
 Operaciones:
 - Crear recordatorio (`reminders`).
+- Visual: en la lista se muestran en blanco neutro (sin código rojo/amarillo/verde por estado).
+- Redacción mejorada en lista y detalle: se muestra destino con lenguaje natural (`Por miembro`, `Por miembros`, `Por habitación`, `Por habitaciones`).
+- En detalle de recordatorio, los datos se presentan en filas visuales (etiqueta/valor) para mejorar lectura y distribución.
+- Estructura del detalle:
+  - `Nombre del piso`,
+  - bloque `Dirigido a ...` con elementos en viñetas (uno por línea),
+  - `Frecuencia`,
+  - fila final con `Desde` y `Hasta` en la misma línea (dos tarjetas).
 
 Configuracion:
 - Titulo/concepto.
@@ -270,6 +285,7 @@ Operaciones:
 ## 6.5 Balance personal (`PersonalBalanceFragment`)
 - Selector de piso (o todos).
 - Grafico circular por categorias de gasto/pago.
+- El gráfico circular usa estilo donut con separaciones suaves entre categorías y total en el centro para lectura rápida.
 - Categorias dinamicas: si se crean nuevas (por ejemplo, `luz`, `agua`), aparecen automaticamente en el balance.
 - Color estable por categoria: la leyenda y el grafico usan el mismo color para cada categoria.
 - Barras mensuales de importe pagado.
@@ -277,6 +293,10 @@ Operaciones:
 ## 6.6 Calendario (`CalendarFragment`)
 - Calendario mensual.
 - Lista de eventos en fecha seleccionada.
+- Números de los días con texto claro en calendario (incluido el día actual cuando no está seleccionado).
+- Etiqueta de fecha seleccionada en formato `dd/MM/yyyy` (por ejemplo `26/05/2026`).
+- Ajuste global de tema para asegurar legibilidad del día actual en `CalendarView` en distintos dispositivos.
+- Colores del calendario desacoplados del tema general (`calendar_day_text` y `calendar_day_text_muted`) para evitar que el día actual herede tonos oscuros.
 - Fuentes:
   - `payment_deadlines` (deudor actual).
   - `payments` emitidos/recibidos.
@@ -318,7 +338,7 @@ Efecto:
 ### Ajuste visual del modo claro
 - Se incrementa contraste general en fondos y superficies.
 - La barra inferior deja de ser transparente y usa contenedor propio para mejorar legibilidad.
-- Iconos y textos seleccionados de la barra inferior se muestran en color primario para evitar perdida de contraste.
+- Iconos y textos del menú inferior se muestran en blanco para evitar tonos grises de baja legibilidad.
 
 ### Sonidos personalizados de acciones
 - Puedes anadir sonidos propios en `app/src/main/res/raw` con estos nombres:
@@ -354,7 +374,8 @@ Ver detalle completo en:
 - Si faltan, pueden aparecer errores de networking como timeouts, fallos de Wi-Fi o imposibilidad de conectar con Firebase.
 
 ## 9. Limitaciones actuales conocidas
-- Hay textos antiguos con codificacion danada en algunos archivos legacy; se corrigen progresivamente al tocar cada modulo.
+- Se corrigió la codificación dañada en `GroupsFragment` (textos visibles de creación/gestión de piso).
+- Si aparece texto legacy corrupto en otros módulos, debe corregirse al tocar ese archivo para mantener `UTF-8` limpio.
 - Advertencia actual de AGP con `compileSdk 35` en AGP `8.5.2` (no bloqueante).
 
 ## 10. Procedimiento de actualizacion del manual
@@ -371,3 +392,63 @@ En cada tarea nueva:
   - `.idea/`
   - `crash.txt` y logs temporales
 - Si alguno de esos archivos ya estaba trackeado, debe retirarse del indice con `git rm --cached` sin borrarlo en local.
+
+### Ajuste visual (2026-05-26) - Movimientos
+- El boton principal inferior (por ejemplo, Nuevo gasto) se posiciona mas cerca del menu inferior para mejorar la ergonomia.
+- La lista de gastos/pagos respeta un inset inferior dinamico para que las ultimas filas no queden tapadas por el bloque de accion.
+
+
+### Ajuste de usabilidad (2026-05-26) - Nuevo gasto
+- En el formulario de Nuevo gasto, al cerrar el teclado el contenido vuelve a desplazarse correctamente.
+- El selector de habitaciones en Nuevo gasto mantiene apertura estable del desplegable en dispositivos donde antes fallaba al tocarlo.
+
+
+### Ajuste global (2026-05-26) - Dialogos con formulario
+- Los dialogos de formulario de la app comparten ahora la misma gestion de teclado y redimensionado de ventana.
+- Al tocar fuera de un campo, se cierra foco/teclado y se mantiene el desplazamiento vertical estable.
+
+
+### Ajuste correctivo (2026-05-26) - Selectores en Nuevo gasto
+- Corregida la seleccion de Habitacion(es) y de personas en Tipo de reparto dentro de Nuevo gasto cuando se usan desplegables.
+- Se mantiene la mejora de desplazamiento del formulario tras cerrar teclado.
+
+
+### Registro (2026-05-26) - Correo duplicado
+- Si intentas crear una cuenta con un correo ya registrado, la app bloquea el alta y muestra el aviso: Ese correo ya tiene una cuenta registrada.
+
+
+### Pisos (2026-05-26) - Buscador integrado
+- El campo Buscar piso por nombre o direccion ahora aparece dentro de la tarjeta/listado de pisos, en la zona superior.
+
+
+### Workspace (2026-05-26) - Ventana de piso ampliada
+- Al mantener pulsado el nombre del piso, la ventana muestra: propietario, modelo de reparto y listado de habitaciones.
+- En Habitaciones, cada tarjeta permite abrir acciones de: Ver informacion, Editar habitacion, Eliminar habitacion (segun permisos).
+- En la parte inferior de la ventana aparecen los botones Añadir habitación y Ver ubicación.
+
+
+### Calidad de texto (2026-05-26)
+- Se corrigieron textos con codificación incorrecta en pantallas de Workspace y Pisos.
+- Todos los mensajes visibles revisados mantienen acentos y eñe en UTF-8.
+
+
+### Movimientos (2026-05-26) - Detalle de pagos
+- En pagos (solicitado, pendiente, pagado), la opcion Ver detalle abre ahora una ventana de detalle en formato tarjeta/modal (no notificacion).
+
+
+### Pagos (2026-05-26) - Apertura directa de detalle
+- Al tocar un pago, se abre directamente su ventana de detalle.
+- En estados Solicitado y Pendiente, aparecen botones abajo para Editar y Borrar (si tienes permiso).
+- En estado Pagado, solo se permite visualizar el detalle.
+
+
+### Nuevo gasto / cobro (2026-05-26) - Ayuda de reparto
+- En Tipo de reparto, cuando la habitación elegida tiene un único inquilino, su importe se rellena automáticamente con el total.
+- Debajo del reparto aparece un indicador de estado:
+  - rojo: falta por repartir o te has pasado,
+  - verde: reparto completo y listo para guardar.
+
+
+### Movimientos (2026-05-26) - Texto CTA
+- El botón principal inferior de Movimientos pasa a mostrarse como Nueva acción.
+

@@ -563,3 +563,275 @@ En cada avance relevante anadir:
   - `tools/firebase-admin-seed/README.md`
   - `FIREBASE_SETUP.md`
   - `MANUAL_USUARIO.md`
+
+## 2026-05-26
+- Tipo: Ajuste UI puntual
+- Cabecera de Workspace (`ExpensesFragment`):
+  - los botones `Movimientos`, `Recordatorios` y `Gestion` quedan centrados horizontalmente cuando se muestran debajo del nombre del piso.
+- Archivos principales afectados:
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
+  - `MANUAL_USUARIO.md`
+
+## 2026-05-26
+- Tipo: Corrección de codificación y textos
+- Limpieza de mojibake en creación/gestión de piso (`GroupsFragment`):
+  - se corrigieron textos visibles corruptos (tildes, `ñ`, `Nº`, nombres de provincias/ciudades y mensajes UI),
+  - el archivo quedó en `UTF-8` sin BOM para evitar nuevos problemas de interpretación.
+- Verificación:
+  - búsqueda global sin coincidencias de patrones típicos de mojibake.
+- Archivos principales afectados:
+  - `app/src/main/java/com/sergio/flatshare/features/groups/GroupsFragment.java`
+  - `MANUAL_USUARIO.md`
+
+## 2026-05-26
+- Tipo: Ajuste UI puntual
+- Recordatorios en `Movimientos` (`ExpensesFragment`):
+  - se elimina la herencia de color por estado para filas tipo `reminder`,
+  - ahora se renderizan en blanco neutro (texto normal, sin rojo).
+- Archivos principales afectados:
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
+  - `MANUAL_USUARIO.md`
+
+## 2026-05-26
+- Tipo: Ajuste UI puntual
+- Calendario (`CalendarFragment`):
+  - el día actual, cuando no está seleccionado, se muestra con número en blanco (ya no gris).
+- Archivos principales afectados:
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/CalendarFragment.java`
+  - `MANUAL_USUARIO.md`
+
+## 2026-05-26
+- Tipo: Mejora visual de componente
+- Balance personal (`PieChartView`):
+  - rediseño del gráfico circular a estilo donut,
+  - separación visual entre porciones para mejorar legibilidad,
+  - total acumulado en el centro del gráfico.
+- Archivos principales afectados:
+  - `app/src/main/java/com/sergio/flatshare/shared/widgets/PieChartView.java`
+  - `MANUAL_USUARIO.md`
+
+## 2026-05-26
+- Tipo: Ajuste UI puntual
+- Calendario:
+  - se unifica `calendar_day_text_selector` para que el texto de los días se mantenga claro también en estados `selected`, `pressed` y `activated`,
+  - corrige el caso del día actual no seleccionado que se veía oscuro.
+- Archivos principales afectados:
+  - `app/src/main/res/color/calendar_day_text_selector.xml`
+  - `MANUAL_USUARIO.md`
+
+## 2026-05-26
+- Tipo: Ajuste funcional en pagos
+- `Movimientos` (`ExpensesFragment`):
+  - pagos en estado `Pendiente` o `Pagado` quedan en solo lectura para acciones de modificación/eliminación,
+  - las acciones manuales sobre pago quedan disponibles solo en estado `Solicitado`.
+- Archivos principales afectados:
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
+  - `MANUAL_USUARIO.md`
+
+## 2026-05-26
+- Tipo: Ajuste UI puntual
+- Calendario (`CalendarFragment`):
+  - la etiqueta `Fecha seleccionada` se muestra en formato `dd/MM/yyyy` (ejemplo: `26/05/2026`).
+- Archivos principales afectados:
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/CalendarFragment.java`
+  - `MANUAL_USUARIO.md`
+
+## 2026-05-26
+- Tipo: Ajuste UI puntual
+- Workspace (`ExpensesFragment`):
+  - se aumentó el tamaño de los botones de tabs `Movimientos`, `Recordatorios` y `Gestión` (alto, texto y padding).
+- Archivos principales afectados:
+  - `app/src/main/res/layout/fragment_expenses.xml`
+  - `MANUAL_USUARIO.md`
+
+## 2026-05-26
+- Tipo: Mejora UX de textos
+- Recordatorios (`ExpensesFragment` y `CalendarFragment`):
+  - se mejora la redacción en lista y detalle para que sea más legible y menos técnica,
+  - se sustituye el estilo `X habitación` / `X miembros` por `Por habitación` / `Por miembros`,
+  - subtítulos de recordatorio con estructura más clara (`Para`, `Frecuencia`, `Desde/Hasta`).
+- Archivos principales afectados:
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/CalendarFragment.java`
+  - `MANUAL_USUARIO.md`
+
+## 2026-05-26
+- Tipo: Mejora visual de diálogos
+- Detalle de recordatorios:
+  - se reemplaza el texto plano en bloque por filas visuales de información (etiqueta/valor) dentro de tarjetas,
+  - se aplica tanto en `Movimientos` como en `Calendario` para mantener consistencia visual.
+- Infraestructura compartida:
+  - nuevo helper reutilizable `DialogUtils.createInfoRowsView(...)` para ventanas de datos.
+- Archivos principales afectados:
+  - `app/src/main/java/com/sergio/flatshare/shared/ui/DialogUtils.java`
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/CalendarFragment.java`
+  - `MANUAL_USUARIO.md`
+
+## 2026-05-26
+- Tipo: Ajuste de layout en detalle de recordatorio
+- Detalle de recordatorios (movimientos y calendario):
+  - `Nombre del piso` en tarjeta dedicada,
+  - `Dirigido a personas/habitaciones` con viñetas por elemento (uno por línea),
+  - `Frecuencia` en tarjeta propia,
+  - `Desde` y `Hasta` en la misma línea, divididos en dos tarjetas.
+- Infraestructura compartida:
+  - nuevo helper reutilizable `DialogUtils.createReminderDetailView(...)`.
+- Archivos principales afectados:
+  - `app/src/main/java/com/sergio/flatshare/shared/ui/DialogUtils.java`
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/CalendarFragment.java`
+  - `MANUAL_USUARIO.md`
+
+## 2026-05-26
+- Tipo: Mejora visual de diálogos
+- Detalle de gasto en `Movimientos`:
+  - se sustituye el texto corrido por tarjetas de datos (piso, pagado por, habitación, categoría, estado, vencimiento e importe),
+  - se aplica tanto en solo lectura como en el diálogo con acciones `Borrar`/`Editar`.
+- Archivos principales afectados:
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
+  - `MANUAL_USUARIO.md`
+
+## 2026-05-26
+- Tipo: Ajuste visual de compatibilidad (calendario)
+- Calendario (`CalendarView`):
+  - se fuerza color de texto claro también en atributos de color primario/inverso del estilo de fecha,
+  - se define fondo de semana seleccionada para mejorar contraste y evitar que el día actual se perciba oscuro en ciertos dispositivos.
+- Archivos principales afectados:
+  - `app/src/main/res/values/themes.xml`
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/CalendarFragment.java`
+  - `MANUAL_USUARIO.md`
+
+## 2026-05-26
+- Tipo: Corrección de color global (calendario)
+- Se detecta dependencia del tema base en el color de días de `CalendarView`:
+  - se crean colores dedicados `calendar_day_text` y `calendar_day_text_muted` en `values` y `values-night`,
+  - se actualiza `calendar_day_text_selector` y `TextAppearance.FlatShare.CalendarDate` para usar esos colores dedicados,
+  - se ajusta `CalendarFragment` para usar los nuevos colores al pintar días del mes enfocado/no enfocado.
+- Resultado:
+  - el día actual mantiene texto claro también cuando no está seleccionado.
+- Archivos principales afectados:
+  - `app/src/main/res/values/colors.xml`
+  - `app/src/main/res/values-night/colors.xml`
+  - `app/src/main/res/color/calendar_day_text_selector.xml`
+  - `app/src/main/res/values/themes.xml`
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/CalendarFragment.java`
+  - `MANUAL_USUARIO.md`
+
+## 2026-05-26
+- Tipo: Ajuste UI puntual
+- Menú inferior:
+  - iconos y títulos del `BottomNavigationView` pasan a color blanco en estado seleccionado y no seleccionado (eliminando el gris).
+- Archivos principales afectados:
+  - `app/src/main/res/color/bottom_nav_item_colors.xml`
+  - `MANUAL_USUARIO.md`
+
+## 2026-05-26
+- Tipo: Ajuste UI puntual
+- CTA principal de `Movimientos`:
+  - se elimina el icono `+` del botón principal,
+  - el texto de acción (`Nuevo gasto`, `Nuevo pago`, `Nuevo recordatorio`, `Gestion`) pasa a mostrarse dentro del propio botón,
+  - se oculta la etiqueta inferior separada para simplificar el bloque CTA.
+- Archivos principales afectados:
+  - `app/src/main/res/layout/fragment_expenses.xml`
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
+  - `MANUAL_USUARIO.md`
+
+## 2026-05-26
+- Tipo: Ajuste UI puntual
+- Cabecera de Workspace:
+  - nombre del piso centrado y ligeramente más grande para darle más importancia visual.
+- Archivos principales afectados:
+  - `app/src/main/res/layout/fragment_expenses.xml`
+  - `MANUAL_USUARIO.md`
+
+## 2026-05-26
+- Tipo: Ajuste UI puntual de cabecera
+- Workspace (`ExpensesFragment`):
+  - nombre del piso con mayor presencia visual (tamaño ligeramente superior),
+  - tabs `Movimientos`, `Recordatorios` y `Gestión` en modo expandido cuando van debajo del título (mismo ancho y ocupando todo el ancho del móvil),
+  - etiqueta `Habitación:` con tamaño ligeramente superior.
+- Archivos principales afectados:
+  - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
+  - `app/src/main/res/layout/fragment_expenses.xml`
+  - `MANUAL_USUARIO.md`
+
+## 2026-05-26
+- Tipo: Avance reconstruido
+- Ajuste visual en pantalla de Movimientos para mejorar el anclaje del CTA inferior y evitar solape visual con la lista de gastos.
+- El bloque de accion principal queda mas cercano al menu inferior, manteniendo separacion para no verse pegado.
+- Se recalculo el inset inferior dinamico de listas para que los items finales no queden ocultos bajo el CTA.
+
+
+## 2026-05-26
+- Tipo: Avance reconstruido
+- Corregido comportamiento del formulario largo de Nuevo gasto para mejorar scroll tras ocultar teclado en dialogos.
+- Añadido ajuste de ventana (djustResize) en dialogos largos para evitar bloqueo de desplazamiento en algunos dispositivos.
+- Reforzada la apertura del selector de habitaciones en el formulario de gasto para evitar que se quede bloqueado en una unica opcion visible.
+
+
+## 2026-05-26
+- Tipo: Avance reconstruido
+- Homogeneizado el comportamiento de dialogos tipo formulario en toda la app desde DialogUtils.show(...).
+- Se fuerza djustResize para teclado y se añade cierre de foco/teclado al tocar fuera del campo para evitar bloqueos de scroll en pantallas equivalentes.
+
+
+## 2026-05-26
+- Tipo: Avance reconstruido
+- Ajuste correctivo: se retira la captura global de toque en DialogUtils.show(...) porque interferia con selectores desplegables (Spinner) en formularios como Nuevo gasto.
+- Se mantiene la mejora de scroll/teclado en formularios largos via ExpenseDialogs, evitando bloquear seleccion de habitacion y persona en reparto.
+
+
+## 2026-05-26
+- Tipo: Avance reconstruido
+- Registro: se añade manejo explicito de colision de correo en Firebase Auth (FirebaseAuthUserCollisionException).
+- Si el email ya existe, se muestra aviso claro al usuario: Ese correo ya tiene una cuenta registrada.
+- Correccion de textos visibles del registro a UTF-8 correcto (tildes y eñe).
+
+
+## 2026-05-26
+- Tipo: Avance reconstruido
+- Pantalla Pisos: el buscador de pisos se integra dentro de la tarjeta principal de listado, en la parte superior, para un bloque visual unico.
+- Se ajusta espaciado interno para mantener separacion entre buscador y lista.
+
+
+## 2026-05-26
+- Tipo: Avance reconstruido
+- Ventana de detalle del piso (long press en nombre): se sustituye el bloque de miembros por bloque de habitaciones con tarjetas clicables.
+- Cada habitacion abre acciones: Ver informacion, Editar habitacion, Eliminar habitacion (editar/eliminar solo para propietario).
+- Se anaden botones inferiores dentro del contenido: Añadir habitación y Ver ubicación.
+- Se mantiene visible el Modelo de reparto dentro del resumen superior del piso.
+
+
+## 2026-05-26
+- Tipo: Avance reconstruido
+- Corrección de textos corruptos (mojibake) en ExpensesFragment y ajustes de acentuación en UI de Pisos.
+- Se restauran tildes y caracteres en español (á, é, í, ó, ú, ñ, ¿) en textos visibles para usuario.
+
+
+## 2026-05-26
+- Tipo: Avance reconstruido
+- Pagos en Movimientos: el detalle deja de mostrarse como notificacion (Toast) y pasa a ventana/modal de detalle, consistente con gastos y recordatorios.
+- Se incluye en el detalle: piso, concepto, de, para, habitacion, estado, vencimiento e importe.
+
+
+## 2026-05-26
+- Tipo: Avance reconstruido
+- Movimientos (pagos): al tocar una fila de pago se abre directamente el modal de detalle.
+- Estados Solicitado y Pendiente: el modal muestra acciones inferiores Editar y Borrar (segun permisos).
+- Estado Pagado: modal en solo lectura (sin acciones de modificacion).
+
+
+## 2026-05-26
+- Tipo: Avance reconstruido
+- Nuevo gasto/cobro: mejora en reparto por habitación para casos con un único inquilino.
+- Si la habitación seleccionada tiene una sola persona, su línea de reparto se autocompleta con el importe total.
+- Se añade indicador visual de reparto (splitRemainingTv):
+  - rojo cuando falta importe por repartir o hay exceso,
+  - verde cuando el reparto está completo y listo para guardar.
+
+
+## 2026-05-26
+- Tipo: Avance reconstruido
+- Pestaña Movimientos: el CTA principal cambia su texto a Nueva acción (antes Nuevo gasto).
+
