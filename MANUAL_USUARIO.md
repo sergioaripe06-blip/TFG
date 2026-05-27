@@ -1,4 +1,4 @@
-﻿# Manual de usuario y operacion - FlatShareApp
+# Manual de usuario y operacion - FlatShareApp
 
 ## 1. Identificacion del proyecto
 - Nombre: FlatShare
@@ -59,7 +59,7 @@
   - Solo el propietario del piso puede actualizar o eliminar en esas tres colecciones.
 
 ### 4.3 Colecciones principales
-- `users`, `usernames`, `groups`, `group_codes`, `rooms_groups`
+- `users`, `groups`, `group_codes`, `rooms_groups`
 - `expenses`, `payments`, `payment_deadlines`, `reminders`, `activity_logs`, `invitations`
 - Gestion alquiler: `rental_contracts`, `rent_collections`, `maintenance_tickets`, `group_documents`, `audit_events`, `rent_automations`, `event_reminder_rules`, `event_reminder_jobs`
 
@@ -84,7 +84,7 @@
 
 ### Login (`LoginActivity`)
 Controles:
-- Campo `Usuario o email`.
+- Campo `Correo electrónico`.
 - Campo `Contraseña`.
 - Botón `Iniciar sesión`.
 - Boton debug `Entrar con cuenta seed` (solo DEBUG).
@@ -93,13 +93,13 @@ Controles:
 
 Comportamiento:
 - Login por email directo.
-- Login por username (resolución en `usernames`).
+- Login por correo electrónico (Firebase Auth).
 - Recuperación de contraseña solo por correo (Firebase Auth).
 - Si el correo no está verificado, no se permite entrar en la app y se redirige a la pantalla de verificación.
 
 ### Registro (`RegisterActivity`)
 Controles:
-- `Nombre completo`, `username`, `email`, `teléfono`, `fecha nacimiento`, `contraseña`.
+- `Nombre completo`, `email`, `teléfono`, `fecha nacimiento`, `contraseña`.
 - Botón `Crear cuenta`.
 - Enlace `Ya tengo cuenta` (vuelta a login).
 
@@ -107,7 +107,7 @@ Comportamiento:
 - Crea usuario en Auth.
 - Envía correo de verificación (`sendEmailVerification`).
 - Abre `VerifyEmailActivity` para reenvío y confirmación.
-- Solo tras verificar el correo se completa el alta en `users` y `usernames`.
+- Solo tras verificar el correo se completa el alta en `users`.
 
 ## 6.2 Pisos (`GroupsFragment`)
 
@@ -328,7 +328,7 @@ Efecto:
 - Aplicacion de tema e idioma en runtime.
 - Borrado de cuenta:
   - exige validación previa con correo y contraseña de la cuenta activa,
-  - elimina `users/{uid}` y `usernames/{username}`,
+  - elimina `users/{uid}`,
   - elimina invitaciones donde el usuario invita o fue invitado,
   - saca al usuario de `groups.members`, `groups.memberEmails` y `groups.roles`,
   - si era propietario y hay otros miembros, transfiere `ownerId` al primer miembro restante,
@@ -360,7 +360,10 @@ Crea:
 - Estructura Firestore de usuarios, pisos y habitaciones.
 - Datos financieros de prueba (`expenses`, `payments`, `payment_deadlines`).
 - Recordatorios (`reminders`).
-- Incluye preset hardcodeado `sergio-demo` con owner fijo `sergioaripe06@gmail.com` y datos completos de demo.
+- Incluye presets de demo:
+  - `sergio-demo` (base),
+  - `sergio-owner-plus` (Sergio como propietario con más habitaciones),
+  - `sergio-tenant-plus` (Sergio como inquilino con más compañeros).
 
 ## 8. Inventario de colecciones de negocio
 Ver detalle completo en:
@@ -449,6 +452,130 @@ En cada tarea nueva:
   - verde: reparto completo y listo para guardar.
 
 
+### Nuevo gasto / cobro (2026-05-27) - Reparto por habitación refinado
+- Si la habitación seleccionada tiene una sola persona:
+  - no aparece el selector de persona,
+  - se muestra la persona fija de esa habitación,
+  - el importe queda autocompletado con el total del gasto.
+- Si la habitación tiene dos o más personas:
+  - se mantiene el comportamiento de reparto actual,
+  - aparece un cálculo bajo las filas con formato `Asignado: X / Y EUR`,
+  - en rojo se indica si falta importe o si se ha superado,
+  - en verde se confirma cuando el reparto está perfecto para guardar.
+
+
 ### Movimientos (2026-05-26) - Texto CTA
 - El botón principal inferior de Movimientos pasa a mostrarse como Nueva acción.
+
+
+### Workspace (2026-05-27) - Modal de información del piso
+- En la ventana de información del piso ya no se repite el nombre dos veces.
+- El encabezado del modal muestra `Datos del piso` y el nombre del piso queda en la tarjeta principal del contenido.
+
+
+### Pagos (2026-05-27) - Scroll en Registrar pago pendiente
+- Corregido el desplazamiento vertical del formulario en `Registrar pago pendiente`.
+- Ahora el modal de pago usa contenedor scrollable y ajuste de ventana para teclado, permitiendo deslizar hacia abajo en todo el formulario.
+
+### Movimientos (2026-05-27) - Detalle de gastos con destinatarios
+- En el detalle de un gasto se muestra ahora el campo `Para` justo debajo de `Pagado por`.
+- `Para` enseña los destinatarios del gasto según el reparto (`customSplit`), para identificar claramente a quién va ese gasto.
+
+### Pagos pendientes (2026-05-27) - Destino bloqueado
+- Cuando registras un pago desde `Pagar pendiente`, el destinatario queda bloqueado al acreedor real de esa deuda.
+- En ese flujo no se permite cambiar tipo de destino, ni añadir/quitar líneas de miembros/habitaciones.
+- El importe que aparece corresponde a tu parte pendiente (no al total de otros inquilinos).
+
+### Pagos pendientes (2026-05-27) - Validación estricta y OCR seguro
+- Si el pago viene de una deuda pendiente, el OCR no puede sobreescribir el importe bloqueado.
+- Antes de guardar, el sistema valida coincidencia exacta (a céntimo) entre pendiente y pago generado.
+- Si no cuadra importe o acreedor, no se envía el pago y se muestra error.
+
+### Movimientos (2026-05-27) - Estados y acciones de pago más claros
+- En el detalle de pago, el botón de acción pasa de `Editar` a `Cambiar estado`.
+- El estado `submitted` ahora se muestra como `En revisión` (ya no se mezcla con `Pendiente`).
+
+### Pagos pendientes (2026-05-27) - Picker más claro
+- En la selección de pendientes se muestra también a quién se debe cada pago (`A <acreedor>`).
+- Se muestra la lista completa de pendientes (sin recorte a 8 elementos).
+
+### Recordatorios (2026-05-27) - Permisos alineados UI + reglas
+- Eliminar/editar recordatorios queda limitado al creador o al propietario del piso.
+- El resto de miembros solo puede ver recordatorios, no modificarlos ni eliminarlos.
+
+
+### Calidad de texto (2026-05-27) - UTF-8 y mojibake
+- Se realizó limpieza de texto corrupto (mojibake) en pantallas de Pisos y Workspace.
+- Se normalizaron cadenas visibles a UTF-8 correcto, recuperando tildes y caracteres especiales en español.
+- Archivos corregidos: `GroupsFragment.java`, `ExpensesFragment.java`, `fragment_groups.xml`.
+
+### Nuevo gasto (2026-05-27) - Desplegables de habitación e inquilinos
+- Corregido bloqueo de interacción en los desplegables dentro del modal `Nuevo gasto`.
+- Ahora los `Spinner` de habitaciones e inquilinos vuelven a abrirse y seleccionarse correctamente.
+
+### Acceso (2026-05-27) - Estilo de acciones principales
+- En `Iniciar sesión` y `Crear cuenta`, las acciones principales pasan a estilo enlace (azul y subrayado), sin fondo de botón.
+- El enlace `¿Olvidaste tu contraseña?` se alinea al mismo estilo visual azul y subrayado.
+- En modo claro, el fondo de `Login` y `Registro` pasa a blanco plano (sin degradado).
+
+### Acceso (2026-05-27) - Idioma de correos de Auth
+- Los correos de Firebase Auth (verificación y restablecimiento) se envían con el idioma seleccionado en Ajustes (`es`/`en`).
+- La app aplica el idioma configurado antes de lanzar `sendEmailVerification` y `sendPasswordResetEmail`.
+
+### Registro (2026-05-27) - Fecha de nacimiento por defecto
+- El campo `Fecha de nacimiento` en alta de cuenta se rellena por defecto con la fecha actual (`YYYY-MM-DD`).
+
+### Acceso (2026-05-27) - Errores en español más claros
+- En login y registro, los mensajes por campos faltantes se muestran de forma específica (`Falta el correo`, `Falta la contraseña`).
+- Errores habituales de Firebase Auth (correo inválido, contraseña incorrecta, usuario no encontrado, red, etc.) se traducen a mensajes comprensibles en español.
+
+### Acceso (2026-05-27) - Eliminación de apodo/username
+- Se retira el campo `username` del registro.
+- La app usa `Nombre completo` como identidad visible del usuario.
+- El login pasa a correo electrónico + contraseña (sin acceso por apodo).
+
+### Perfil (2026-05-27) - Propagación de nombre editado
+- Al editar `Nombre completo` en Perfil, se actualiza `users/{uid}` y se lanza propagación automática en colecciones de negocio donde existan campos de nombre visibles del mismo usuario.
+- La propagación se hace por coincidencia de `uid` y/o `email`, actualizando únicamente campos de nombre que ya existan en cada documento.
+
+### Perfil (2026-05-27) - Validación de campos obligatorios
+- En `Editar perfil`, no se permite guardar si `Nombre completo`, `Teléfono` o `Fecha de nacimiento` están vacíos.
+
+### Registro (2026-05-27) - Teclado y visibilidad de contraseña
+- En `Crear cuenta`, con teclado abierto se ajusta la ventana para mantener visible el campo de contraseña mientras se escribe.
+- Se corrige el contenedor del formulario para mejorar el desplazamiento vertical en pantallas pequeñas.
+- Se extiende el mismo ajuste de teclado (`adjustResize`) a `Login` y `Verificación de correo` para comportamiento consistente.
+
+### Pisos (2026-05-27) - Menú al mantener pulsado (salir/expulsar)
+- En la lista de `Pisos`, al mantener pulsado sobre un piso aparece un menú contextual.
+- Si eres inquilino: verás `Salir del piso` y podrás abandonarlo con confirmación.
+- Si eres propietario: verás `Expulsar inquilino` para quitar miembros del piso (nunca al propietario).
+- Al salir o expulsar, se actualizan en Firestore los campos `members`, `memberEmails` y `roles`.
+
+### Pisos (2026-05-27) - Limpieza de acciones duplicadas
+- Se elimina el botón `Gestionar habitaciones` del detalle de piso para evitar duplicidad.
+- La gestión de habitaciones se mantiene en su acceso principal del workspace.
+
+### Pisos y habitaciones (2026-05-27) - Reglas de borrado y ocupación
+- No se puede eliminar un piso si existe al menos una habitación con inquilinos asignados.
+- Para poder borrar el piso, primero hay que quitar o cambiar de habitación a esos inquilinos desde la gestión de habitaciones.
+- Una habitación solo se puede eliminar si está vacía (sin residentes).
+- Si un inquilino sale del piso o es expulsado por el propietario, también se limpia su email de las habitaciones del piso en Firestore.
+
+### Nuevo gasto (2026-05-27) - Reparto por personas o habitaciones
+- En el formulario de `Nuevo gasto` se añade un selector `Repartir por` debajo de `Tipo de reparto`, con opciones `Personas` y `Habitaciones`.
+- Si eliges `Personas`, el comportamiento sigue como hasta ahora (líneas por persona + importe por línea).
+- Si eliges `Habitaciones`, las líneas pasan a ser por habitación seleccionada y el importe de cada línea se reparte automáticamente entre los inquilinos de esa habitación.
+- El resultado se guarda por persona en `customSplit`, para que cada inquilino de la habitación quede con su parte de deuda.
+
+### Nuevo cobro/pago (2026-05-27) - Líneas con importe por persona/habitación
+- En `Nuevo cobro` (registrar pago), las líneas de destino ahora incluyen importe editable por línea.
+- `Miembro`: cada línea representa una persona y el importe de esa línea define cuánto se le paga.
+- `Habitación`: cada línea representa una habitación y el importe de la línea se reparte entre los inquilinos de esa habitación según su reparto configurado.
+- Validación: la suma de líneas debe coincidir con el importe total del pago.
+- En `Pagar pendiente`, el flujo sigue bloqueado y guiado (sin edición libre de destinatario/importe).
+
+### Calidad técnica (2026-05-27) - UTF-8 estricto
+- Archivos de código y recursos guardados en UTF-8 sin BOM para evitar errores de compilación en Java.
+- Se corrigen textos con codificación dañada en pantallas de gastos, pagos y pisos.
 

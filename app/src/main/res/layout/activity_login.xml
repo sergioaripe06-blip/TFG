@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/bg_screen_gradient">
+    android:background="@android:color/white">
 
     <ScrollView
         android:layout_width="match_parent"
@@ -63,7 +63,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="18dp"
-                    android:text="Usuario o email:"
+                    android:text="Correo electrónico:"
                     android:textColor="@color/text_light"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -72,7 +72,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:hint="Escribe tu usuario o email"
+                    android:hint="Escribe tu correo electrónico"
                     app:boxBackgroundColor="@color/surface_chip"
                     app:boxBackgroundMode="filled"
                     app:boxCornerRadiusBottomEnd="16dp"
@@ -134,13 +134,16 @@
 
                 <Button
                     android:id="@+id/loginBtn"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:layout_marginTop="18dp"
-                    android:background="@drawable/bg_button_pill_primary"
+                    android:layout_gravity="center_horizontal"
+                    android:background="@android:color/transparent"
                     android:text="Iniciar sesi&#243;n"
                     android:textAllCaps="false"
-                    android:textColor="@color/on_primary_green" />
+                    android:textColor="@color/auth_link_blue"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/forgotPasswordTv"
@@ -151,7 +154,7 @@
                     android:focusable="true"
                     android:gravity="center"
                     android:text="&#191;Olvidaste tu contrase&#241;a?"
-                    android:textColor="@color/primary_green"
+                    android:textColor="@color/auth_link_blue"
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:visibility="visible" />
@@ -161,10 +164,13 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
+                    android:clickable="true"
+                    android:focusable="true"
                     android:gravity="center"
                     android:text="Crear cuenta"
-                    android:textColor="@color/text_light"
-                    android:textSize="15sp" />
+                    android:textColor="@color/auth_link_blue"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
             </LinearLayout>
         </LinearLayout>
     </ScrollView>

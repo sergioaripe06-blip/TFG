@@ -1,4 +1,4 @@
-﻿# Arquitectura del proyecto FlatShareApp
+# Arquitectura del proyecto FlatShareApp
 
 Este proyecto está modularizado por **capas** y por **dominios funcionales** para facilitar mantenimiento, escalabilidad y defensa técnica ante tribunal.
 

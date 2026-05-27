@@ -1,4 +1,4 @@
-﻿# Diario de proyecto - FlatShareApp
+# Diario de proyecto - FlatShareApp
 
 ## Alcance y criterio de veracidad
 Este diario esta preparado para entrega academica y sigue estas reglas:
@@ -401,7 +401,7 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
 - Authentication: Email/Password.
 - Firestore: reglas por pertenencia a grupo y rol.
 - Colecciones activas de negocio:
-  - `users`, `usernames`, `groups`, `group_codes`, `rooms_groups`,
+  - `users`, `groups`, `group_codes`, `rooms_groups`,
   - `expenses`, `payments`, `payment_deadlines`, `reminders`, `activity_logs`, `invitations`,
   - `rental_contracts`, `rent_collections`, `maintenance_tickets`, `group_documents`, `audit_events`, `rent_automations`, `event_reminder_rules`, `event_reminder_jobs`.
 
@@ -834,4 +834,185 @@ En cada avance relevante anadir:
 ## 2026-05-26
 - Tipo: Avance reconstruido
 - Pestaña Movimientos: el CTA principal cambia su texto a Nueva acción (antes Nuevo gasto).
+
+
+## 2026-05-27
+- Tipo: Avance reconstruido
+- Nuevo gasto/cobro: ajuste del reparto por habitación para escenarios con un único residente seleccionado.
+- Si solo hay una persona en la habitación, se oculta el selector de persona y la fila pasa a modo automático con esa persona fija.
+- El importe de esa única persona se autocompleta con el total del gasto para evitar repartos manuales innecesarios.
+- Para habitaciones con dos o más personas, se mantiene el flujo actual y se mejora el indicador de cálculo bajo las filas:
+  - muestra asignado/total,
+  - avisa en rojo si falta importe o si se supera,
+  - confirma en verde cuando el reparto es correcto.
+
+
+## 2026-05-27
+- Tipo: Avance reconstruido
+- Información de piso: se elimina la duplicidad del nombre en el modal de detalle.
+- El título del modal pasa a ser fijo (`Datos del piso`) y el nombre del piso se mantiene solo en la tarjeta principal del contenido.
+
+
+## 2026-05-27
+- Tipo: Avance reconstruido
+- Seeder Firebase Admin: ampliado el sistema de presets para soportar múltiples escenarios de demo.
+- Añadidos dos presets nuevos:
+  - `sergio-owner-plus`: Sergio como propietario con más habitaciones y más volumen de datos.
+  - `sergio-tenant-plus`: Sergio como inquilino en un piso con más compañeros.
+- Actualizado `tools/firebase-admin-seed/package.json` con scripts directos para ejecutar ambos presets.
+- Actualizado `tools/firebase-admin-seed/README.md` con comandos y detalles de uso de los nuevos presets.
+
+
+## 2026-05-27
+- Tipo: Avance reconstruido
+- Corregido scroll en el modal de `Registrar pago pendiente`.
+- El formulario de pago ahora usa contenedor desplazable y ajuste de ventana para teclado, igual que el patrón de `Nuevo gasto`.
+- Se evita el bloqueo al deslizar hacia abajo en formularios largos de pago.
+
+
+## 2026-05-27
+- Tipo: Avance reconstruido
+- Limpieza de mojibake y normalización de codificación en archivos de UI y lógica.
+- Corregidos textos visibles con caracteres corruptos en:
+  - `ExpensesFragment.java`
+  - `GroupsFragment.java`
+  - `fragment_groups.xml`
+- Verificación final: sin coincidencias de patrones de mojibake en archivos de texto del proyecto.
+
+
+## 2026-05-27
+- Tipo: Avance reconstruido
+- Detalle de gastos: se añade el campo `Para` justo debajo de `Pagado por`.
+- El campo `Para` se construye a partir del `customSplit` del gasto para mostrar a quién va el reparto.
+
+
+## 2026-05-27
+- Tipo: Avance reconstruido
+- Flujo `Pagar pendiente`: bloqueo de edición del destinatario y del tipo de destino cuando el pago viene de una deuda pendiente.
+- En `Registrar pago pendiente` ya no se pueden añadir/quitar líneas ni cambiar a quién se debe pagar.
+- El guardado fuerza por código el destino `Miembro` al acreedor del pendiente para evitar cambios manuales.
+
+
+## 2026-05-27
+- Tipo: Avance reconstruido
+- Pagos pendientes: endurecimiento de validaciones y claridad de estados.
+- OCR ya no sobreescribe el importe cuando el pago nace de una deuda pendiente bloqueada.
+- Validación estricta antes de guardar: una sola línea, mismo acreedor y mismo importe al céntimo.
+- El estado `submitted` pasa a mostrarse como `En revisión` y deja de normalizarse como `Pendiente`.
+- En detalle de pagos, el CTA cambia de `Editar` a `Cambiar estado` para evitar confusión de UX.
+- Selector de pendientes ampliado: ahora lista todos y añade `A <acreedor>` en cada opción.
+- Recordatorios: permisos alineados en UI y `firestore.rules` para que solo creador o propietario puedan actualizar/eliminar.
+
+
+## 2026-05-27
+- Tipo: Hotfix UX
+- Nuevo gasto: corregido bloqueo de los desplegables de habitaciones e inquilinos en el modal.
+- Causa: el wrapper scrollable del diálogo interceptaba toques globales y afectaba la apertura de `Spinner`.
+- Solución: retirada la interceptación táctil global en `ExpenseDialogs.wrapFormForDialogScroll`.
+
+
+## 2026-05-27
+- Tipo: Ajuste visual de autenticación
+- Login y Registro: acciones principales (`Iniciar sesión` y `Crear cuenta`) pasan a estilo enlace azul subrayado, sin fondo tipo botón.
+- Se unifica el estilo de enlaces con `¿Olvidaste tu contraseña?`.
+- Fondo en modo claro para pantallas de acceso (`activity_login` y `activity_register`): blanco plano sin degradado.
+
+
+## 2026-05-27
+- Tipo: Localización de correos Auth
+- Se añade `AuthEmailLocale` para aplicar idioma de Ajustes (`es`/`en`) a Firebase Auth antes de enviar emails.
+- Cobertura en:
+  - verificación tras registro,
+  - reenvío de verificación,
+  - reset de contraseña,
+  - verificación disparada desde login.
+
+
+## 2026-05-27
+- Tipo: Ajuste de registro
+- Campo `Fecha de nacimiento` en `RegisterActivity`: se inicializa con la fecha actual en formato `YYYY-MM-DD`.
+
+
+## 2026-05-27
+- Tipo: UX de validaciones Auth
+- Login y Registro: mensajes de error más claros en español para campos obligatorios (correo/usuario y contraseña).
+- Se añade mapeo de errores Firebase Auth a textos comprensibles en español (correo inválido, contraseña incorrecta, usuario no encontrado, red, etc.).
+
+
+## 2026-05-27
+- Tipo: Simplificación de identidad de usuario
+- Se elimina el uso de `username`/apodo en autenticación y registro.
+- Registro: ahora solicita y guarda solo `nombre completo` como identidad visible (sin alias).
+- Login: pasa a correo electrónico + contraseña (sin resolución por colección `usernames`).
+- Sync de perfil: `users.displayName` y `users.fullName` quedan alineados con nombre completo.
+- Ajustes de borrado de cuenta y reglas/documentación actualizados para no depender de `usernames`.
+
+
+## 2026-05-27
+- Tipo: Propagación de nombre de perfil
+- Al editar el nombre completo en perfil, se añade sincronización transversal en Firestore.
+- Se consultan colecciones por `uid` y/o `email` y se actualizan campos de nombre existentes (`displayName`, `fullName`, `name` y derivados) sin crear campos nuevos.
+
+
+## 2026-05-27
+- Tipo: Validación de edición de perfil
+- Se bloquea el guardado de `Editar perfil` cuando algún campo obligatorio queda vacío (nombre, teléfono o fecha de nacimiento).
+
+
+## 2026-05-27
+- Tipo: Ajuste UX de teclado en registro
+- `RegisterActivity`: activado `windowSoftInputMode=adjustResize` y ajuste del contenedor del formulario a `wrap_content`.
+- Resultado: al escribir la contraseña en `Crear cuenta`, el teclado ya no tapa el campo y el scroll se comporta correctamente.
+
+
+## 2026-05-27
+- Tipo: Consistencia UX de teclado en autenticación
+- Se aplica `windowSoftInputMode=adjustResize` también en `LoginActivity` y `VerifyEmailActivity`.
+- Objetivo: mismo comportamiento de visibilidad de campos con teclado en todas las pantallas de acceso.
+
+## 2026-05-27
+- Tipo: Nueva acción contextual en Pisos
+- `GroupsFragment`: al mantener pulsado un piso se abre menú contextual por rol.
+- Inquilino: acción `Salir del piso` con confirmación, actualizando `members`, `memberEmails` y `roles`.
+- Propietario: acción `Expulsar inquilino`, selección del miembro y confirmación antes de actualizar Firestore.
+- Si el usuario sale del piso activo, se limpia `SessionStore` (`currentGroup/currentRoom`) para evitar referencias colgantes.
+
+## 2026-05-27
+- Tipo: Ajuste UI en detalle de piso
+- Eliminado el botón `Gestionar habitaciones` del panel de detalle de `Pisos`.
+- Motivo: evitar duplicidad, ya que la misma gestión existe en el acceso principal del workspace.
+
+## 2026-05-27
+- Tipo: Endurecimiento de ocupación en pisos/habitaciones
+- `GroupsFragment`: se bloquea el borrado de piso cuando alguna habitación tiene residentes (`memberEmails` no vacío).
+- `OwnerRoomsActivity`: se bloquea borrar una habitación ocupada y se obliga a vaciarla antes (quitar/cambiar inquilinos).
+- `GroupsFragment`: al salir o expulsar un inquilino del piso, se limpia automáticamente su asignación en `rooms_groups` del mismo piso (`memberEmails/memberCount`).
+- `firestore.rules`: borrado en `rooms_groups` permitido solo para propietario y solo si la habitación está vacía.
+
+## 2026-05-27
+- Tipo: Mejora de reparto en Nuevo gasto
+- `dialog_expense.xml`: añadido selector `Repartir por` con opciones `Personas/Habitaciones`.
+- `ExpensesFragment`: nuevo modo de reparto por habitación en el bloque de líneas.
+- En modo `Habitaciones`, cada línea representa una habitación y su importe se divide automáticamente entre los inquilinos de esa habitación al construir `customSplit`.
+- El reparto sigue persistiendo por persona en Firestore, manteniendo compatibilidad con balances y vencimientos actuales.
+
+## 2026-05-27
+- Tipo: Mejora de reparto en Nuevo cobro/pago
+- `ExpensesFragment`: las líneas de destino de pago (`Miembro/Habitación`) pasan a usar fila con selector + importe por línea.
+- En `Miembro`, cada línea genera pago directo con el importe indicado.
+- En `Habitación`, cada línea reparte el importe entre residentes de la habitación según su porcentaje/configuración de habitación.
+- Validación previa de guardado: suma de líneas = importe total del pago (excepto flujo bloqueado de `Pagar pendiente`).
+
+## 2026-05-27
+- Tipo: Saneamiento de codificación UTF-8
+- Eliminado BOM en archivos fuente y documentación para evitar errores de compilación (`\ufeff`).
+- Corregido texto mojibake y caracteres de reemplazo (`�`) en Java y XML de UI.
+- Validación final: sin coincidencias de `Ã`, `Â` o `�` en `app/src/main`.
+
+## 2026-05-27
+- Tipo: Ajuste UX crítico en Nuevo gasto
+- Se elimina visualmente la sección superior de selección de habitaciones en `Nuevo gasto` para evitar duplicidad.
+- La selección queda solo en el bloque inferior (`Repartir por` + líneas con `+/-` e importe a la derecha).
+- En modo `Habitaciones` ya no se cargan todas de golpe: arranca con una línea y se añaden/eliminan manualmente.
+- Se mantiene guardado de reparto por persona, dividiendo cada línea de habitación entre sus residentes.
 

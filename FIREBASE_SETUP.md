@@ -1,4 +1,4 @@
-﻿# Firebase Setup
+# Firebase Setup
 
 Este documento es la referencia viva de Firebase para `FlatShare`.
 Actualízalo cuando cambie la app, la estructura de datos o las reglas.
@@ -13,7 +13,6 @@ La app usa:
 Colecciones principales:
 
 - `users`
-- `usernames`
 - `groups`
 - `group_codes`
 - `rooms_groups`
@@ -361,8 +360,9 @@ Resumen:
 
 - Acceso de aplicación restringido a usuarios autenticados con correo verificado (`request.auth.token.email_verified == true`).
 - `groups`: solo miembros leen, propietario gestiona.
-- `rooms_groups`: miembros leen, propietario crea/edita/elimina.
-- `expenses`, `payments`, `payment_deadlines`, `reminders`, `activity_logs`: solo miembros del grupo.
+- `rooms_groups`: miembros leen, propietario crea/edita; eliminar solo si la habitación está vacía (`memberCount=0` y `memberEmails=[]`).
+- `expenses`, `payments`, `payment_deadlines`, `activity_logs`: solo miembros del grupo.
+- `reminders`: solo miembros leen; actualizar/eliminar solo creador (`ownerUid`) o propietario del piso.
 - `payments`: para seed demo, el propietario puede crear pagos con `seed=true` y `fromEmail` tipo `seeduserNNN@seed.flatshare.local` dirigidos a su propio correo.
 - `rental_contracts`: lectura de miembros, gestión del propietario.
 - `rent_collections`: miembros del grupo pueden crear/leer; solo el propietario puede actualizar o eliminar.
@@ -373,7 +373,7 @@ Resumen:
 - `event_reminder_jobs`: miembros leen y crean; no se permite editar ni borrar.
 - `invitations`: acceso para quien invita o quien recibe.
 - `groups`: se permite auto-salida segura del propio usuario (`isSelfLeaveUpdate`) para soportar borrado de cuenta.
-- `usernames`: el propietario del username puede eliminar su propio documento al borrar cuenta.
+- `groups`: el propietario puede actualizar membresía del piso (por ejemplo expulsar inquilinos), manteniendo `members`, `memberEmails` y `roles` alineados.
 
 ## Cómo aplicarlo en Firebase
 
@@ -418,7 +418,6 @@ Qué crea:
 
 - Usuarios reales en `Firebase Authentication` (email/password)
 - Documentos en `users`
-- Documentos en `usernames`
 - Pisos en `groups` con tu cuenta como `ownerId`
 - Códigos en `group_codes`
 - Habitaciones en `rooms_groups`

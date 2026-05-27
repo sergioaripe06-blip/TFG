@@ -114,6 +114,7 @@
         android:popupBackground="@drawable/bg_spinner_popup" />
 
     <TextView
+        android:id="@+id/roomSectionLabelTv"
         android:layout_width="match_parent"
         android:layout_marginTop="10dp"
         android:layout_height="wrap_content"
@@ -206,12 +207,40 @@
         android:paddingHorizontal="12dp"
         android:popupBackground="@drawable/bg_spinner_popup" />
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="Repartir por:"
+        android:textColor="@color/text_light"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <Spinner
+        android:id="@+id/splitTargetScopeSpinner"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/bg_select_dark_round"
+        android:paddingHorizontal="12dp"
+        android:popupBackground="@drawable/bg_spinner_popup" />
+
     <LinearLayout
         android:id="@+id/splitRowsContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:orientation="vertical" />
+
+    <TextView
+        android:id="@+id/splitRemainingTv"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="Falta por repartir: 0,00 EUR"
+        android:textColor="@color/status_danger"
+        android:textSize="12sp"
+        android:visibility="gone" />
 
     <Button
         android:id="@+id/addSplitRowBtn"
@@ -232,16 +261,6 @@
         android:text="Eliminar línea"
         android:textAllCaps="false"
         android:textColor="@color/text_light"
-        android:visibility="gone" />
-
-    <TextView
-        android:id="@+id/splitRemainingTv"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="Falta por repartir: 0,00 EUR"
-        android:textColor="@color/status_danger"
-        android:textSize="12sp"
         android:visibility="gone" />
 
 </LinearLayout>

@@ -395,10 +395,14 @@ public class OwnerRoomsActivity extends AppCompatActivity {
     }
 
     private void deleteRoomDialog(RoomItem room) {
-        View content = DialogUtils.createMessageView(this, "Esta acción eliminará la habitación y su asignación de residentes.");
+        if (room != null && room.memberEmails != null && !room.memberEmails.isEmpty()) {
+            Toast.makeText(this, "No puedes eliminar una habitacion con inquilinos. Quitalos o cambialos de habitacion primero.", Toast.LENGTH_LONG).show();
+            return;
+        }
+        View content = DialogUtils.createMessageView(this, "Esta accion eliminara la habitacion y su asignacion de residentes.");
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 this,
-                "Eliminar habitación",
+                "Eliminar habitacion",
                 room.name,
                 content,
                 "Cancelar",
@@ -407,13 +411,22 @@ public class OwnerRoomsActivity extends AppCompatActivity {
         AlertDialog dialog = DialogUtils.show(this, shell.root);
         shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
         shell.confirmBtn.setOnClickListener(v -> {
-            db.collection("rooms_groups").document(room.id)
-                    .delete()
-                    .addOnSuccessListener(v2 -> {
-                        Toast.makeText(this, "Habitación eliminada", Toast.LENGTH_SHORT).show();
-                        loadRooms();
+            db.collection("rooms_groups").document(room.id).get()
+                    .addOnSuccessListener(doc -> {
+                        List<String> memberEmails = castEmails(doc.get("memberEmails"));
+                        if (!memberEmails.isEmpty()) {
+                            Toast.makeText(this, "No puedes eliminar una habitacion con inquilinos. Quitalos o cambialos de habitacion primero.", Toast.LENGTH_LONG).show();
+                            return;
+                        }
+                        db.collection("rooms_groups").document(room.id)
+                                .delete()
+                                .addOnSuccessListener(v2 -> {
+                                    Toast.makeText(this, "Habitacion eliminada", Toast.LENGTH_SHORT).show();
+                                    loadRooms();
+                                })
+                                .addOnFailureListener(e -> Toast.makeText(this, "No se pudo eliminar", Toast.LENGTH_SHORT).show());
                     })
-                    .addOnFailureListener(e -> Toast.makeText(this, "No se pudo eliminar", Toast.LENGTH_SHORT).show());
+                    .addOnFailureListener(e -> Toast.makeText(this, "No se pudo validar la habitacion", Toast.LENGTH_SHORT).show());
             dialog.dismiss();
         });
     }

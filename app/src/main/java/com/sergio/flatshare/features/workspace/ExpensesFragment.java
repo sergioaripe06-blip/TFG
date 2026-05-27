@@ -451,7 +451,7 @@ public class ExpensesFragment extends Fragment {
         updateTabStyle(managementTabBtn, showManagement);
 
         if (showExpenses) {
-            addMainLabelTv.setText("Nueva acción");
+            addMainLabelTv.setText("Nueva acciÃ³n");
         } else if (showReminders) {
             addMainLabelTv.setText("Nuevo recordatorio");
         } else {
@@ -576,8 +576,8 @@ public class ExpensesFragment extends Fragment {
         View content = buildWorkspaceInfoDialogContent(rooms);
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
-                currentGroupName == null || currentGroupName.trim().isEmpty() ? "Datos del piso" : currentGroupName,
-                "Información del piso",
+                "Datos del piso",
+                "InformaciÃ³n del piso",
                 content,
                 "Cerrar",
                 null
@@ -600,7 +600,7 @@ private View buildWorkspaceInfoDialogContent(@NonNull List<RoomOption> rooms) {
     ));
 
     String heroTitle = currentGroupName == null || currentGroupName.trim().isEmpty() ? "Piso" : currentGroupName.trim();
-    String heroSubtitle = workspaceDescriptionCache.isEmpty() ? "Sin descripción" : workspaceDescriptionCache;
+    String heroSubtitle = workspaceDescriptionCache.isEmpty() ? "Sin descripciÃ³n" : workspaceDescriptionCache;
     addHeroInfoCard(root, heroTitle, heroSubtitle);
 
     addInfoCard(root, "Propietario", workspaceOwnerCache.isEmpty() ? "Sin datos" : workspaceOwnerCache);
@@ -622,7 +622,7 @@ private View buildWorkspaceInfoDialogContent(@NonNull List<RoomOption> rooms) {
         addInfoCard(root, "Habitaciones", "Sin habitaciones creadas");
     } else {
         for (RoomOption room : rooms) {
-            String roomName = room.name == null || room.name.trim().isEmpty() ? "Habitación" : room.name.trim();
+            String roomName = room.name == null || room.name.trim().isEmpty() ? "HabitaciÃ³n" : room.name.trim();
             String splitModeLabel = ROOM_SPLIT_PERCENTAGE.equals(normalizeRoomSplitMode(room.rentSplitMode))
                     ? "Porcentual"
                     : "Equitativo";
@@ -654,8 +654,8 @@ private View buildWorkspaceInfoDialogContent(@NonNull List<RoomOption> rooms) {
             roomDetails.setPadding(0, dp(4), 0, 0);
             roomDetails.setText(
                     "Capacidad: " + room.capacity
-                            + " ï¿½ Residentes: " + room.memberEmails.size()
-                            + " ï¿½ Reparto: " + splitModeLabel
+                            + " â€¢ Residentes: " + room.memberEmails.size()
+                            + " â€¢ Reparto: " + splitModeLabel
             );
             roomCard.addView(roomDetails);
 
@@ -670,8 +670,8 @@ private View buildWorkspaceInfoDialogContent(@NonNull List<RoomOption> rooms) {
         }
     }
 
-    Button addRoomBtn = DialogUtils.createActionButton(requireContext(), "Añadir habitaciÃ³n", false);
-    Button openLocationBtn = DialogUtils.createActionButton(requireContext(), "Ver ubicaciï¿½n", true);
+    Button addRoomBtn = DialogUtils.createActionButton(requireContext(), "AÃ±adir habitaciÃ³n", false);
+    Button openLocationBtn = DialogUtils.createActionButton(requireContext(), "Ver ubicaciÃ³n", true);
     LinearLayout.LayoutParams addParams = (LinearLayout.LayoutParams) addRoomBtn.getLayoutParams();
     addParams.topMargin = dp(14);
     addRoomBtn.setLayoutParams(addParams);
@@ -700,7 +700,7 @@ private void showRoomActionsFromWorkspaceInfo(@NonNull RoomOption room) {
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 row.title,
-                "Selecciona la acción para esta habitaciÃ³n.",
+                "Selecciona la acciÃ³n para esta habitaciÃ³n.",
                 content,
                 "Cerrar",
                 null
@@ -732,7 +732,7 @@ private void showRoomInfoFromRow(@NonNull WorkspaceRow row) {
     View content = buildRoomInfoDialogContent(name, roomNumber, capacity, monthlyCost, residents);
     DialogUtils.Shell shell = DialogUtils.buildShell(
             requireContext(),
-            "Información habitaciÃ³n",
+            "InformaciÃ³n habitaciÃ³n",
             "Datos de la habitaciÃ³n seleccionada.",
             content,
             null,
@@ -759,8 +759,8 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 Long capacity = doc.getLong("capacity");
                 List<String> residents = castEmails(doc.get("memberEmails"));
                 String title = (roomNumber == null || roomNumber <= 0)
-                        ? (roomName == null || roomName.trim().isEmpty() ? "Habitación" : roomName)
-                        : "Hab. " + roomNumber + " - " + (roomName == null || roomName.trim().isEmpty() ? "Habitación" : roomName);
+                        ? (roomName == null || roomName.trim().isEmpty() ? "HabitaciÃ³n" : roomName)
+                        : "Hab. " + roomNumber + " - " + (roomName == null || roomName.trim().isEmpty() ? "HabitaciÃ³n" : roomName);
                 String subtitle = "Capacidad: " + (capacity == null ? 0 : capacity)
                         + " | Residentes: " + residents.size();
                 Double monthlyCost = doc.getDouble("monthlyCost");
@@ -1127,7 +1127,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         List<String> safeResidents = residents == null ? Collections.emptyList() : residents;
         String roomNumberLabel = roomNumber == null ? "-" : String.valueOf(roomNumber);
 
-        addHeroInfoCard(root, safeRoomName, "Hab. " + roomNumberLabel + "  â€¢  " + monthly + " EUR/mes");
+        addHeroInfoCard(root, safeRoomName, "Hab. " + roomNumberLabel + "  Ã¢â‚¬Â¢  " + monthly + " EUR/mes");
         addInfoCard(root, "Capacidad mÃ¡xima", capacity == null ? "0" : String.valueOf(capacity));
         addInfoCard(root, "Residentes actuales", String.valueOf(safeResidents.size()));
 
@@ -1841,7 +1841,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
-                "Nueva acción",
+                "Nueva acciÃ³n",
                 subtitle,
                 content,
                 "Cerrar",
@@ -2039,7 +2039,12 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             Toast.makeText(requireContext(), "Fecha invÃ¡lida. Usa YYYY-MM-DD", Toast.LENGTH_SHORT).show();
             return false;
         }
-        List<RoomOption> selectedRooms = resolveSelectedRoomOptions(form, rooms);
+        List<RoomOption> selectedRooms;
+        if (isRoomScopeSelected(form)) {
+            selectedRooms = getRoomsSelectedInSplitRows(form, rooms);
+        } else {
+            selectedRooms = new ArrayList<>(rooms);
+        }
         if (selectedRooms.isEmpty()) {
             Toast.makeText(requireContext(), "Selecciona al menos una habitaciÃ³n", Toast.LENGTH_SHORT).show();
             return false;
@@ -2151,6 +2156,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 setupPrioritySpinner((Spinner) form.findViewById(R.id.paymentPrioritySpinner), "media");
                 setupDateField(form.findViewById(R.id.paymentDueDateEt));
                 setupPaymentTargetSelectors(form, members, rooms, hasRoomContext() ? currentRoomId : null);
+                setPendingDebtUiLocked(form, false);
                 setupPaymentProofControls(form, paymentAmountEt);
                 if (pendingDebtRequest != null) {
                     configurePaymentDialogForPendingDebt(form, members, rooms, pendingDebtRequest);
@@ -2161,15 +2167,19 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                         ? "Elige si el pago es para una habitaciÃ³n, un miembro o para todos."
                         : "Revisa los datos, adjunta justificante y env?a el pago.";
 
+                View scrollableForm = ExpenseDialogs.wrapFormForDialogScroll(requireContext(), form);
+
                 DialogUtils.Shell shell = DialogUtils.buildShell(
                         requireContext(),
                         dialogTitle,
                         dialogSubtitle,
-                        form,
+                        scrollableForm,
                         "Cancelar",
                         "Enviar pago"
                 );
+                ExpenseDialogs.tuneLongFormShell(shell);
                 AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+                ExpenseDialogs.adjustLongFormDialogWindow(requireContext(), dialog);
                 pendingPaymentConfirmBtn = shell.confirmBtn;
                 updatePaymentConfirmButtonState();
                 shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
@@ -2254,21 +2264,16 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
     private void showPendingDebtPickerDialog(@NonNull List<PendingDebtRequest> pendingDebts) {
         ViewGroup content = DialogUtils.createVerticalActions(requireContext());
-        int maxItems = Math.min(8, pendingDebts.size());
+        int maxItems = pendingDebts.size();
         for (int i = 0; i < maxItems; i++) {
             PendingDebtRequest debt = pendingDebts.get(i);
-            String label = debt.concept + " - " + formatCurrency(debt.amount);
+            String creditorLabel = debt.creditorEmail == null || debt.creditorEmail.trim().isEmpty()
+                    ? "Sin acreedor"
+                    : memberReferenceInline(debt.creditorEmail);
+            String label = debt.concept + " - " + formatCurrency(debt.amount) + " - A " + creditorLabel;
             Button itemBtn = DialogUtils.createActionButton(requireContext(), label, i == 0);
             itemBtn.setOnClickListener(v -> createPaymentDialog(debt));
             content.addView(itemBtn);
-        }
-        if (pendingDebts.size() > maxItems) {
-            TextView note = new TextView(requireContext());
-            note.setText("Muestra los primeros " + maxItems + " pendientes. Revisa Movimientos para ver todos.");
-            note.setTextColor(requireContext().getColor(R.color.text_muted));
-            note.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-            note.setPadding(0, dp(8), 0, 0);
-            content.addView(note);
         }
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
@@ -2296,6 +2301,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         Spinner prioritySpinner = form.findViewById(R.id.paymentPrioritySpinner);
         AutoCompleteTextView categoryEt = form.findViewById(R.id.paymentCategoryInputEt);
         TextView proofStatusTv = form.findViewById(R.id.paymentProofStatusTv);
+        TextView memberLabelTv = form.findViewById(R.id.paymentMemberLabelTv);
 
         amountEt.setText(formatPercent(debt.amount));
         conceptEt.setText(debt.concept);
@@ -2314,7 +2320,11 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         conceptEt.setEnabled(false);
         dueDateEt.setEnabled(false);
         targetTypeSpinner.setEnabled(false);
+        targetTypeSpinner.setClickable(false);
         targetTypeSpinner.setAlpha(0.65f);
+        if (memberLabelTv != null) {
+            memberLabelTv.setText("A quiÃ©n pagas:");
+        }
 
         int priorityIndex = indexOfPriorityType(debt.priority);
         if (priorityIndex >= 0) {
@@ -2325,6 +2335,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         int memberTargetIndex = indexOfPaymentTargetType("miembro");
         if (memberTargetIndex < 0) memberTargetIndex = 1;
         targetTypeSpinner.setSelection(memberTargetIndex);
+        setPendingDebtUiLocked(form, true);
         updatePaymentTargetSection(form, memberTargetIndex, members.size(), rooms.size());
 
         Button addMemberLineBtn = form.findViewById(R.id.addPaymentMemberLineBtn);
@@ -2334,7 +2345,15 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         LinearLayout membersContainer = form.findViewById(R.id.paymentMembersContainer);
         for (int i = 0; i < membersContainer.getChildCount(); i++) {
             View child = membersContainer.getChildAt(i);
+            EditText rowAmountEt = child.findViewById(R.id.memberAmountEt);
+            if (rowAmountEt != null) {
+                rowAmountEt.setText(formatPercent(debt.amount));
+                rowAmountEt.setEnabled(false);
+                rowAmountEt.setFocusable(false);
+                rowAmountEt.setFocusableInTouchMode(false);
+            }
             child.setEnabled(false);
+            child.setClickable(false);
             child.setAlpha(0.8f);
         }
 
@@ -2453,8 +2472,12 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         LinearLayout membersContainer = form.findViewById(R.id.paymentMembersContainer);
         Button addMemberLineBtn = form.findViewById(R.id.addPaymentMemberLineBtn);
         Button removeMemberLineBtn = form.findViewById(R.id.removePaymentMemberLineBtn);
+        TextView memberLabelTv = form.findViewById(R.id.paymentMemberLabelTv);
 
         targetTypeSpinner.setAdapter(buildLightSpinnerAdapter(PAYMENT_TARGET_TYPES));
+        if (memberLabelTv != null) {
+            memberLabelTv.setText("Miembro(s):");
+        }
 
         rebindPaymentRoomLines(form, rooms, members.size(), null);
         addRoomLineBtn.setOnClickListener(v -> {
@@ -2519,6 +2542,19 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         Button addRoomLineBtn = form.findViewById(R.id.addPaymentRoomLineBtn);
         Button removeRoomLineBtn = form.findViewById(R.id.removePaymentRoomLineBtn);
 
+        if (isPendingDebtUiLocked(form)) {
+            roomLabelTv.setVisibility(View.GONE);
+            roomsContainer.setVisibility(View.GONE);
+            addRoomLineBtn.setVisibility(View.GONE);
+            removeRoomLineBtn.setVisibility(View.GONE);
+
+            memberLabelTv.setVisibility(View.VISIBLE);
+            membersContainer.setVisibility(View.VISIBLE);
+            addMemberLineBtn.setVisibility(View.GONE);
+            removeMemberLineBtn.setVisibility(View.GONE);
+            return;
+        }
+
         boolean showRoomSection = targetTypePosition == 0;
         boolean showMemberSection = targetTypePosition == 1;
 
@@ -2542,8 +2578,18 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         removeMemberLineBtn.setAlpha(canRemove ? 1f : 0.45f);
     }
 
+    private void setPendingDebtUiLocked(@NonNull View form, boolean locked) {
+        form.setTag(R.id.paymentProofStatusTv, locked);
+    }
+
+    private boolean isPendingDebtUiLocked(@NonNull View form) {
+        Object tag = form.getTag(R.id.paymentProofStatusTv);
+        return tag instanceof Boolean && (Boolean) tag;
+    }
+
     private void rebindPaymentMemberLines(View form, List<String> members, int roomsCount, @Nullable List<String> seedKeys) {
         LinearLayout container = form.findViewById(R.id.paymentMembersContainer);
+        Map<String, String> existingAmounts = collectPaymentLineAmounts(container);
         List<String> selectedKeys = seedKeys == null ? collectPaymentMemberLineKeys(container) : new ArrayList<>(seedKeys);
         if (selectedKeys.isEmpty()) {
             selectedKeys.add(firstAvailableMemberKey(members, Collections.emptyList()));
@@ -2552,7 +2598,16 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         container.removeAllViews();
 
         for (int i = 0; i < selectedKeys.size(); i++) {
-            Spinner spinner = buildPaymentMemberLineSpinner(members, selectedKeys, i, selectedKeys.get(i));
+            String selectedKey = selectedKeys.get(i);
+            View row = buildPaymentLineRow(
+                    members,
+                    members,
+                    selectedKeys,
+                    i,
+                    selectedKey,
+                    existingAmounts.getOrDefault(selectedKey, "")
+            );
+            Spinner spinner = row.findViewById(R.id.memberSpinner);
             spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
                 @Override
                 public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -2565,59 +2620,57 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 public void onNothingSelected(AdapterView<?> parent) {
                 }
             });
-            container.addView(spinner);
+            container.addView(row);
         }
     }
 
-    private Spinner buildPaymentMemberLineSpinner(
-            List<String> members,
+    private View buildPaymentLineRow(
+            List<String> optionKeysSource,
+            List<String> optionLabelsSource,
             List<String> selectedKeys,
-            int spinnerIndex,
-            String selectedKey
+            int rowIndex,
+            String selectedKey,
+            String amountText
     ) {
-        Spinner spinner = new Spinner(requireContext(), Spinner.MODE_DROPDOWN);
-        spinner.setBackgroundResource(R.drawable.bg_select_dark_round);
-        spinner.setPadding(dp(12), 0, dp(12), 0);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(50)
-        );
-        if (spinnerIndex > 0) params.topMargin = dp(8);
-        spinner.setLayoutParams(params);
-
+        View row = LayoutInflater.from(requireContext()).inflate(R.layout.item_split_row, null, false);
+        Spinner spinner = row.findViewById(R.id.memberSpinner);
+        EditText memberAmountEt = row.findViewById(R.id.memberAmountEt);
         List<String> optionKeys = new ArrayList<>();
         List<String> optionLabels = new ArrayList<>();
-        for (String member : members) {
+        for (int idx = 0; idx < optionKeysSource.size(); idx++) {
+            String key = optionKeysSource.get(idx);
+            String label = optionLabelsSource.get(idx);
             boolean selectedElsewhere = false;
             for (int i = 0; i < selectedKeys.size(); i++) {
-                if (i == spinnerIndex) continue;
-                if (member.equals(selectedKeys.get(i))) {
+                if (i == rowIndex) continue;
+                if (key.equals(selectedKeys.get(i))) {
                     selectedElsewhere = true;
                     break;
                 }
             }
-            if (!selectedElsewhere || member.equals(selectedKey)) {
-                optionKeys.add(member);
-                optionLabels.add(displayNameForEmail(member));
+            if (!selectedElsewhere || key.equals(selectedKey)) {
+                optionKeys.add(key);
+                optionLabels.add(label);
             }
         }
-        if (optionKeys.isEmpty() && !members.isEmpty()) {
-            optionKeys.add(members.get(0));
-            optionLabels.add(displayNameForEmail(members.get(0)));
+        if (optionKeys.isEmpty() && !optionKeysSource.isEmpty()) {
+            optionKeys.add(optionKeysSource.get(0));
+            optionLabels.add(optionLabelsSource.get(0));
         }
-
         spinner.setTag(optionKeys);
         spinner.setAdapter(buildLightSpinnerAdapter(optionLabels.toArray(new String[0])));
         int selectedIndex = optionKeys.indexOf(selectedKey);
         spinner.setSelection(selectedIndex >= 0 ? selectedIndex : 0);
-        return spinner;
+        memberAmountEt.setText(amountText == null ? "" : amountText);
+        return row;
     }
 
     private List<String> collectPaymentMemberLineKeys(LinearLayout container) {
         List<String> keys = new ArrayList<>();
         for (int i = 0; i < container.getChildCount(); i++) {
             View child = container.getChildAt(i);
-            if (!(child instanceof Spinner spinner)) continue;
+            Spinner spinner = child.findViewById(R.id.memberSpinner);
+            if (spinner == null) continue;
             @SuppressWarnings("unchecked")
             List<String> optionKeys = (List<String>) spinner.getTag();
             int selected = spinner.getSelectedItemPosition();
@@ -2629,15 +2682,31 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
     private void rebindPaymentRoomLines(View form, List<RoomOption> rooms, int membersCount, @Nullable List<String> seedKeys) {
         LinearLayout container = form.findViewById(R.id.paymentRoomsContainer);
+        Map<String, String> existingAmounts = collectPaymentLineAmounts(container);
         List<String> selectedKeys = seedKeys == null ? collectPaymentRoomLineKeys(container) : new ArrayList<>(seedKeys);
         if (selectedKeys.isEmpty()) {
             selectedKeys.add(firstAvailableRoomKey(rooms, Collections.emptyList()));
         }
         selectedKeys = deduplicateRoomKeys(selectedKeys);
         container.removeAllViews();
+        List<String> roomKeys = new ArrayList<>();
+        List<String> roomLabels = new ArrayList<>();
+        for (RoomOption room : rooms) {
+            roomKeys.add(room.id);
+            roomLabels.add(room.name);
+        }
 
         for (int i = 0; i < selectedKeys.size(); i++) {
-            Spinner spinner = buildPaymentRoomLineSpinner(rooms, selectedKeys, i, selectedKeys.get(i));
+            String selectedKey = selectedKeys.get(i);
+            View row = buildPaymentLineRow(
+                    roomKeys,
+                    roomLabels,
+                    selectedKeys,
+                    i,
+                    selectedKey,
+                    existingAmounts.getOrDefault(selectedKey, "")
+            );
+            Spinner spinner = row.findViewById(R.id.memberSpinner);
             spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
                 @Override
                 public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -2650,59 +2719,16 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 public void onNothingSelected(AdapterView<?> parent) {
                 }
             });
-            container.addView(spinner);
+            container.addView(row);
         }
-    }
-
-    private Spinner buildPaymentRoomLineSpinner(
-            List<RoomOption> rooms,
-            List<String> selectedKeys,
-            int spinnerIndex,
-            String selectedKey
-    ) {
-        Spinner spinner = new Spinner(requireContext(), Spinner.MODE_DROPDOWN);
-        spinner.setBackgroundResource(R.drawable.bg_select_dark_round);
-        spinner.setPadding(dp(12), 0, dp(12), 0);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(50)
-        );
-        if (spinnerIndex > 0) params.topMargin = dp(8);
-        spinner.setLayoutParams(params);
-
-        List<String> optionKeys = new ArrayList<>();
-        List<String> optionLabels = new ArrayList<>();
-        for (RoomOption room : rooms) {
-            boolean selectedElsewhere = false;
-            for (int i = 0; i < selectedKeys.size(); i++) {
-                if (i == spinnerIndex) continue;
-                if (room.id.equals(selectedKeys.get(i))) {
-                    selectedElsewhere = true;
-                    break;
-                }
-            }
-            if (!selectedElsewhere || room.id.equals(selectedKey)) {
-                optionKeys.add(room.id);
-                optionLabels.add(room.name);
-            }
-        }
-        if (optionKeys.isEmpty() && !rooms.isEmpty()) {
-            optionKeys.add(rooms.get(0).id);
-            optionLabels.add(rooms.get(0).name);
-        }
-
-        spinner.setTag(optionKeys);
-        spinner.setAdapter(buildLightSpinnerAdapter(optionLabels.toArray(new String[0])));
-        int selectedIndex = optionKeys.indexOf(selectedKey);
-        spinner.setSelection(selectedIndex >= 0 ? selectedIndex : 0);
-        return spinner;
     }
 
     private List<String> collectPaymentRoomLineKeys(LinearLayout container) {
         List<String> keys = new ArrayList<>();
         for (int i = 0; i < container.getChildCount(); i++) {
             View child = container.getChildAt(i);
-            if (!(child instanceof Spinner spinner)) continue;
+            Spinner spinner = child.findViewById(R.id.memberSpinner);
+            if (spinner == null) continue;
             @SuppressWarnings("unchecked")
             List<String> optionKeys = (List<String>) spinner.getTag();
             int selected = spinner.getSelectedItemPosition();
@@ -2710,6 +2736,112 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             keys.add(optionKeys.get(selected));
         }
         return keys;
+    }
+
+    private Map<String, String> collectPaymentLineAmounts(@NonNull LinearLayout container) {
+        Map<String, String> out = new LinkedHashMap<>();
+        for (int i = 0; i < container.getChildCount(); i++) {
+            View child = container.getChildAt(i);
+            Spinner spinner = child.findViewById(R.id.memberSpinner);
+            EditText amountEt = child.findViewById(R.id.memberAmountEt);
+            if (spinner == null || amountEt == null) continue;
+            @SuppressWarnings("unchecked")
+            List<String> optionKeys = (List<String>) spinner.getTag();
+            int selected = spinner.getSelectedItemPosition();
+            if (optionKeys == null || selected < 0 || selected >= optionKeys.size()) continue;
+            String key = optionKeys.get(selected);
+            String value = amountEt.getText() == null ? "" : amountEt.getText().toString().trim();
+            out.put(key, value);
+        }
+        return out;
+    }
+
+    private List<PaymentService.PaymentTarget> resolvePaymentTargetsByMemberLines(
+            @NonNull List<String> selectedMemberEmails,
+            @NonNull Map<String, String> memberLineAmounts,
+            @NonNull String fromEmail
+    ) {
+        List<PaymentService.PaymentTarget> targets = new ArrayList<>();
+        for (String emailRaw : selectedMemberEmails) {
+            String email = safeLowerText(emailRaw);
+            if (email.isEmpty() || email.equals(safeLowerText(fromEmail))) continue;
+            String amountText = memberLineAmounts.getOrDefault(emailRaw, memberLineAmounts.getOrDefault(email, ""));
+            double lineAmount;
+            try {
+                lineAmount = amountText == null || amountText.trim().isEmpty() ? 0.0 : Double.parseDouble(amountText.trim());
+            } catch (NumberFormatException e) {
+                lineAmount = -1.0;
+            }
+            if (lineAmount <= 0.0) continue;
+            targets.add(new PaymentService.PaymentTarget(
+                    email,
+                    null,
+                    null,
+                    new ArrayList<>(),
+                    new ArrayList<>(),
+                    lineAmount
+            ));
+        }
+        return targets;
+    }
+
+    private List<PaymentService.PaymentTarget> resolvePaymentTargetsByRoomLines(
+            @NonNull List<String> selectedRoomIds,
+            @NonNull Map<String, String> roomLineAmounts,
+            @NonNull List<RoomOption> rooms,
+            @NonNull String fromEmail
+    ) {
+        List<PaymentService.PaymentTarget> targets = new ArrayList<>();
+        Map<String, PaymentService.PaymentTarget> byEmail = new LinkedHashMap<>();
+        Map<String, Double> weightedByEmail = new LinkedHashMap<>();
+        Map<String, RoomOption> roomById = new LinkedHashMap<>();
+        for (RoomOption room : rooms) {
+            roomById.put(room.id, room);
+        }
+        for (String roomId : selectedRoomIds) {
+            RoomOption room = roomById.get(roomId);
+            if (room == null) continue;
+            String amountText = roomLineAmounts.getOrDefault(roomId, "");
+            double roomAmount;
+            try {
+                roomAmount = amountText == null || amountText.trim().isEmpty() ? 0.0 : Double.parseDouble(amountText.trim());
+            } catch (NumberFormatException e) {
+                roomAmount = -1.0;
+            }
+            if (roomAmount <= 0.0) continue;
+
+            Map<String, Double> residentPercents = resolveRoomResidentPercentages(room);
+            if (residentPercents.isEmpty()) continue;
+
+            for (Map.Entry<String, Double> entry : residentPercents.entrySet()) {
+                String email = safeLowerText(entry.getKey());
+                if (email.isEmpty() || email.equals(safeLowerText(fromEmail))) continue;
+                double residentShare = (roomAmount * Math.max(0.0, entry.getValue())) / 100.0;
+                if (residentShare <= 0.0) continue;
+                weightedByEmail.put(email, weightedByEmail.getOrDefault(email, 0.0) + residentShare);
+                byEmail.putIfAbsent(email, new PaymentService.PaymentTarget(
+                        email,
+                        room.id,
+                        room.name,
+                        Collections.singletonList(room.id),
+                        Collections.singletonList(room.name),
+                        0.0
+                ));
+            }
+        }
+        for (Map.Entry<String, PaymentService.PaymentTarget> entry : byEmail.entrySet()) {
+            String email = entry.getKey();
+            PaymentService.PaymentTarget base = entry.getValue();
+            targets.add(new PaymentService.PaymentTarget(
+                    base.toEmail,
+                    base.roomId,
+                    base.roomName,
+                    base.roomIds,
+                    base.roomNames,
+                    weightedByEmail.getOrDefault(email, 0.0)
+            ));
+        }
+        return targets;
     }
 
     private List<PaymentService.PaymentRoom> toPaymentRooms(List<RoomOption> rooms) {
@@ -2742,6 +2874,8 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         LinearLayout roomLinesContainer = form.findViewById(R.id.paymentRoomsContainer);
         List<String> selectedMemberEmails = collectPaymentMemberLineKeys(memberLinesContainer);
         List<String> selectedRoomIds = collectPaymentRoomLineKeys(roomLinesContainer);
+        Map<String, String> memberLineAmounts = collectPaymentLineAmounts(memberLinesContainer);
+        Map<String, String> roomLineAmounts = collectPaymentLineAmounts(roomLinesContainer);
         Date dueDate = parseDueDateOrNull(dueDateText);
         PaymentService.ValidationResult validation = paymentService.validateAmountAndRequiredFields(amountStr, dueDateText, dueDate);
         if (!validation.valid) {
@@ -2756,23 +2890,60 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         double amount = validation.amount;
 
         String fromEmail = FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
+        PendingDebtRequest selectedPendingDebt = activePendingDebtRequest;
+        if (selectedPendingDebt != null) {
+            targetType = "Miembro";
+            selectedRoomIds.clear();
+            selectedMemberEmails.clear();
+            if (selectedPendingDebt.creditorEmail != null && !selectedPendingDebt.creditorEmail.trim().isEmpty()) {
+                selectedMemberEmails.add(selectedPendingDebt.creditorEmail.trim().toLowerCase(Locale.ROOT));
+            }
+        }
         String normalizedCategory = paymentService.normalizeCategory(
                 BILLING_FIXED.equals(currentBillingModel),
                 category,
                 CATEGORY_RENT
         );
-        List<PaymentService.PaymentTarget> targets = paymentService.resolveTargets(
-                targetType,
-                members,
-                toPaymentRooms(rooms),
-                selectedMemberEmails,
-                selectedRoomIds,
-                fromEmail,
-                BILLING_FIXED.equals(currentBillingModel)
-        );
+        List<PaymentService.PaymentTarget> targets;
+        String normalizedTargetType = safeLowerText(targetType);
+        if (selectedPendingDebt != null) {
+            targets = paymentService.resolveTargets(
+                    targetType,
+                    members,
+                    toPaymentRooms(rooms),
+                    selectedMemberEmails,
+                    selectedRoomIds,
+                    fromEmail,
+                    BILLING_FIXED.equals(currentBillingModel)
+            );
+        } else if ("miembro".equals(normalizedTargetType)) {
+            targets = resolvePaymentTargetsByMemberLines(selectedMemberEmails, memberLineAmounts, fromEmail);
+        } else if ("habitacion".equals(normalizedTargetType) || "habitaciÃ³n".equals(normalizedTargetType)) {
+            targets = resolvePaymentTargetsByRoomLines(selectedRoomIds, roomLineAmounts, rooms, fromEmail);
+        } else {
+            targets = paymentService.resolveTargets(
+                    targetType,
+                    members,
+                    toPaymentRooms(rooms),
+                    selectedMemberEmails,
+                    selectedRoomIds,
+                    fromEmail,
+                    BILLING_FIXED.equals(currentBillingModel)
+            );
+        }
         if (targets.isEmpty()) {
             Toast.makeText(requireContext(), "No hay destinatarios vÃ¡lidos para este pago", Toast.LENGTH_SHORT).show();
             return false;
+        }
+        if (!"todos".equals(normalizedTargetType) && selectedPendingDebt == null) {
+            double linesTotal = 0.0;
+            for (PaymentService.PaymentTarget target : targets) {
+                linesTotal += Math.max(0.0, target.shareWeight);
+            }
+            if (Math.abs(round2(linesTotal) - round2(amount)) > 0.01) {
+                Toast.makeText(requireContext(), "La suma de lÃ­neas debe coincidir con el importe total", Toast.LENGTH_SHORT).show();
+                return false;
+            }
         }
 
         String safePriority = paymentService.normalizePriority(priority);
@@ -2788,7 +2959,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         }
         String safeConcept = paymentService.resolveConcept(concept, suggestedConcept);
         String safeTargetType = targetType;
-        if ("HabitaciÃ³n".equals(targetType) && selectedRoomIds.size() > 1) {
+        if (("HabitaciÃ³n".equals(targetType) || "HabitaciÃ³n".equals(targetType)) && selectedRoomIds.size() > 1) {
             safeTargetType = "x_habitacion";
         }
         List<PaymentService.PaymentWrite> writes = paymentService.buildWrites(
@@ -2804,11 +2975,25 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 targets
         );
         if (writes.isEmpty()) {
-            Toast.makeText(requireContext(), "No se han podido generar pagos v?lidos", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "No se han podido generar pagos vÃ¡lidos", Toast.LENGTH_SHORT).show();
             return false;
         }
+        if (selectedPendingDebt != null) {
+            if (writes.size() != 1) {
+                Toast.makeText(requireContext(), "El pago pendiente debe enviarse en una sola lÃ­nea", Toast.LENGTH_SHORT).show();
+                return false;
+            }
+            PaymentService.PaymentWrite write = writes.get(0);
+            if (!amountsMatchToCent(write.splitAmount, selectedPendingDebt.amount)) {
+                Toast.makeText(requireContext(), "El importe no coincide con tu pendiente exacto", Toast.LENGTH_SHORT).show();
+                return false;
+            }
+            if (!safeLowerText(write.toEmail).equals(safeLowerText(selectedPendingDebt.creditorEmail))) {
+                Toast.makeText(requireContext(), "El destinatario no coincide con el acreedor de la deuda", Toast.LENGTH_SHORT).show();
+                return false;
+            }
+        }
         String proofUri = pendingTicketUri == null ? "" : pendingTicketUri.trim();
-        PendingDebtRequest selectedPendingDebt = activePendingDebtRequest;
         WriteBatch batch = db.batch();
         List<Map<String, Object>> createdPayments = new ArrayList<>();
         for (PaymentService.PaymentWrite write : writes) {
@@ -3439,13 +3624,13 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         if ("personalizado".equals(intervalLabel) && intervalDays != null && intervalDays > 0) {
             intervalLabel = "cada " + intervalDays + " d\u00edas";
         }
-        String prefix = "Para: " + targetLabel + " ï¿½? Frecuencia: " + capitalizeTypeLabel(intervalLabel);
+        String prefix = "Para: " + targetLabel + " â€¢ Frecuencia: " + capitalizeTypeLabel(intervalLabel);
         if (startDateText == null || startDateText.trim().isEmpty()) return prefix;
-        if ("unico".equals(intervalKey)) return prefix + " ï¿½? Fecha: " + startDateText;
+        if ("unico".equals(intervalKey)) return prefix + " â€¢ Fecha: " + startDateText;
         if (endDateText != null && !endDateText.trim().isEmpty()) {
-            return prefix + " ï¿½? Desde: " + startDateText + " ï¿½? Hasta: " + endDateText;
+            return prefix + " â€¢ Desde: " + startDateText + " â€¢ Hasta: " + endDateText;
         }
-        return prefix + " ï¿½? Desde: " + startDateText;
+        return prefix + " â€¢ Desde: " + startDateText;
     }
     private void loadExpenses() {
         if (currentGroupId == null) return;
@@ -3531,7 +3716,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                                 "pending_debt_empty",
                                 ROW_TYPE_PENDING_DEBT,
                                 "No tienes pagos pendientes",
-                                "Cuando tengas una deuda asignada aparecerá aquí.",
+                                "Cuando tengas una deuda asignada aparecerÃ¡ aquÃ­.",
                                 "-",
                                 null
                         ));
@@ -4294,12 +4479,12 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     private boolean canDeleteReminder(@NonNull DocumentSnapshot reminderDoc) {
         String ownerUid = reminderDoc.getString("ownerUid");
         String myUid = FirebaseAuth.getInstance().getCurrentUser().getUid();
-        return ownerUid != null && ownerUid.equals(myUid);
+        return isOwnerUser() || (ownerUid != null && ownerUid.equals(myUid));
     }
 
     private void requestReminderDeleteToday(@NonNull WorkspaceRow row) {
         if (row.snapshot == null || !canDeleteReminder(row.snapshot)) {
-            Toast.makeText(requireContext(), "Solo quien lo creÃ³ puede eliminarlo", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Solo quien lo creÃ³ o el propietario puede eliminarlo", Toast.LENGTH_SHORT).show();
             return;
         }
         showDeleteConfirmation(
@@ -4311,7 +4496,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
     private void requestReminderDeletionAllDays(@NonNull WorkspaceRow row) {
         if (row.snapshot == null || !canDeleteReminder(row.snapshot)) {
-            Toast.makeText(requireContext(), "Solo quien lo creÃ³ puede eliminarlo", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Solo quien lo creÃ³ o el propietario puede eliminarlo", Toast.LENGTH_SHORT).show();
             return;
         }
         showDeleteConfirmation(
@@ -4325,7 +4510,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         if (row.snapshot == null) return;
         DocumentSnapshot doc = row.snapshot;
         if (!canDeleteReminder(doc)) {
-            Toast.makeText(requireContext(), "Solo quien lo creÃ³ puede eliminarlo", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Solo quien lo creÃ³ o el propietario puede eliminarlo", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -4556,9 +4741,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
         if ("reminder".equals(row.type)) {
             if (row.snapshot == null) return;
-            String ownerUid = row.snapshot.getString("ownerUid");
-            String myUid = FirebaseAuth.getInstance().getCurrentUser().getUid();
-            boolean canDelete = ownerUid != null && ownerUid.equals(myUid);
+            boolean canDelete = canDeleteReminder(row.snapshot);
             ViewGroup content = DialogUtils.createVerticalActions(requireContext());
             Button detailBtn = DialogUtils.createActionButton(requireContext(), "Ver detalle", true);
             content.addView(detailBtn);
@@ -4690,7 +4873,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 "Detalle del pago",
                 content,
                 showActions && canDelete ? "Borrar" : null,
-                showActions && canToggle ? "Editar" : "Cerrar"
+                showActions && canToggle ? "Cambiar estado" : "Cerrar"
         );
         AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
         if (showActions && canDelete && shell.cancelBtn != null) {
@@ -4732,7 +4915,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         rows.put("Concepto", concept == null || concept.trim().isEmpty() ? "Pago" : concept.trim());
         rows.put("De", fromEmail == null || fromEmail.trim().isEmpty() ? "Sin datos" : memberReferenceInline(fromEmail));
         rows.put("Para", toEmail == null || toEmail.trim().isEmpty() ? "Sin datos" : memberReferenceInline(toEmail));
-        rows.put("Habitación", roomName == null || roomName.trim().isEmpty() ? "Varias habitaciones" : roomName.trim());
+        rows.put("HabitaciÃ³n", roomName == null || roomName.trim().isEmpty() ? "Varias habitaciones" : roomName.trim());
         rows.put("Estado", statusLabel(status));
         rows.put("Vence", dueDateText == null || dueDateText.trim().isEmpty() ? "Sin fecha" : dueDateText.trim());
         rows.put("Importe", row.amount == null || row.amount.trim().isEmpty() ? "0.00 EUR" : row.amount.trim());
@@ -4753,14 +4936,41 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         String category = row.snapshot.getString("category");
         String dueDateText = row.snapshot.getString("dueDateText");
         String status = normalizeFlowStatus(row.snapshot.getString("status"));
+        String customSplit = row.snapshot.getString("customSplit");
 
         rows.put("Pagado por", payerEmail == null || payerEmail.trim().isEmpty() ? "Sin datos" : memberReferenceInline(payerEmail));
+        rows.put("Para", buildExpenseTargetsLabel(customSplit, payerEmail));
         rows.put("HabitaciÃ³n", roomName == null || roomName.trim().isEmpty() ? "Varias habitaciones" : roomName);
         rows.put("CategorÃ­a", category == null || category.trim().isEmpty() ? "Sin categorÃ­a" : capitalizeTypeLabel(category));
         rows.put("Estado", statusLabel(status));
         rows.put("Vence", dueDateText == null || dueDateText.trim().isEmpty() ? "Sin fecha" : dueDateText);
         rows.put("Importe", row.amount == null || row.amount.trim().isEmpty() ? "0.00 EUR" : row.amount);
         return rows;
+    }
+
+    @NonNull
+    private String buildExpenseTargetsLabel(@Nullable String customSplit, @Nullable String payerEmail) {
+        Map<String, Double> split = parseCustomSplitPercentages(customSplit);
+        if (split.isEmpty()) return "Sin datos";
+
+        String payer = payerEmail == null ? "" : payerEmail.trim().toLowerCase(Locale.ROOT);
+        List<String> targets = new ArrayList<>();
+        for (String email : split.keySet()) {
+            if (email == null || email.trim().isEmpty()) continue;
+            String normalized = email.trim().toLowerCase(Locale.ROOT);
+            if (!payer.isEmpty() && payer.equals(normalized)) continue;
+            if (!targets.contains(normalized)) targets.add(normalized);
+        }
+        if (targets.isEmpty() && !payer.isEmpty()) {
+            targets.add(payer);
+        }
+        if (targets.isEmpty()) return "Sin datos";
+
+        List<String> labels = new ArrayList<>();
+        for (String target : targets) {
+            labels.add(memberReferenceInline(target));
+        }
+        return String.join(", ", labels);
     }
 
     private void editExpense(WorkspaceRow row) {
@@ -4881,24 +5091,24 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             @Nullable String selectedRoomName,
             @Nullable String currentCustomSplit
     ) {
-        boolean keepInitialSplit = currentCustomSplit != null && !currentCustomSplit.trim().isEmpty();
-        form.setTag(R.id.roomMembersHintTv, keepInitialSplit);
+        // UX simplificada: la selecciÃ³n de reparto se hace solo en el bloque inferior.
+        View roomSectionLabel = form.findViewById(R.id.roomSectionLabelTv);
+        LinearLayout roomSelectorsContainer = form.findViewById(R.id.roomSelectorsContainer);
+        Button addRoomSelectionBtn = form.findViewById(R.id.addRoomSelectionBtn);
+        Button removeRoomSelectionBtn = form.findViewById(R.id.removeRoomSelectionBtn);
+        TextView roomMembersHintTv = form.findViewById(R.id.roomMembersHintTv);
+        if (roomSectionLabel != null) roomSectionLabel.setVisibility(View.GONE);
+        if (roomSelectorsContainer != null) roomSelectorsContainer.setVisibility(View.GONE);
+        if (addRoomSelectionBtn != null) addRoomSelectionBtn.setVisibility(View.GONE);
+        if (removeRoomSelectionBtn != null) removeRoomSelectionBtn.setVisibility(View.GONE);
+        if (roomMembersHintTv != null) roomMembersHintTv.setVisibility(View.GONE);
 
-        List<String> initialKeys = new ArrayList<>();
-        if (selectedRoomIds != null && !selectedRoomIds.isEmpty()) {
-            initialKeys.addAll(selectedRoomIds);
-        } else if (selectedRoomId != null && !selectedRoomId.trim().isEmpty()) {
-            if ("all".equalsIgnoreCase(selectedRoomId)) {
-                initialKeys.add(ROOM_ALL_LABEL);
-            } else {
-                initialKeys.add(selectedRoomId);
-            }
-        } else if (selectedRoomName != null && selectedRoomName.equalsIgnoreCase(ROOM_ALL_LABEL)) {
-            initialKeys.add(ROOM_ALL_LABEL);
-        } else {
-            initialKeys.add(rooms.isEmpty() ? ROOM_ALL_LABEL : rooms.get(0).id);
-        }
-        rebindRoomSelectors(form, allMembers, rooms, initialKeys);
+        setSplitCandidateMembers(form, allMembers);
+        setSplitRoomCandidates(form, rooms);
+        refreshSplitRowsFromScope(form, allMembers, true);
+        refreshSplitControls(form);
+        bindSplitRowsWatcher(form);
+        refreshSplitRemainingIndicator(form);
     }
 
     private void rebindRoomSelectors(View form, List<String> allMembers, List<RoomOption> rooms, @Nullable List<String> seedKeys) {
@@ -4959,8 +5169,10 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             }
         });
 
-        List<RoomOption> selectedRooms = resolveSelectedRoomOptions(form, rooms);
+        List<RoomOption> selectedRooms = new ArrayList<>(rooms);
         List<String> mergedMembers = mergeSelectedRoomMembers(selectedRooms, allMembers);
+        setSplitCandidateMembers(form, mergedMembers.isEmpty() ? allMembers : mergedMembers);
+        setSplitRoomCandidates(form, selectedRooms);
         if (selectedRooms.size() == rooms.size()) {
             roomMembersHintTv.setText("Todas las habitaciones seleccionadas.");
         } else if (mergedMembers.isEmpty()) {
@@ -4974,7 +5186,10 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         if (keepInitialSplit) {
             form.setTag(R.id.roomMembersHintTv, false);
         } else {
-            setSplitRowsForMembers(form, allMembers, mergedMembers.isEmpty() ? null : mergedMembers, true);
+            refreshSplitRowsFromScope(form, allMembers, false);
+            refreshSplitControls(form);
+            bindSplitRowsWatcher(form);
+            refreshSplitRemainingIndicator(form);
         }
         isRebindingRoomSelectors = false;
     }
@@ -5090,6 +5305,24 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         return selected;
     }
 
+    private List<RoomOption> getRoomsSelectedInSplitRows(@NonNull View form, @NonNull List<RoomOption> loadedRooms) {
+        LinearLayout splitRowsContainer = form.findViewById(R.id.splitRowsContainer);
+        if (splitRowsContainer == null) return new ArrayList<>();
+        List<RoomOption> selected = new ArrayList<>();
+        for (int i = 0; i < splitRowsContainer.getChildCount(); i++) {
+            View row = splitRowsContainer.getChildAt(i);
+            Spinner roomSpinner = row.findViewById(R.id.memberSpinner);
+            if (roomSpinner == null || roomSpinner.getSelectedItem() == null) continue;
+            String roomLabel = roomSpinner.getSelectedItem().toString();
+            for (RoomOption room : loadedRooms) {
+                if (roomLabel.equals(room.name) && !selected.contains(room)) {
+                    selected.add(room);
+                }
+            }
+        }
+        return selected;
+    }
+
     private List<String> mergeSelectedRoomMembers(List<RoomOption> selectedRooms, List<String> allMembers) {
         List<String> merged = new ArrayList<>();
         for (RoomOption room : selectedRooms) {
@@ -5112,32 +5345,76 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         return sanitized;
     }
 
+    private void setSplitCandidateMembers(@NonNull View form, @NonNull List<String> candidates) {
+        List<String> normalized = new ArrayList<>();
+        for (String candidate : candidates) {
+            if (candidate == null) continue;
+            String email = candidate.trim().toLowerCase(Locale.ROOT);
+            if (email.isEmpty() || normalized.contains(email)) continue;
+            normalized.add(email);
+        }
+        form.setTag(R.id.splitRowsContainer, normalized);
+    }
+
+    private void setSplitRoomCandidates(@NonNull View form, @NonNull List<RoomOption> rooms) {
+        form.setTag(R.id.splitTargetScopeSpinner, new ArrayList<>(rooms));
+    }
+
+    @SuppressWarnings("unchecked")
+    @NonNull
+    private List<RoomOption> getSplitRoomCandidates(@NonNull View form) {
+        Object raw = form.getTag(R.id.splitTargetScopeSpinner);
+        if (!(raw instanceof List<?> rawList)) return new ArrayList<>();
+        List<RoomOption> out = new ArrayList<>();
+        for (Object item : rawList) {
+            if (item instanceof RoomOption room) out.add(room);
+        }
+        return out;
+    }
+
+    @NonNull
+    private List<String> getSplitCandidateMembers(@NonNull View form, @NonNull List<String> fallback) {
+        Object raw = form.getTag(R.id.splitRowsContainer);
+        if (!(raw instanceof List<?> rawList)) return new ArrayList<>(fallback);
+
+        List<String> resolved = new ArrayList<>();
+        for (Object item : rawList) {
+            if (!(item instanceof String emailRaw)) continue;
+            String email = emailRaw.trim().toLowerCase(Locale.ROOT);
+            if (email.isEmpty() || resolved.contains(email)) continue;
+            resolved.add(email);
+        }
+        return resolved.isEmpty() ? new ArrayList<>(fallback) : resolved;
+    }
+
     private void setSplitRowsForMembers(View form, List<String> allMembers, @Nullable List<String> preferredMembers, boolean equitative) {
         Spinner splitModeSpinner = form.findViewById(R.id.splitModeSpinner);
         LinearLayout splitRowsContainer = form.findViewById(R.id.splitRowsContainer);
-        Button addSplitRowBtn = form.findViewById(R.id.addSplitRowBtn);
-        Button removeSplitRowBtn = form.findViewById(R.id.removeSplitRowBtn);
 
-        List<String> targetMembers;
+        List<String> candidateMembers;
+        List<String> rowMembers = new ArrayList<>();
         if (preferredMembers != null && !preferredMembers.isEmpty()) {
-            targetMembers = preferredMembers;
+            candidateMembers = sanitizeRoomMembers(preferredMembers, allMembers);
+            rowMembers.addAll(candidateMembers);
         } else {
-            targetMembers = new ArrayList<>();
-            if (!allMembers.isEmpty()) {
-                targetMembers.add(allMembers.get(0));
+            candidateMembers = new ArrayList<>(allMembers);
+            if (!candidateMembers.isEmpty()) {
+                rowMembers.add(candidateMembers.get(0));
             }
         }
-        if (targetMembers.isEmpty()) return;
-        if (equitative && targetMembers.size() < 2) {
+        if (candidateMembers.isEmpty() || rowMembers.isEmpty()) return;
+        setSplitCandidateMembers(form, candidateMembers);
+
+        if (equitative && rowMembers.size() < 2) {
             equitative = false;
         }
 
         splitRowsContainer.removeAllViews();
-        for (String member : targetMembers) {
-            addSplitRow(splitRowsContainer, allMembers, member, null);
+        for (String member : rowMembers) {
+            addSplitRow(splitRowsContainer, candidateMembers, member, null);
         }
 
-        if (targetMembers.size() == 1) {
+        if (rowMembers.size() == 1) {
             View singleRow = splitRowsContainer.getChildAt(0);
             if (singleRow != null) {
                 EditText amountEt = form.findViewById(R.id.amountEt);
@@ -5150,19 +5427,14 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         }
 
         splitModeSpinner.setSelection(equitative ? 1 : 0);
-        addSplitRowBtn.setVisibility(equitative ? View.GONE : View.VISIBLE);
-        removeSplitRowBtn.setVisibility(!equitative && splitRowsContainer.getChildCount() > 1 ? View.VISIBLE : View.GONE);
-        for (int i = 0; i < splitRowsContainer.getChildCount(); i++) {
-            View row = splitRowsContainer.getChildAt(i);
-            row.findViewById(R.id.memberAmountEt).setVisibility(equitative ? View.GONE : View.VISIBLE);
-        }
-        updateSplitButtons(splitRowsContainer, removeSplitRowBtn);
+        refreshSplitControls(form);
         bindSplitRowsWatcher(form);
         refreshSplitRemainingIndicator(form);
     }
 
     private void setupSplitUi(View form, List<String> members, @Nullable String currentCustomSplit) {
         Spinner splitModeSpinner = form.findViewById(R.id.splitModeSpinner);
+        Spinner splitTargetScopeSpinner = form.findViewById(R.id.splitTargetScopeSpinner);
         LinearLayout splitRowsContainer = form.findViewById(R.id.splitRowsContainer);
         Button addSplitRowBtn = form.findViewById(R.id.addSplitRowBtn);
         Button removeSplitRowBtn = form.findViewById(R.id.removeSplitRowBtn);
@@ -5170,13 +5442,41 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         String[] modes = new String[]{"Reparto personalizado", "Reparto equitativo"};
         ArrayAdapter<String> modeAdapter = buildLightSpinnerAdapter(modes);
         splitModeSpinner.setAdapter(modeAdapter);
+        splitTargetScopeSpinner.setAdapter(buildLightSpinnerAdapter(new String[]{"Personas", "Habitaciones"}));
+        splitTargetScopeSpinner.setSelection(0);
 
+        setSplitCandidateMembers(form, members);
         addSplitRow(splitRowsContainer, members, null, null);
-        updateSplitButtons(splitRowsContainer, removeSplitRowBtn);
+        refreshSplitControls(form);
 
         addSplitRowBtn.setOnClickListener(v -> {
-            addSplitRow(splitRowsContainer, members, null, null);
-            updateSplitButtons(splitRowsContainer, removeSplitRowBtn);
+            if (isRoomScopeSelected(form)) {
+                List<RoomOption> roomCandidates = getSplitRoomCandidates(form);
+                List<String> existingRoomLabels = new ArrayList<>();
+                for (int i = 0; i < splitRowsContainer.getChildCount(); i++) {
+                    View row = splitRowsContainer.getChildAt(i);
+                    Spinner sp = row.findViewById(R.id.memberSpinner);
+                    if (sp != null && sp.getSelectedItem() != null) {
+                        existingRoomLabels.add(sp.getSelectedItem().toString());
+                    }
+                }
+                String nextRoom = null;
+                for (RoomOption room : roomCandidates) {
+                    if (!existingRoomLabels.contains(room.name)) {
+                        nextRoom = room.name;
+                        break;
+                    }
+                }
+                if (nextRoom != null) {
+                    List<String> roomLabels = new ArrayList<>();
+                    for (RoomOption room : roomCandidates) roomLabels.add(room.name);
+                    addSplitRow(splitRowsContainer, roomLabels, nextRoom, null);
+                }
+            } else {
+                List<String> candidates = getSplitCandidateMembers(form, members);
+                addSplitRow(splitRowsContainer, candidates, null, null);
+            }
+            refreshSplitControls(form);
             bindSplitRowsWatcher(form);
             refreshSplitRemainingIndicator(form);
         });
@@ -5185,7 +5485,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             if (count > 1) {
                 splitRowsContainer.removeViewAt(count - 1);
             }
-            updateSplitButtons(splitRowsContainer, removeSplitRowBtn);
+            refreshSplitControls(form);
             bindSplitRowsWatcher(form);
             refreshSplitRemainingIndicator(form);
         });
@@ -5193,13 +5493,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         splitModeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                boolean isEquitative = position == 1;
-                addSplitRowBtn.setVisibility(isEquitative ? View.GONE : View.VISIBLE);
-                removeSplitRowBtn.setVisibility(!isEquitative && splitRowsContainer.getChildCount() > 1 ? View.VISIBLE : View.GONE);
-                for (int i = 0; i < splitRowsContainer.getChildCount(); i++) {
-                    View row = splitRowsContainer.getChildAt(i);
-                    row.findViewById(R.id.memberAmountEt).setVisibility(isEquitative ? View.GONE : View.VISIBLE);
-                }
+                refreshSplitControls(form);
                 refreshSplitRemainingIndicator(form);
             }
 
@@ -5222,7 +5516,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 addSplitRow(splitRowsContainer, members, null, null);
             }
             splitModeSpinner.setSelection(0);
-            updateSplitButtons(splitRowsContainer, removeSplitRowBtn);
+            refreshSplitControls(form);
         } else {
             // Default UX for new expense: custom split with one editable person row.
             splitModeSpinner.setSelection(0);
@@ -5235,8 +5529,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             if (firstRow != null) {
                 firstRow.findViewById(R.id.memberAmountEt).setVisibility(View.VISIBLE);
             }
-            addSplitRowBtn.setVisibility(View.VISIBLE);
-            updateSplitButtons(splitRowsContainer, removeSplitRowBtn);
+            refreshSplitControls(form);
         }
 
         EditText amountEt = form.findViewById(R.id.amountEt);
@@ -5255,9 +5548,144 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 refreshSplitRemainingIndicator(form);
             }
         });
+
+        splitTargetScopeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                refreshSplitRowsFromScope(form, members, false);
+                refreshSplitControls(form);
+                bindSplitRowsWatcher(form);
+                refreshSplitRemainingIndicator(form);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
         bindSplitRowsWatcher(form);
         autoAssignSingleMemberAmount(form);
         refreshSplitRemainingIndicator(form);
+    }
+
+    private boolean isRoomScopeSelected(@NonNull View form) {
+        Spinner splitTargetScopeSpinner = form.findViewById(R.id.splitTargetScopeSpinner);
+        return splitTargetScopeSpinner != null && splitTargetScopeSpinner.getSelectedItemPosition() == 1;
+    }
+
+    private void refreshSplitRowsFromScope(@NonNull View form, @NonNull List<String> allMembers, boolean keepCurrentValues) {
+        if (isRoomScopeSelected(form)) {
+            setSplitRowsForRooms(form, keepCurrentValues);
+            return;
+        }
+        List<String> candidates = getSplitCandidateMembers(form, allMembers);
+        setSplitRowsForMembers(form, allMembers, candidates.isEmpty() ? null : candidates, true);
+    }
+
+    private void setSplitRowsForRooms(@NonNull View form, boolean keepCurrentValues) {
+        LinearLayout splitRowsContainer = form.findViewById(R.id.splitRowsContainer);
+        List<RoomOption> selectedRooms = getSplitRoomCandidates(form);
+        if (selectedRooms.isEmpty()) {
+            splitRowsContainer.removeAllViews();
+            return;
+        }
+
+        Map<String, String> existingAmountsByRoom = new LinkedHashMap<>();
+        List<String> existingRoomLabels = new ArrayList<>();
+        if (keepCurrentValues) {
+            for (int i = 0; i < splitRowsContainer.getChildCount(); i++) {
+                View row = splitRowsContainer.getChildAt(i);
+                Spinner memberSpinner = row.findViewById(R.id.memberSpinner);
+                EditText memberAmountEt = row.findViewById(R.id.memberAmountEt);
+                if (memberSpinner == null || memberAmountEt == null || memberSpinner.getSelectedItem() == null) continue;
+                String roomLabel = memberSpinner.getSelectedItem().toString();
+                existingRoomLabels.add(roomLabel);
+                existingAmountsByRoom.put(roomLabel, memberAmountEt.getText() == null ? "" : memberAmountEt.getText().toString().trim());
+            }
+        }
+
+        List<String> roomLabels = new ArrayList<>();
+        for (RoomOption room : selectedRooms) {
+            if (roomLabels.contains(room.name)) continue;
+            roomLabels.add(room.name);
+        }
+        if (existingRoomLabels.isEmpty() && !roomLabels.isEmpty()) {
+            existingRoomLabels.add(roomLabels.get(0));
+        }
+        splitRowsContainer.removeAllViews();
+        for (String roomLabel : existingRoomLabels) {
+            String existing = existingAmountsByRoom.get(roomLabel);
+            addSplitRow(splitRowsContainer, roomLabels, roomLabel, existing);
+        }
+    }
+
+    private void refreshSplitControls(@NonNull View form) {
+        Spinner splitModeSpinner = form.findViewById(R.id.splitModeSpinner);
+        Spinner splitTargetScopeSpinner = form.findViewById(R.id.splitTargetScopeSpinner);
+        LinearLayout splitRowsContainer = form.findViewById(R.id.splitRowsContainer);
+        Button addSplitRowBtn = form.findViewById(R.id.addSplitRowBtn);
+        Button removeSplitRowBtn = form.findViewById(R.id.removeSplitRowBtn);
+        if (splitModeSpinner == null || splitRowsContainer == null || addSplitRowBtn == null || removeSplitRowBtn == null || splitTargetScopeSpinner == null) return;
+
+        boolean roomScope = isRoomScopeSelected(form);
+
+        boolean singleResidentMode = !roomScope && isSingleResidentSplitMode(splitRowsContainer);
+        if (singleResidentMode && splitModeSpinner.getSelectedItemPosition() != 0) {
+            splitModeSpinner.setSelection(0);
+        }
+        boolean equitative = splitModeSpinner.getSelectedItemPosition() == 1 && !singleResidentMode && !roomScope;
+
+        splitModeSpinner.setEnabled(!singleResidentMode && !roomScope);
+        splitModeSpinner.setAlpha((singleResidentMode || roomScope) ? 0.55f : 1f);
+        if (roomScope) {
+            int availableRooms = getSplitRoomCandidates(form).size();
+            int selectedRows = splitRowsContainer.getChildCount();
+            addSplitRowBtn.setVisibility(selectedRows < availableRooms ? View.VISIBLE : View.GONE);
+            removeSplitRowBtn.setVisibility(selectedRows > 1 ? View.VISIBLE : View.GONE);
+        } else {
+            addSplitRowBtn.setVisibility((equitative || singleResidentMode) ? View.GONE : View.VISIBLE);
+            removeSplitRowBtn.setVisibility(!equitative && !singleResidentMode && splitRowsContainer.getChildCount() > 1 ? View.VISIBLE : View.GONE);
+        }
+
+        for (int i = 0; i < splitRowsContainer.getChildCount(); i++) {
+            View row = splitRowsContainer.getChildAt(i);
+            Spinner memberSpinner = row.findViewById(R.id.memberSpinner);
+            TextView memberFixedTv = row.findViewById(R.id.memberFixedTv);
+            EditText memberAmountEt = row.findViewById(R.id.memberAmountEt);
+            if (memberSpinner == null || memberFixedTv == null || memberAmountEt == null) continue;
+
+            if (singleResidentMode) {
+                String email = "";
+                Object selected = memberSpinner.getSelectedItem();
+                if (selected != null) {
+                    email = selected.toString().trim().toLowerCase(Locale.ROOT);
+                }
+                memberSpinner.setVisibility(View.GONE);
+                memberFixedTv.setVisibility(View.VISIBLE);
+                memberFixedTv.setText("Persona: " + memberReferenceInline(email));
+                memberAmountEt.setVisibility(View.VISIBLE);
+                memberAmountEt.setEnabled(false);
+                memberAmountEt.setFocusable(false);
+                memberAmountEt.setFocusableInTouchMode(false);
+                memberAmountEt.setClickable(false);
+            } else {
+                memberSpinner.setVisibility(View.VISIBLE);
+                memberFixedTv.setVisibility(View.GONE);
+                memberAmountEt.setEnabled(true);
+                memberAmountEt.setFocusable(true);
+                memberAmountEt.setFocusableInTouchMode(true);
+                memberAmountEt.setClickable(true);
+                memberAmountEt.setVisibility(equitative ? View.GONE : View.VISIBLE);
+            }
+        }
+    }
+
+    private boolean isSingleResidentSplitMode(@NonNull LinearLayout splitRowsContainer) {
+        if (splitRowsContainer.getChildCount() != 1) return false;
+        View row = splitRowsContainer.getChildAt(0);
+        Spinner memberSpinner = row.findViewById(R.id.memberSpinner);
+        return memberSpinner != null
+                && memberSpinner.getAdapter() != null
+                && memberSpinner.getAdapter().getCount() == 1;
     }
 
     private void bindSplitRowsWatcher(@NonNull View form) {
@@ -5285,6 +5713,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     }
 
     private void autoAssignSingleMemberAmount(@NonNull View form) {
+        if (isRoomScopeSelected(form)) return;
         Spinner splitModeSpinner = form.findViewById(R.id.splitModeSpinner);
         if (splitModeSpinner.getSelectedItemPosition() != 0) return;
         LinearLayout splitRowsContainer = form.findViewById(R.id.splitRowsContainer);
@@ -5314,7 +5743,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             total = totalText.isEmpty() ? 0.0 : Double.parseDouble(totalText);
         } catch (NumberFormatException e) {
             remainingTv.setVisibility(View.VISIBLE);
-            remainingTv.setText("Importe total no válido.");
+            remainingTv.setText("Importe total no vÃ¡lido.");
             remainingTv.setTextColor(requireContext().getColor(R.color.status_danger));
             return;
         }
@@ -5323,7 +5752,11 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             return;
         }
 
-        boolean equitative = splitModeSpinner.getSelectedItemPosition() == 1;
+        boolean roomScope = isRoomScopeSelected(form);
+        boolean equitative = splitModeSpinner.getSelectedItemPosition() == 1 && !roomScope;
+        if (roomScope) {
+            equitative = false;
+        }
         if (equitative) {
             remainingTv.setVisibility(View.VISIBLE);
             remainingTv.setText("Reparto equitativo listo para guardar.");
@@ -5345,14 +5778,23 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
         double remaining = round2(total - assigned);
         remainingTv.setVisibility(View.VISIBLE);
+        DecimalFormat amountFormat = new DecimalFormat("0.00");
+        String assignedVsTotal = "Asignado: " + amountFormat.format(round2(assigned)) + " / " + amountFormat.format(total) + " EUR.";
+        boolean singleResidentMode = isSingleResidentSplitMode(splitRowsContainer);
+
+        if (singleResidentMode) {
+            remainingTv.setText(assignedVsTotal + " Reparto automÃ¡tico correcto.");
+            remainingTv.setTextColor(requireContext().getColor(R.color.status_success));
+            return;
+        }
         if (Math.abs(remaining) <= 0.01) {
-            remainingTv.setText("Reparto completo, listo para guardar.");
+            remainingTv.setText(assignedVsTotal + " Reparto perfecto, listo para guardar.");
             remainingTv.setTextColor(requireContext().getColor(R.color.status_success));
         } else if (remaining > 0.0) {
-            remainingTv.setText("Falta por repartir: " + new DecimalFormat("0.00").format(remaining) + " EUR");
+            remainingTv.setText(assignedVsTotal + " Te faltan por aÃ±adir " + amountFormat.format(remaining) + " EUR.");
             remainingTv.setTextColor(requireContext().getColor(R.color.status_danger));
         } else {
-            remainingTv.setText("Te has pasado por: " + new DecimalFormat("0.00").format(Math.abs(remaining)) + " EUR");
+            remainingTv.setText(assignedVsTotal + " Te has pasado " + amountFormat.format(Math.abs(remaining)) + " EUR.");
             remainingTv.setTextColor(requireContext().getColor(R.color.status_danger));
         }
     }
@@ -5375,24 +5817,22 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         container.addView(row);
     }
 
-    private void updateSplitButtons(LinearLayout splitRowsContainer, Button removeSplitRowBtn) {
-        removeSplitRowBtn.setVisibility(splitRowsContainer.getChildCount() > 1 ? View.VISIBLE : View.GONE);
-    }
-
     @Nullable
     private String buildCustomSplitFromUi(View form, double totalAmount, List<String> members) {
         Spinner splitModeSpinner = form.findViewById(R.id.splitModeSpinner);
         LinearLayout splitRowsContainer = form.findViewById(R.id.splitRowsContainer);
-        boolean equitative = splitModeSpinner.getSelectedItemPosition() == 1;
+        boolean roomScope = isRoomScopeSelected(form);
+        boolean equitative = splitModeSpinner.getSelectedItemPosition() == 1 && !roomScope;
 
         Map<String, Double> splitsByEmail = new LinkedHashMap<>();
         for (int i = 0; i < splitRowsContainer.getChildCount(); i++) {
             View row = splitRowsContainer.getChildAt(i);
             Spinner memberSpinner = row.findViewById(R.id.memberSpinner);
             EditText memberAmountEt = row.findViewById(R.id.memberAmountEt);
-            String email = memberSpinner.getSelectedItem().toString().toLowerCase(Locale.ROOT);
+            String selected = memberSpinner.getSelectedItem().toString();
 
             if (equitative) {
+                String email = selected.toLowerCase(Locale.ROOT);
                 splitsByEmail.put(email, 0.0);
             } else {
                 String amountText = memberAmountEt.getText().toString().trim();
@@ -5411,7 +5851,36 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                     Toast.makeText(requireContext(), "Ningun reparto puede ser negativo", Toast.LENGTH_SHORT).show();
                     return null;
                 }
-                splitsByEmail.put(email, splitsByEmail.getOrDefault(email, 0.0) + partAmount);
+                if (roomScope) {
+                    RoomOption room = null;
+                    for (RoomOption candidate : getSplitRoomCandidates(form)) {
+                        if (candidate.name.equals(selected)) {
+                            room = candidate;
+                            break;
+                        }
+                    }
+                    if (room == null) {
+                        Toast.makeText(requireContext(), "Hay una habitaciÃ³n de reparto no vÃ¡lida", Toast.LENGTH_SHORT).show();
+                        return null;
+                    }
+                    List<String> residents = new ArrayList<>();
+                    for (String resident : room.memberEmails) {
+                        if (resident == null) continue;
+                        String email = resident.trim().toLowerCase(Locale.ROOT);
+                        if (!email.isEmpty()) residents.add(email);
+                    }
+                    if (residents.isEmpty()) {
+                        Toast.makeText(requireContext(), "Una habitaciÃ³n seleccionada no tiene inquilinos", Toast.LENGTH_SHORT).show();
+                        return null;
+                    }
+                    double amountPerResident = partAmount / residents.size();
+                    for (String resident : residents) {
+                        splitsByEmail.put(resident, splitsByEmail.getOrDefault(resident, 0.0) + amountPerResident);
+                    }
+                } else {
+                    String email = selected.toLowerCase(Locale.ROOT);
+                    splitsByEmail.put(email, splitsByEmail.getOrDefault(email, 0.0) + partAmount);
+                }
             }
         }
 
@@ -5463,7 +5932,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         }
         showDeleteConfirmation(
                 "Eliminar gasto",
-                "Se eliminará el gasto y sus vencimientos asociados.",
+                "Se eliminarÃ¡ el gasto y sus vencimientos asociados.",
                 () -> deleteExpense(row)
         );
     }
@@ -5520,10 +5989,8 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
     private void deleteReminder(WorkspaceRow row) {
         if (row.snapshot == null) return;
-        String ownerUid = row.snapshot.getString("ownerUid");
-        String myUid = FirebaseAuth.getInstance().getCurrentUser().getUid();
-        if (ownerUid == null || !ownerUid.equals(myUid)) {
-            Toast.makeText(requireContext(), "Solo quien lo creÃ³ puede eliminarlo", Toast.LENGTH_SHORT).show();
+        if (!canDeleteReminder(row.snapshot)) {
+            Toast.makeText(requireContext(), "Solo quien lo creÃ³ o el propietario puede eliminarlo", Toast.LENGTH_SHORT).show();
             return;
         }
         Long reminderCode = row.snapshot.getLong("reminderCode");
@@ -5816,7 +6283,10 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         if (STATUS_CONFIRMED.equals(normalized) || "paid".equals(normalized) || "pagado".equals(normalized)) {
             return STATUS_CONFIRMED;
         }
-        if (STATUS_PENDING.equals(normalized) || STATUS_SUBMITTED.equals(normalized)) {
+        if (STATUS_SUBMITTED.equals(normalized)) {
+            return STATUS_SUBMITTED;
+        }
+        if (STATUS_PENDING.equals(normalized)) {
             return STATUS_PENDING;
         }
         return STATUS_REQUESTED;
@@ -5825,6 +6295,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     private String statusLabel(@Nullable String rawStatus) {
         String normalized = normalizeFlowStatus(rawStatus);
         if (STATUS_CONFIRMED.equals(normalized)) return "Pagado";
+        if (STATUS_SUBMITTED.equals(normalized)) return "En revisiÃ³n";
         if (STATUS_PENDING.equals(normalized)) return "Pendiente";
         return "Solicitado";
     }
@@ -5899,7 +6370,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             return;
         }
         if (!canTogglePaymentStatus(row.snapshot)) {
-            Toast.makeText(requireContext(), "Solo puedes editar pagos en estado Solicitado", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Solo puedes cambiar estado en pagos Solicitados", Toast.LENGTH_SHORT).show();
             return;
         }
         String action = "confirmed".equalsIgnoreCase(targetStatus) ? "marcar como pagado" : "marcar como pendiente";
@@ -5921,6 +6392,12 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             dialog.dismiss();
             updatePaymentStatus(row.id, targetStatus.toLowerCase(Locale.ROOT));
         });
+    }
+
+    private boolean amountsMatchToCent(double left, double right) {
+        long leftCents = Math.round(left * 100.0d);
+        long rightCents = Math.round(right * 100.0d);
+        return leftCents == rightCents;
     }
 
     private String safeLowerText(@Nullable String value) {
@@ -6243,8 +6720,14 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                     .addOnSuccessListener(text -> {
                         String detected = extractFirstAmount(text.getText());
                         if (detected != null && pendingTicketAmountEt != null) {
-                            pendingTicketAmountEt.setText(detected);
-                            if (pendingTicketStatusTv != null) pendingTicketStatusTv.setText("OCR detectÃ³ importe: " + detected);
+                            if (activePendingDebtRequest != null) {
+                                if (pendingTicketStatusTv != null) {
+                                    pendingTicketStatusTv.setText("OCR detectÃ³ " + detected + ", pero se mantiene tu importe pendiente bloqueado.");
+                                }
+                            } else {
+                                pendingTicketAmountEt.setText(detected);
+                                if (pendingTicketStatusTv != null) pendingTicketStatusTv.setText("OCR detectÃ³ importe: " + detected);
+                            }
                         } else if (pendingTicketStatusTv != null) {
                             pendingTicketStatusTv.setText("OCR listo, no se encontrÃ³ importe claro.");
                         }
@@ -6703,6 +7186,8 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         }
     }
 }
+
+
 
 
 

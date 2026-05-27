@@ -15,6 +15,7 @@
     <color name="status_success">#15803D</color>
     <color name="status_warning">#B45309</color>
     <color name="status_danger">#B91C1C</color>
+    <color name="auth_link_blue">#2563EB</color>
     <color name="calendar_day_text">#F8FAFC</color>
     <color name="calendar_day_text_muted">#B8C7D3</color>
 </resources>

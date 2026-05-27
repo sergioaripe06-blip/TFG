@@ -90,7 +90,6 @@ public class GroupsFragment extends Fragment {
     private TextView detailMembersTv;
     private TextView totalGroupsTv;
     private TextView totalMembersTv;
-    private Button manageRoomsBtn;
     private Button deleteGroupBtn;
     private Button editGroupBtn;
 
@@ -105,7 +104,7 @@ public class GroupsFragment extends Fragment {
                 String raw = result.getContents().trim();
                 String code = extractGroupCode(raw);
                 if (code.isEmpty()) {
-                    Toast.makeText(requireContext(), "QR no vÃ¡lido para unirse al piso", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(requireContext(), "QR no válido para unirse al piso", Toast.LENGTH_SHORT).show();
                     return;
                 }
                 joinGroupByCode(code);
@@ -126,7 +125,6 @@ public class GroupsFragment extends Fragment {
         detailNameTv = view.findViewById(R.id.detailGroupNameTv);
         detailDescTv = view.findViewById(R.id.detailGroupDescTv);
         detailMembersTv = view.findViewById(R.id.detailGroupMembersTv);
-        manageRoomsBtn = view.findViewById(R.id.manageRoomsBtn);
         deleteGroupBtn = view.findViewById(R.id.deleteGroupBtn);
         editGroupBtn = view.findViewById(R.id.editGroupBtn);
         Button inviteBtn = view.findViewById(R.id.inviteGroupBtn);
@@ -143,8 +141,9 @@ public class GroupsFragment extends Fragment {
         });
 
         listView.setOnItemLongClickListener((parent, v, position, id) -> {
-            selectedGroupId = groups.get(position).id;
-            loadGroupDetails(selectedGroupId);
+            GroupItem selected = groups.get(position);
+            selectedGroupId = selected.id;
+            showGroupLongPressActions(selected);
             return true;
         });
 
@@ -221,7 +220,7 @@ public class GroupsFragment extends Fragment {
             inStepTwo[0] = false;
             stepOneContainer.setVisibility(View.VISIBLE);
             stepTwoContainer.setVisibility(View.GONE);
-            stepIndicatorTv.setText("Paso 1 de 2 - Datos bÃ¡sicos");
+            stepIndicatorTv.setText("Paso 1 de 2 - Datos básicos");
             shell.cancelBtn.setText("Cancelar");
             shell.confirmBtn.setText("Siguiente");
         };
@@ -230,8 +229,8 @@ public class GroupsFragment extends Fragment {
             inStepTwo[0] = true;
             stepOneContainer.setVisibility(View.GONE);
             stepTwoContainer.setVisibility(View.VISIBLE);
-            stepIndicatorTv.setText("Paso 2 de 2 - ConfiguraciÃ³n");
-            shell.cancelBtn.setText("AtrÃ¡s");
+            stepIndicatorTv.setText("Paso 2 de 2 - Configuración");
+            shell.cancelBtn.setText("Atrás");
             shell.confirmBtn.setText("Crear");
         };
 
@@ -277,7 +276,7 @@ public class GroupsFragment extends Fragment {
             int splitModeSelection = variableSplitSpinner.getSelectedItemPosition();
 
             if (roomCountText.isEmpty()) {
-                Toast.makeText(requireContext(), "Indica el nÃºmero de habitaciones", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Indica el número de habitaciones", Toast.LENGTH_SHORT).show();
                 return;
             }
             if (rentModeSelection <= 0) {
@@ -293,11 +292,11 @@ public class GroupsFragment extends Fragment {
             try {
                 roomCount = Integer.parseInt(roomCountText);
             } catch (NumberFormatException e) {
-                Toast.makeText(requireContext(), "El nÃºmero de habitaciones no es vÃ¡lido", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "El número de habitaciones no es válido", Toast.LENGTH_SHORT).show();
                 return;
             }
             if (roomCount <= 0) {
-                Toast.makeText(requireContext(), "Debe haber al menos una habitaciÃ³n", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Debe haber al menos una habitación", Toast.LENGTH_SHORT).show();
                 return;
             }
 
@@ -316,7 +315,7 @@ public class GroupsFragment extends Fragment {
 
             Map<String, Object> group = new HashMap<>();
             group.put("name", name);
-            group.put("description", street + ", Portal " + portal + " NÂº " + number + " - " + postalCode + " " + city + " (" + province + ")");
+            group.put("description", street + ", Portal " + portal + " Nº " + number + " - " + postalCode + " " + city + " (" + province + ")");
             group.put("location", location);
             group.put("ownerId", uid);
             Map<String, Object> roles = new HashMap<>();
@@ -362,12 +361,12 @@ public class GroupsFragment extends Fragment {
         EditText roomNameEt = form.findViewById(R.id.roomNameEt);
         EditText roomCapacityEt = form.findViewById(R.id.roomCapacityEt);
         EditText roomCostEt = form.findViewById(R.id.roomCostEt);
-        roomNameEt.setHint("Nombre de la habitaciÃ³n " + currentNumber + ":");
+        roomNameEt.setHint("Nombre de la habitación " + currentNumber + ":");
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
-                "HabitaciÃ³n " + currentNumber + " de " + totalRooms,
-                "Completa esta habitaciÃ³n para continuar con la siguiente.",
+                "Habitación " + currentNumber + " de " + totalRooms,
+                "Completa esta habitación para continuar con la siguiente.",
                 form,
                 "Cerrar",
                 "Guardar"
@@ -378,12 +377,12 @@ public class GroupsFragment extends Fragment {
         shell.cancelBtn.setOnClickListener(v -> {
             View content = DialogUtils.createMessageView(
                     requireContext(),
-                    "Si sales ahora, se eliminarÃ¡ el piso completo porque no se han terminado las habitaciones."
+                    "Si sales ahora, se eliminará el piso completo porque no se han terminado las habitaciones."
             );
             DialogUtils.Shell confirmShell = DialogUtils.buildShell(
                     requireContext(),
-                    "Cancelar creaciÃ³n del piso",
-                    "Esta acciÃ³n no se puede deshacer.",
+                    "Cancelar creación del piso",
+                    "Esta acción no se puede deshacer.",
                     content,
                     "Volver",
                     "Eliminar piso"
@@ -394,7 +393,7 @@ public class GroupsFragment extends Fragment {
                 confirmDialog.dismiss();
                 dialog.dismiss();
                 deleteGroupCascade(groupId);
-                Toast.makeText(requireContext(), "Se cancelÃ³ la creaciÃ³n y se eliminÃ³ el piso", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Se canceló la creación y se eliminó el piso", Toast.LENGTH_SHORT).show();
             });
         });
         shell.confirmBtn.setOnClickListener(v -> {
@@ -402,7 +401,7 @@ public class GroupsFragment extends Fragment {
             String capacityText = roomCapacityEt.getText().toString().trim();
             String costText = roomCostEt.getText().toString().trim();
             if (name.isEmpty() || capacityText.isEmpty() || costText.isEmpty()) {
-                Toast.makeText(requireContext(), "Completa todos los campos de la habitaciÃ³n", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Completa todos los campos de la habitación", Toast.LENGTH_SHORT).show();
                 return;
             }
             int capacity;
@@ -411,7 +410,7 @@ public class GroupsFragment extends Fragment {
                 capacity = Integer.parseInt(capacityText);
                 monthlyCost = Double.parseDouble(costText);
             } catch (NumberFormatException e) {
-                Toast.makeText(requireContext(), "Capacidad o coste no vÃ¡lidos", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Capacidad o coste no válidos", Toast.LENGTH_SHORT).show();
                 return;
             }
             if (capacity <= 0) {
@@ -471,7 +470,7 @@ public class GroupsFragment extends Fragment {
 
     private void joinGroupDialog() {
         View content = DialogUtils.createVerticalActions(requireContext());
-        Button codeBtn = DialogUtils.createActionButton(requireContext(), "Escribir cÃ³digo", true);
+        Button codeBtn = DialogUtils.createActionButton(requireContext(), "Escribir código", true);
         Button qrBtn = DialogUtils.createActionButton(requireContext(), "Escanear QR", false);
         ((LinearLayout) content).addView(codeBtn);
         ((LinearLayout) content).addView(qrBtn);
@@ -479,7 +478,7 @@ public class GroupsFragment extends Fragment {
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 "Unirse a un piso",
-                "Puedes escribir el cÃ³digo o escanear un QR.",
+                "Puedes escribir el código o escanear un QR.",
                 content,
                 "Cerrar",
                 null
@@ -490,8 +489,8 @@ public class GroupsFragment extends Fragment {
             dialog.dismiss();
             showSingleInputDialog(
                     "Unirse a un piso",
-                    "Escribe el cÃ³digo para entrar en un piso compartido.",
-                    "CÃ³digo del piso:",
+                    "Escribe el código para entrar en un piso compartido.",
+                    "Código del piso:",
                     InputType.TYPE_CLASS_TEXT,
                     "Unirse",
                     value -> {
@@ -650,8 +649,8 @@ public class GroupsFragment extends Fragment {
             View content = DialogUtils.createMessageView(requireContext(), code);
             DialogUtils.Shell shell = DialogUtils.buildShell(
                     requireContext(),
-                    "CÃ³digo del piso",
-                    "Comparte este cÃ³digo para unirse al piso.",
+                    "Código del piso",
+                    "Comparte este código para unirse al piso.",
                     content,
                     null,
                     "Cerrar"
@@ -673,7 +672,7 @@ public class GroupsFragment extends Fragment {
             DialogUtils.Shell shell = DialogUtils.buildShell(
                     requireContext(),
                     "QR del piso",
-                    "Comparte este QR para aÃ±adir a otra persona.",
+                    "Comparte este QR para añadir a otra persona.",
                     content,
                     null,
                     "Cerrar"
@@ -869,8 +868,8 @@ public class GroupsFragment extends Fragment {
         String details = "Piso: " + groupName
                 + "\nPropietario: " + ownerLabel
                 + "\nMiembros:\n" + membersLabel
-                + "\nUbicaciÃ³n: " + locationLabel
-                + "\nCÃ³digo: " + shareCode
+                + "\nUbicación: " + locationLabel
+                + "\nCódigo: " + shareCode
                 + "\nInvitado por: " + invitedByLabel;
 
         View content = DialogUtils.createMessageView(requireContext(), details);
@@ -1023,12 +1022,260 @@ public class GroupsFragment extends Fragment {
         db.collection("groups").document(groupId).get().addOnSuccessListener(this::renderGroupDetails);
     }
 
+    private void showGroupLongPressActions(GroupItem group) {
+        View content = DialogUtils.createVerticalActions(requireContext());
+        Button detailsBtn = DialogUtils.createActionButton(requireContext(), "Ver detalles", true);
+        ((LinearLayout) content).addView(detailsBtn);
+        Button secondaryBtn;
+        if (group.isOwner) {
+            secondaryBtn = DialogUtils.createActionButton(requireContext(), "Expulsar inquilino", false);
+        } else {
+            secondaryBtn = DialogUtils.createActionButton(requireContext(), "Salir del piso", false);
+        }
+        ((LinearLayout) content).addView(secondaryBtn);
+
+        DialogUtils.Shell shell = DialogUtils.buildShell(
+                requireContext(),
+                group.name,
+                "Elige una acción para este piso.",
+                content,
+                "Cancelar",
+                null
+        );
+        AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+        shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+        detailsBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            loadGroupDetails(group.id);
+        });
+        secondaryBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            if (group.isOwner) {
+                showKickMemberDialog(group);
+            } else {
+                requestLeaveGroup(group);
+            }
+        });
+    }
+
+    private void requestLeaveGroup(GroupItem group) {
+        String message = "Vas a salir de este piso. Perderas acceso a gastos, pagos y habitaciones de este grupo.";
+        DialogUtils.Shell shell = DialogUtils.buildShell(
+                requireContext(),
+                "Salir del piso",
+                "Confirmacion",
+                DialogUtils.createMessageView(requireContext(), message),
+                "Cancelar",
+                "Salir"
+        );
+        AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+        shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+        shell.confirmBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            leaveGroup(group.id);
+        });
+    }
+
+    @SuppressWarnings("unchecked")
+    private void leaveGroup(String groupId) {
+        if (groupId == null || groupId.trim().isEmpty()) return;
+        if (FirebaseAuth.getInstance().getCurrentUser() == null) return;
+        String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        String email = FirebaseAuth.getInstance().getCurrentUser().getEmail();
+        if (email == null || email.trim().isEmpty()) {
+            Toast.makeText(requireContext(), "No se pudo obtener tu correo.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        final String emailLc = email.trim().toLowerCase(Locale.ROOT);
+
+        db.collection("groups").document(groupId).get().addOnSuccessListener(groupDoc -> {
+            if (!isAdded()) return;
+            if (!groupDoc.exists()) {
+                Toast.makeText(requireContext(), "El piso ya no existe.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            String ownerId = stringValue(groupDoc.getString("ownerId"));
+            if (uid.equals(ownerId)) {
+                Toast.makeText(requireContext(), "El propietario no puede salir desde aqui.", Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            List<String> members = castStrings(groupDoc.get("members"));
+            List<String> memberEmails = castStrings(groupDoc.get("memberEmails"));
+            Map<String, Object> roles = groupDoc.get("roles") instanceof Map
+                    ? new HashMap<>((Map<String, Object>) groupDoc.get("roles"))
+                    : new HashMap<>();
+
+            members.remove(uid);
+            memberEmails.removeIf(value -> emailLc.equals(stringValue(value).toLowerCase(Locale.ROOT)));
+            roles.remove(uid);
+
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("members", members);
+            updates.put("memberEmails", memberEmails);
+            updates.put("roles", roles);
+
+            db.collection("groups").document(groupId).update(updates)
+                    .addOnSuccessListener(v -> {
+                        removeMemberFromGroupRooms(groupId, emailLc, () -> {
+                            if (!isAdded()) return;
+                            String currentGroup = SessionStore.getCurrentGroup(requireContext());
+                            if (groupId.equals(currentGroup)) {
+                                SessionStore.clearCurrentGroup(requireContext());
+                                SessionStore.clearCurrentRoom(requireContext());
+                            }
+                            selectedGroupId = null;
+                            selectedGroupIsOwner = false;
+                            detailsCard.setVisibility(View.GONE);
+                            Toast.makeText(requireContext(), "Has salido del piso.", Toast.LENGTH_SHORT).show();
+                            loadGroups();
+                        });
+                    })
+                    .addOnFailureListener(e -> {
+                        if (!isAdded()) return;
+                        Toast.makeText(requireContext(), "No se pudo salir del piso: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    });
+        }).addOnFailureListener(e -> {
+            if (!isAdded()) return;
+            Toast.makeText(requireContext(), "No se pudo cargar el piso: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        });
+    }
+
+    @SuppressWarnings("unchecked")
+    private void showKickMemberDialog(GroupItem group) {
+        if (group == null || group.id == null) return;
+        db.collection("groups").document(group.id).get().addOnSuccessListener(groupDoc -> {
+            if (!isAdded()) return;
+            if (!groupDoc.exists()) {
+                Toast.makeText(requireContext(), "El piso ya no existe.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            String ownerId = stringValue(groupDoc.getString("ownerId"));
+            List<String> members = castStrings(groupDoc.get("members"));
+            List<String> memberEmails = castStrings(groupDoc.get("memberEmails"));
+            int size = Math.min(members.size(), memberEmails.size());
+
+            List<String> kickUids = new ArrayList<>();
+            List<String> kickLabels = new ArrayList<>();
+            for (int i = 0; i < size; i++) {
+                String memberUid = stringValue(members.get(i));
+                String memberEmail = stringValue(memberEmails.get(i)).toLowerCase(Locale.ROOT);
+                if (memberUid.isEmpty() || memberUid.equals(ownerId)) continue;
+                kickUids.add(memberUid);
+                kickLabels.add(memberEmail.isEmpty() ? memberUid : memberEmail);
+            }
+
+            if (kickUids.isEmpty()) {
+                Toast.makeText(requireContext(), "No hay inquilinos para expulsar.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            View content = DialogUtils.createVerticalActions(requireContext());
+            final AlertDialog[] pickerDialogRef = new AlertDialog[1];
+            for (int i = 0; i < kickLabels.size(); i++) {
+                final int idx = i;
+                Button actionBtn = DialogUtils.createActionButton(requireContext(), kickLabels.get(i), i == 0);
+                actionBtn.setOnClickListener(v -> {
+                    if (pickerDialogRef[0] != null) pickerDialogRef[0].dismiss();
+                    String targetUid = kickUids.get(idx);
+                    String targetLabel = kickLabels.get(idx);
+                    requestKickMember(group.id, targetUid, targetLabel);
+                });
+                ((LinearLayout) content).addView(actionBtn);
+            }
+
+            DialogUtils.Shell shell = DialogUtils.buildShell(
+                    requireContext(),
+                    "Expulsar inquilino",
+                    "Selecciona a quién quieres expulsar.",
+                    content,
+                    "Cancelar",
+                    null
+            );
+            AlertDialog pickerDialog = DialogUtils.show(requireContext(), shell.root);
+            pickerDialogRef[0] = pickerDialog;
+            shell.cancelBtn.setOnClickListener(v -> pickerDialog.dismiss());
+        }).addOnFailureListener(e -> {
+            if (!isAdded()) return;
+            Toast.makeText(requireContext(), "No se pudo cargar el piso: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        });
+    }
+
+    @SuppressWarnings("unchecked")
+    private void requestKickMember(String groupId, String memberUid, String memberLabel) {
+        String message = "Se expulsara a " + memberLabel + " del piso.";
+        DialogUtils.Shell shell = DialogUtils.buildShell(
+                requireContext(),
+                "Confirmar expulsion",
+                "Esta accion se aplica al instante",
+                DialogUtils.createMessageView(requireContext(), message),
+                "Cancelar",
+                "Expulsar"
+        );
+        AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+        shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+        shell.confirmBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            db.collection("groups").document(groupId).get().addOnSuccessListener(groupDoc -> {
+                if (!isAdded()) return;
+                if (!groupDoc.exists()) {
+                    Toast.makeText(requireContext(), "El piso ya no existe.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                List<String> members = castStrings(groupDoc.get("members"));
+                List<String> memberEmails = castStrings(groupDoc.get("memberEmails"));
+                Map<String, Object> roles = groupDoc.get("roles") instanceof Map
+                        ? new HashMap<>((Map<String, Object>) groupDoc.get("roles"))
+                        : new HashMap<>();
+
+                int memberIndex = members.indexOf(memberUid);
+                String emailToRemove = "";
+                if (memberIndex >= 0 && memberIndex < memberEmails.size()) {
+                    emailToRemove = stringValue(memberEmails.get(memberIndex)).toLowerCase(Locale.ROOT);
+                }
+                members.remove(memberUid);
+                roles.remove(memberUid);
+                if (!emailToRemove.isEmpty()) {
+                    final String emailLc = emailToRemove;
+                    memberEmails.removeIf(value -> emailLc.equals(stringValue(value).toLowerCase(Locale.ROOT)));
+                }
+
+                Map<String, Object> updates = new HashMap<>();
+                updates.put("members", members);
+                updates.put("memberEmails", memberEmails);
+                updates.put("roles", roles);
+                final String emailToRemoveFinal = emailToRemove;
+
+                db.collection("groups").document(groupId).update(updates)
+                        .addOnSuccessListener(v2 -> {
+                            removeMemberFromGroupRooms(groupId, emailToRemoveFinal, () -> {
+                                if (!isAdded()) return;
+                                Toast.makeText(requireContext(), "Inquilino expulsado.", Toast.LENGTH_SHORT).show();
+                                loadGroups();
+                                if (groupId.equals(selectedGroupId)) {
+                                    loadGroupDetails(groupId);
+                                }
+                            });
+                        })
+                        .addOnFailureListener(e -> {
+                            if (!isAdded()) return;
+                            Toast.makeText(requireContext(), "No se pudo expulsar: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                        });
+            }).addOnFailureListener(e -> {
+                if (!isAdded()) return;
+                Toast.makeText(requireContext(), "No se pudo cargar el piso: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            });
+        });
+    }
+
     @SuppressWarnings("unchecked")
     private void renderGroupDetails(DocumentSnapshot doc) {
         if (!isAdded() || doc == null || !doc.exists()) return;
         String name = doc.getString("name");
         String desc = doc.getString("description");
-        if (desc == null || desc.trim().isEmpty()) desc = "Sin descripciÃ³n";
+        if (desc == null || desc.trim().isEmpty()) desc = "Sin descripción";
 
         Object emailsField = doc.get("memberEmails");
         List<String> emails = emailsField instanceof List ? (List<String>) emailsField : new ArrayList<>();
@@ -1062,7 +1309,6 @@ public class GroupsFragment extends Fragment {
         });
 
         editGroupBtn.setVisibility(isOwner ? View.VISIBLE : View.GONE);
-        manageRoomsBtn.setVisibility(View.GONE);
         deleteGroupBtn.setVisibility(isOwner ? View.VISIBLE : View.GONE);
         detailsCard.setVisibility(View.VISIBLE);
     }
@@ -1241,7 +1487,7 @@ public class GroupsFragment extends Fragment {
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 "Editar piso",
-                "Actualiza nombre, descripciÃ³n y tipo de alquiler.",
+                "Actualiza nombre, descripción y tipo de alquiler.",
                 form,
                 "Cancelar",
                 "Guardar"
@@ -1266,7 +1512,7 @@ public class GroupsFragment extends Fragment {
             String variableSplitMode = splitModeSelection == 2 ? VARIABLE_SPLIT_PERCENTAGE : VARIABLE_SPLIT_EQUAL;
             Map<String, Object> updates = new HashMap<>();
             updates.put("name", newName);
-            updates.put("description", newDesc.isEmpty() ? "Sin descripciÃ³n" : newDesc);
+            updates.put("description", newDesc.isEmpty() ? "Sin descripción" : newDesc);
             updates.put("billingModel", rentMode);
             updates.put("variableSplitMode", variableSplitMode);
             db.collection("groups").document(selectedGroupId).update(updates).addOnSuccessListener(task -> {
@@ -1287,11 +1533,11 @@ public class GroupsFragment extends Fragment {
             return;
         }
         View content = DialogUtils.createMessageView(requireContext(),
-                "Se eliminarÃ¡ el piso, sus habitaciones, gastos, pagos, recordatorios e invitaciones.");
+                "Se eliminará el piso, sus habitaciones, gastos, pagos, recordatorios e invitaciones.");
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 "Eliminar piso",
-                "Primer paso de confirmaciÃ³n",
+                "Primer paso de confirmación",
                 content,
                 "Cancelar",
                 "Continuar"
@@ -1325,6 +1571,29 @@ public class GroupsFragment extends Fragment {
         db.collection("groups").document(groupId).get()
                 .addOnSuccessListener(groupDoc -> Tasks.whenAllSuccess(queries)
                         .addOnSuccessListener(results -> {
+                            QuerySnapshot roomsSnapshot = (QuerySnapshot) results.get(0);
+                            List<String> occupiedRoomNames = new ArrayList<>();
+                            for (DocumentSnapshot roomDoc : roomsSnapshot.getDocuments()) {
+                                List<String> roomMembers = castStrings(roomDoc.get("memberEmails"));
+                                if (!roomMembers.isEmpty()) {
+                                    String roomName = stringValue(roomDoc.getString("name"));
+                                    if (roomName.isEmpty()) {
+                                        roomName = "Habitación";
+                                    }
+                                    occupiedRoomNames.add(roomName);
+                                }
+                            }
+                            if (!occupiedRoomNames.isEmpty()) {
+                                StringBuilder details = new StringBuilder("No puedes eliminar el piso porque hay inquilinos asignados en habitaciones.\n\n");
+                                details.append("Primero quitalos o cambialos de habitación en:\nPiso > Habitaciones.\n\n");
+                                details.append("Habitaciones ocupadas:\n");
+                                for (String roomName : occupiedRoomNames) {
+                                    details.append("• ").append(roomName).append("\n");
+                                }
+                                Toast.makeText(requireContext(), details.toString().trim(), Toast.LENGTH_LONG).show();
+                                return;
+                            }
+
                             List<DocumentReference> refsToDelete = new ArrayList<>();
                             for (Object result : results) {
                                 QuerySnapshot snapshot = (QuerySnapshot) result;
@@ -1364,9 +1633,43 @@ public class GroupsFragment extends Fragment {
                         ).show()))
                 .addOnFailureListener(e -> Toast.makeText(
                         requireContext(),
-                        "No se pudo leer la informaciÃ³n del piso: " + e.getMessage(),
+                        "No se pudo leer la información del piso: " + e.getMessage(),
                         Toast.LENGTH_LONG
                 ).show());
+    }
+
+    private void removeMemberFromGroupRooms(String groupId, String memberEmail, Runnable onDone) {
+        if (groupId == null || groupId.trim().isEmpty() || memberEmail == null || memberEmail.trim().isEmpty()) {
+            onDone.run();
+            return;
+        }
+        final String memberEmailLc = memberEmail.trim().toLowerCase(Locale.ROOT);
+        db.collection("rooms_groups")
+                .whereEqualTo("groupId", groupId)
+                .get()
+                .addOnSuccessListener(snapshot -> {
+                    List<Task<Void>> updates = new ArrayList<>();
+                    for (DocumentSnapshot roomDoc : snapshot.getDocuments()) {
+                        List<String> roomMembers = castStrings(roomDoc.get("memberEmails"));
+                        boolean existed = roomMembers.removeIf(value -> memberEmailLc.equals(stringValue(value).toLowerCase(Locale.ROOT)));
+                        if (!existed) continue;
+
+                        Map<String, Object> roomUpdates = new HashMap<>();
+                        roomUpdates.put("memberEmails", roomMembers);
+                        roomUpdates.put("memberCount", roomMembers.size());
+                        roomUpdates.put("updatedAt", FieldValue.serverTimestamp());
+                        roomUpdates.put("updatedByUid", FirebaseAuth.getInstance().getCurrentUser().getUid());
+                        updates.add(roomDoc.getReference().update(roomUpdates));
+                    }
+                    if (updates.isEmpty()) {
+                        onDone.run();
+                        return;
+                    }
+                    Tasks.whenAllComplete(updates)
+                            .addOnSuccessListener(done -> onDone.run())
+                            .addOnFailureListener(e -> onDone.run());
+                })
+                .addOnFailureListener(e -> onDone.run());
     }
 
     private String normalizeShareCode(String shareCode) {
@@ -1518,52 +1821,52 @@ public class GroupsFragment extends Fragment {
 
     private static LinkedHashMap<String, List<String>> buildProvinceCityMap() {
         LinkedHashMap<String, List<String>> data = new LinkedHashMap<>();
-        data.put("A CoruÃ±a", Arrays.asList("A CoruÃ±a", "Santiago de Compostela", "Ferrol"));
-        data.put("Ãlava", Arrays.asList("Vitoria-Gasteiz", "Llodio", "Amurrio"));
-        data.put("Albacete", Arrays.asList("Albacete", "HellÃ­n", "Villarrobledo"));
+        data.put("A Coruña", Arrays.asList("A Coruña", "Santiago de Compostela", "Ferrol"));
+        data.put("Álava", Arrays.asList("Vitoria-Gasteiz", "Llodio", "Amurrio"));
+        data.put("Albacete", Arrays.asList("Albacete", "Hellín", "Villarrobledo"));
         data.put("Alicante", Arrays.asList("Alicante", "Elche", "Benidorm"));
-        data.put("AlmerÃ­a", Arrays.asList("AlmerÃ­a", "Roquetas de Mar", "El Ejido"));
-        data.put("Asturias", Arrays.asList("Oviedo", "GijÃ³n", "AvilÃ©s"));
-        data.put("Ãvila", Arrays.asList("Ãvila", "ArÃ©valo", "Cebreros"));
-        data.put("Badajoz", Arrays.asList("Badajoz", "MÃ©rida", "Don Benito"));
+        data.put("Almería", Arrays.asList("Almería", "Roquetas de Mar", "El Ejido"));
+        data.put("Asturias", Arrays.asList("Oviedo", "Gijón", "Avilés"));
+        data.put("Ávila", Arrays.asList("Ávila", "Arévalo", "Cebreros"));
+        data.put("Badajoz", Arrays.asList("Badajoz", "Mérida", "Don Benito"));
         data.put("Barcelona", Arrays.asList("Barcelona", "L'Hospitalet de Llobregat", "Badalona"));
         data.put("Burgos", Arrays.asList("Burgos", "Miranda de Ebro", "Aranda de Duero"));
-        data.put("CÃ¡ceres", Arrays.asList("CÃ¡ceres", "Plasencia", "Navalmoral de la Mata"));
-        data.put("CÃ¡diz", Arrays.asList("CÃ¡diz", "Jerez de la Frontera", "Algeciras"));
+        data.put("Cáceres", Arrays.asList("Cáceres", "Plasencia", "Navalmoral de la Mata"));
+        data.put("Cádiz", Arrays.asList("Cádiz", "Jerez de la Frontera", "Algeciras"));
         data.put("Cantabria", Arrays.asList("Santander", "Torrelavega", "Castro-Urdiales"));
-        data.put("CastellÃ³n", Arrays.asList("CastellÃ³n de la Plana", "Vila-real", "Burriana"));
+        data.put("Castellón", Arrays.asList("Castellón de la Plana", "Vila-real", "Burriana"));
         data.put("Ciudad Real", Arrays.asList("Ciudad Real", "Puertollano", "Tomelloso"));
-        data.put("CÃ³rdoba", Arrays.asList("CÃ³rdoba", "Lucena", "Puente Genil"));
-        data.put("Cuenca", Arrays.asList("Cuenca", "TarancÃ³n", "San Clemente"));
+        data.put("Córdoba", Arrays.asList("Córdoba", "Lucena", "Puente Genil"));
+        data.put("Cuenca", Arrays.asList("Cuenca", "Tarancón", "San Clemente"));
         data.put("Girona", Arrays.asList("Girona", "Figueres", "Blanes"));
         data.put("Granada", Arrays.asList("Granada", "Motril", "Armilla"));
-        data.put("Guadalajara", Arrays.asList("Guadalajara", "Azuqueca de Henares", "Molina de AragÃ³n"));
-        data.put("GuipÃºzcoa", Arrays.asList("San SebastiÃ¡n", "IrÃºn", "Eibar"));
+        data.put("Guadalajara", Arrays.asList("Guadalajara", "Azuqueca de Henares", "Molina de Aragón"));
+        data.put("Guipúzcoa", Arrays.asList("San Sebastián", "Irún", "Eibar"));
         data.put("Huelva", Arrays.asList("Huelva", "Lepe", "Almonte"));
         data.put("Huesca", Arrays.asList("Huesca", "Barbastro", "Jaca"));
-        data.put("Illes Balears", Arrays.asList("Palma", "CalviÃ ", "Eivissa"));
-        data.put("JaÃ©n", Arrays.asList("JaÃ©n", "Linares", "AndÃºjar"));
-        data.put("La Rioja", Arrays.asList("LogroÃ±o", "Calahorra", "Arnedo"));
+        data.put("Illes Balears", Arrays.asList("Palma", "Calvià", "Eivissa"));
+        data.put("Jaén", Arrays.asList("Jaén", "Linares", "Andújar"));
+        data.put("La Rioja", Arrays.asList("Logroño", "Calahorra", "Arnedo"));
         data.put("Las Palmas", Arrays.asList("Las Palmas de Gran Canaria", "Telde", "Arrecife"));
-        data.put("LeÃ³n", Arrays.asList("LeÃ³n", "Ponferrada", "San AndrÃ©s del Rabanedo"));
+        data.put("León", Arrays.asList("León", "Ponferrada", "San Andrés del Rabanedo"));
         data.put("Lleida", Arrays.asList("Lleida", "Balaguer", "La Seu d'Urgell"));
         data.put("Lugo", Arrays.asList("Lugo", "Monforte de Lemos", "Viveiro"));
-        data.put("Madrid", Arrays.asList("Madrid", "MÃ³stoles", "AlcalÃ¡ de Henares"));
-        data.put("MÃ¡laga", Arrays.asList("MÃ¡laga", "Marbella", "Fuengirola"));
+        data.put("Madrid", Arrays.asList("Madrid", "Móstoles", "Alcalá de Henares"));
+        data.put("Málaga", Arrays.asList("Málaga", "Marbella", "Fuengirola"));
         data.put("Murcia", Arrays.asList("Murcia", "Cartagena", "Lorca"));
         data.put("Navarra", Arrays.asList("Pamplona", "Tudela", "Estella"));
-        data.put("Ourense", Arrays.asList("Ourense", "VerÃ­n", "O Barco de Valdeorras"));
+        data.put("Ourense", Arrays.asList("Ourense", "Verín", "O Barco de Valdeorras"));
         data.put("Palencia", Arrays.asList("Palencia", "Aguilar de Campoo", "Guardo"));
-        data.put("Pontevedra", Arrays.asList("Pontevedra", "Vigo", "VilagarcÃ­a de Arousa"));
-        data.put("Salamanca", Arrays.asList("Salamanca", "BÃ©jar", "Ciudad Rodrigo"));
-        data.put("Santa Cruz de Tenerife", Arrays.asList("Santa Cruz de Tenerife", "San CristÃ³bal de La Laguna", "Arona"));
-        data.put("Segovia", Arrays.asList("Segovia", "CuÃ©llar", "El Espinar"));
-        data.put("Sevilla", Arrays.asList("Sevilla", "Dos Hermanas", "AlcalÃ¡ de GuadaÃ­ra"));
-        data.put("Soria", Arrays.asList("Soria", "AlmazÃ¡n", "El Burgo de Osma"));
+        data.put("Pontevedra", Arrays.asList("Pontevedra", "Vigo", "Vilagarcía de Arousa"));
+        data.put("Salamanca", Arrays.asList("Salamanca", "Béjar", "Ciudad Rodrigo"));
+        data.put("Santa Cruz de Tenerife", Arrays.asList("Santa Cruz de Tenerife", "San Cristóbal de La Laguna", "Arona"));
+        data.put("Segovia", Arrays.asList("Segovia", "Cuéllar", "El Espinar"));
+        data.put("Sevilla", Arrays.asList("Sevilla", "Dos Hermanas", "Alcalá de Guadaíra"));
+        data.put("Soria", Arrays.asList("Soria", "Almazán", "El Burgo de Osma"));
         data.put("Tarragona", Arrays.asList("Tarragona", "Reus", "Tortosa"));
-        data.put("Teruel", Arrays.asList("Teruel", "AlcaÃ±iz", "Andorra"));
+        data.put("Teruel", Arrays.asList("Teruel", "Alcañiz", "Andorra"));
         data.put("Toledo", Arrays.asList("Toledo", "Talavera de la Reina", "Illescas"));
-        data.put("Valencia", Arrays.asList("ValÃ¨ncia", "Torrent", "Gandia"));
+        data.put("Valencia", Arrays.asList("València", "Torrent", "Gandia"));
         data.put("Valladolid", Arrays.asList("Valladolid", "Medina del Campo", "Laguna de Duero"));
         data.put("Vizcaya", Arrays.asList("Bilbao", "Barakaldo", "Getxo"));
         data.put("Zamora", Arrays.asList("Zamora", "Benavente", "Toro"));

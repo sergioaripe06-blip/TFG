@@ -66,6 +66,11 @@ service cloud.firestore {
         && request.resource.data.roles.keys().hasAll(resource.data.roles.keys().removeAll([authUid()]));
     }
 
+    function roomIsEmpty() {
+      return resource.data.memberCount == 0
+        && resource.data.memberEmails.size() == 0;
+    }
+
     function isPaymentStatusToggleByOwner() {
       return signedInAndVerified()
         && isGroupOwner(resource.data.groupId)
@@ -83,15 +88,6 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if signedInAndVerified();
       allow write: if signedInAndVerified() && authUid() == userId;
-    }
-
-    match /usernames/{username} {
-      allow read: if true;
-      allow create, update: if signedInAndVerified()
-        && request.resource.data.uid == authUid()
-        && request.resource.data.email == authEmail();
-      allow delete: if signedInAndVerified()
-        && resource.data.uid == authUid();
     }
 
     match /group_codes/{code} {
@@ -129,8 +125,12 @@ service cloud.firestore {
       allow read: if signedInAndVerified()
         && isGroupMember(resource.data.groupId);
 
-      allow update, delete: if signedInAndVerified()
+      allow update: if signedInAndVerified()
         && isGroupOwner(resource.data.groupId);
+
+      allow delete: if signedInAndVerified()
+        && isGroupOwner(resource.data.groupId)
+        && roomIsEmpty();
     }
 
     match /expenses/{expenseId} {
@@ -176,8 +176,15 @@ service cloud.firestore {
         && request.resource.data.ownerUid == authUid()
         && isGroupMember(request.resource.data.groupId);
 
-      allow read, update, delete: if signedInAndVerified()
+      allow read: if signedInAndVerified()
         && isGroupMember(resource.data.groupId);
+
+      allow update, delete: if signedInAndVerified()
+        && isGroupMember(resource.data.groupId)
+        && (
+          resource.data.ownerUid == authUid()
+          || isGroupOwner(resource.data.groupId)
+        );
     }
 
     match /activity_logs/{logId} {
@@ -291,7 +298,7 @@ service cloud.firestore {
           resource.data.inviterUid == authUid() ||
           resource.data.invitedEmail == authEmail() ||
           isGroupOwner(resource.data.groupId)
-        );
+        ); 
     }
   }
 }

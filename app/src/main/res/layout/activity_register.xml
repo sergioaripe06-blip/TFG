@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/bg_screen_gradient">
+    android:background="@android:color/white">
 
     <ScrollView
         android:layout_width="match_parent"
@@ -12,7 +12,7 @@
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:gravity="center_horizontal"
             android:orientation="vertical"
             android:paddingHorizontal="24dp"
@@ -81,37 +81,6 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:inputType="textPersonName"
-                        android:textColor="@color/text_light"
-                        android:textColorHint="@color/text_muted" />
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:text="Nombre de usuario:"
-                    android:textColor="@color/text_light"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
-
-                <com.google.android.material.textfield.TextInputLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:hint="Escribe tu nombre de usuario"
-                    app:boxBackgroundColor="@color/surface_chip"
-                    app:boxBackgroundMode="filled"
-                    app:boxCornerRadiusBottomEnd="16dp"
-                    app:boxCornerRadiusBottomStart="16dp"
-                    app:boxCornerRadiusTopEnd="16dp"
-                    app:boxCornerRadiusTopStart="16dp"
-                    app:hintTextColor="@color/text_muted">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/usernameEt"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:inputType="textNoSuggestions"
                         android:textColor="@color/text_light"
                         android:textColorHint="@color/text_muted" />
                 </com.google.android.material.textfield.TextInputLayout>
@@ -262,23 +231,29 @@
 
                 <Button
                     android:id="@+id/registerBtn"
-                    android:layout_width="match_parent"
-                    android:layout_height="46dp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:layout_marginTop="18dp"
-                    android:background="@drawable/bg_button_pill_primary"
+                    android:layout_gravity="center_horizontal"
+                    android:background="@android:color/transparent"
                     android:text="Crear cuenta"
                     android:textAllCaps="false"
-                    android:textColor="@color/on_primary_green" />
+                    android:textColor="@color/auth_link_blue"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/loginTv"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
+                    android:clickable="true"
+                    android:focusable="true"
                     android:gravity="center"
                     android:text="Iniciar sesi&#243;n"
-                    android:textColor="@color/text_light"
-                    android:textSize="15sp" />
+                    android:textColor="@color/auth_link_blue"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
             </LinearLayout>
         </LinearLayout>
     </ScrollView>

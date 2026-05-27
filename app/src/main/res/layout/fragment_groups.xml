@@ -119,7 +119,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:background="@drawable/bg_input_dark_round"
-                    android:hint="Buscar piso por nombre o direcciÃƒÂ³n"
+                    android:hint="Buscar piso por nombre o dirección"
                     android:imeOptions="actionDone"
                     android:inputType="text"
                     android:paddingHorizontal="16dp"
@@ -145,7 +145,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:gravity="center"
-                android:text="AÃƒÂºn no tienes pisos. Pulsa Crear piso."
+                android:text="Aún no tienes pisos. Pulsa Crear piso."
                 android:textColor="@color/text_muted"
                 android:textSize="14sp" />
         </FrameLayout>
@@ -264,18 +264,6 @@
                 android:text="Añadir inquilinos"
                 android:textColor="@color/text_light" />
         </LinearLayout>
-
-        <Button
-            android:id="@+id/manageRoomsBtn"
-            android:layout_width="272dp"
-            android:layout_height="40dp"
-            android:layout_marginTop="8dp"
-            android:layout_gravity="center_horizontal"
-            android:background="@drawable/bg_tab_default"
-            android:text="Gestionar habitaciones"
-            android:textAllCaps="false"
-            android:textColor="@color/text_light"
-            android:visibility="gone" />
 
         <Button
             android:id="@+id/deleteGroupBtn"

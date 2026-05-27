@@ -316,7 +316,6 @@ public class SettingsFragment extends Fragment {
         }
 
         tasks.add(deleteInvitations(db, uid, email));
-        tasks.add(deleteUsernamesByUid(db, uid));
         tasks.add(db.collection("users").document(uid).delete());
 
         Tasks.whenAllComplete(tasks)
@@ -358,24 +357,6 @@ public class SettingsFragment extends Fragment {
                         for (DocumentSnapshot doc : inviterTask.getResult().getDocuments()) {
                             deleteTasks.add(doc.getReference().delete());
                         }
-                    }
-                    return Tasks.whenAllComplete(deleteTasks);
-                });
-    }
-
-    private Task<?> deleteUsernamesByUid(FirebaseFirestore db, String uid) {
-        return db.collection("usernames")
-                .whereEqualTo("uid", uid)
-                .get()
-                .continueWithTask(task -> {
-                    if (!task.isSuccessful() || task.getResult() == null) {
-                        Exception ex = task.getException();
-                        if (ex != null) throw ex;
-                        return Tasks.forResult(null);
-                    }
-                    List<Task<?>> deleteTasks = new ArrayList<>();
-                    for (DocumentSnapshot doc : task.getResult().getDocuments()) {
-                        deleteTasks.add(doc.getReference().delete());
                     }
                     return Tasks.whenAllComplete(deleteTasks);
                 });

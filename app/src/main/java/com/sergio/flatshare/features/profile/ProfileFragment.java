@@ -21,9 +21,13 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 
 import com.google.android.material.imageview.ShapeableImageView;
+import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.UserProfileChangeRequest;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.firestore.SetOptions;
 import com.sergio.flatshare.R;
 import com.sergio.flatshare.features.settings.SettingsFragment;
@@ -32,9 +36,14 @@ import com.sergio.flatshare.shared.ui.DialogUtils;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.Arrays;
 
 public class ProfileFragment extends Fragment {
     private ShapeableImageView profilePhotoIv;
@@ -45,7 +54,6 @@ public class ProfileFragment extends Fragment {
     private TextView profileBirthDateTv;
 
     private String fullName = "";
-    private String username = "";
     private String email = "";
     private String phone = "";
     private String birthDate = "";
@@ -116,7 +124,6 @@ public class ProfileFragment extends Fragment {
                     if (!isAdded()) return;
                     email = safe(doc.getString("email"), user.getEmail());
                     fullName = safe(doc.getString("fullName"), "");
-                    username = safe(doc.getString("username"), "");
                     phone = safe(doc.getString("phone"), "");
                     birthDate = safe(doc.getString("birthDate"), "");
                     photoUri = safe(doc.getString("photoUri"), "");
@@ -191,6 +198,10 @@ public class ProfileFragment extends Fragment {
             String newName = fullNameEt.getText().toString().trim();
             String newPhone = phoneEt.getText().toString().trim();
             String newBirthDate = birthDateEt.getText().toString().trim();
+            if (newName.isEmpty() || newPhone.isEmpty() || newBirthDate.isEmpty()) {
+                Toast.makeText(requireContext(), "Completa todos los campos del perfil", Toast.LENGTH_SHORT).show();
+                return;
+            }
             if (!newBirthDate.isEmpty() && !isAdult(newBirthDate)) {
                 Toast.makeText(requireContext(), "Debes tener al menos 18 años", Toast.LENGTH_SHORT).show();
                 return;
@@ -204,7 +215,6 @@ public class ProfileFragment extends Fragment {
             updates.put("phone", newPhone);
             updates.put("birthDate", newBirthDate);
             updates.put("email", email.toLowerCase(Locale.ROOT));
-            updates.put("username", username);
             updates.put("photoUri", photoUri);
             FirebaseFirestore.getInstance().collection("users").document(user.getUid())
                     .set(updates, SetOptions.merge())
@@ -212,6 +222,7 @@ public class ProfileFragment extends Fragment {
                         if (!newName.isEmpty()) {
                             user.updateProfile(new UserProfileChangeRequest.Builder().setDisplayName(newName).build());
                         }
+                        propagateProfileNameAcrossCollections(user.getUid(), email.toLowerCase(Locale.ROOT), newName);
                         fullName = newName;
                         phone = newPhone;
                         birthDate = newBirthDate;
@@ -219,6 +230,74 @@ public class ProfileFragment extends Fragment {
                         dialog.dismiss();
                     })
                     .addOnFailureListener(e -> Toast.makeText(requireContext(), "No se pudo guardar", Toast.LENGTH_SHORT).show());
+        });
+    }
+
+    private void propagateProfileNameAcrossCollections(@NonNull String uid, @NonNull String normalizedEmail, @NonNull String newName) {
+        String safeName = newName.trim();
+        if (safeName.isEmpty()) return;
+
+        Map<String, List<String>> byUid = new LinkedHashMap<>();
+        byUid.put("groups", Collections.singletonList("ownerId"));
+        byUid.put("rooms_groups", Arrays.asList("createdByUid", "updatedByUid"));
+        byUid.put("expenses", Collections.singletonList("payerId"));
+        byUid.put("reminders", Collections.singletonList("ownerUid"));
+        byUid.put("activity_logs", Collections.singletonList("actorUid"));
+        byUid.put("rental_contracts", Arrays.asList("createdByUid", "updatedByUid"));
+        byUid.put("rent_collections", Arrays.asList("createdByUid", "updatedByUid"));
+        byUid.put("maintenance_tickets", Arrays.asList("createdByUid", "updatedByUid"));
+        byUid.put("group_documents", Arrays.asList("createdByUid", "updatedByUid"));
+        byUid.put("audit_events", Collections.singletonList("actorUid"));
+        byUid.put("rent_automations", Arrays.asList("createdByUid", "updatedByUid"));
+        byUid.put("event_reminder_rules", Arrays.asList("createdByUid", "updatedByUid"));
+
+        Map<String, List<String>> byEmail = new LinkedHashMap<>();
+        byEmail.put("payments", Arrays.asList("fromEmail", "toEmail"));
+        byEmail.put("payment_deadlines", Arrays.asList("debtorEmail", "creditorEmail"));
+        byEmail.put("reminders", Collections.singletonList("ownerEmail"));
+        byEmail.put("rent_collections", Collections.singletonList("tenantEmail"));
+        byEmail.put("maintenance_tickets", Collections.singletonList("responsibleEmail"));
+        byEmail.put("rent_automations", Collections.singletonList("tenantEmail"));
+        byEmail.put("event_reminder_jobs", Collections.singletonList("targetEmail"));
+        byEmail.put("activity_logs", Collections.singletonList("actorEmail"));
+        byEmail.put("audit_events", Collections.singletonList("actorEmail"));
+
+        String[] nameFields = new String[]{
+                "name", "displayName", "fullName",
+                "ownerName", "creatorName", "updatedByName", "createdByName",
+                "actorName", "payerName", "fromName", "toName",
+                "debtorName", "creditorName", "tenantName", "responsibleName", "targetName"
+        };
+
+        List<Task<QuerySnapshot>> readTasks = new ArrayList<>();
+        for (Map.Entry<String, List<String>> entry : byUid.entrySet()) {
+            for (String field : entry.getValue()) {
+                readTasks.add(FirebaseFirestore.getInstance().collection(entry.getKey()).whereEqualTo(field, uid).get());
+            }
+        }
+        for (Map.Entry<String, List<String>> entry : byEmail.entrySet()) {
+            for (String field : entry.getValue()) {
+                readTasks.add(FirebaseFirestore.getInstance().collection(entry.getKey()).whereEqualTo(field, normalizedEmail).get());
+            }
+        }
+
+        Tasks.whenAllSuccess(readTasks).addOnSuccessListener(results -> {
+            List<Task<Void>> writeTasks = new ArrayList<>();
+            for (Object result : results) {
+                if (!(result instanceof QuerySnapshot querySnapshot)) continue;
+                for (DocumentSnapshot doc : querySnapshot.getDocuments()) {
+                    Map<String, Object> updates = new HashMap<>();
+                    for (String candidate : nameFields) {
+                        if (doc.contains(candidate)) {
+                            updates.put(candidate, safeName);
+                        }
+                    }
+                    if (!updates.isEmpty()) {
+                        writeTasks.add(doc.getReference().update(updates));
+                    }
+                }
+            }
+            Tasks.whenAllComplete(writeTasks);
         });
     }
 

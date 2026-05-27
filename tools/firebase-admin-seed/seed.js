@@ -4,41 +4,121 @@ const fs = require("fs");
 const path = require("path");
 const admin = require("firebase-admin");
 
-const SERGIO_DEMO_PRESET = {
-  key: "sergio-demo",
-  ownerEmail: "sergioaripe06@gmail.com",
-  ownerDisplayName: "Sergio Aripe",
-  groupName: "Piso Demo Sergio",
-  groupDescription: "Piso demo para validar flujo completo de alquiler variable.",
-  location: {
-    street: "Calle Alcalá 123",
-    portal: "Portal A",
-    postalCode: "28009",
-    city: "Madrid",
-    province: "Madrid"
+const PRESETS = {
+  "sergio-demo": {
+    key: "sergio-demo",
+    ownerEmail: "sergioaripe06@gmail.com",
+    ownerDisplayName: "Sergio Aripe",
+    groupName: "Piso Demo Sergio",
+    groupDescription: "Piso demo para validar flujo completo de alquiler variable.",
+    location: {
+      street: "Calle Alcala 123",
+      portal: "Portal A",
+      postalCode: "28009",
+      city: "Madrid",
+      province: "Madrid"
+    },
+    roomTemplates: [
+      { name: "Suite exterior", monthlyCost: 520 },
+      { name: "Habitacion balcon", monthlyCost: 470 },
+      { name: "Habitacion interior", monthlyCost: 420 },
+      { name: "Habitacion estudio", monthlyCost: 390 }
+    ],
+    tenants: [
+      { email: "juan.demo@seed.flatshare.local", username: "juan_demo", displayName: "Juan Perez", passwordSuffix: "juan01" },
+      { email: "maria.demo@seed.flatshare.local", username: "maria_demo", displayName: "Maria Garcia", passwordSuffix: "maria02" },
+      { email: "lucia.demo@seed.flatshare.local", username: "lucia_demo", displayName: "Lucia Torres", passwordSuffix: "lucia03" },
+      { email: "alvaro.demo@seed.flatshare.local", username: "alvaro_demo", displayName: "Alvaro Ruiz", passwordSuffix: "alvaro04" }
+    ],
+    config: {
+      groupsCount: 1,
+      roomsPerGroup: 4,
+      usersCount: 4,
+      membersPerGroup: 4,
+      expensesPerGroup: 10,
+      paymentsPerGroup: 8,
+      remindersPerGroup: 4
+    }
   },
-  roomTemplates: [
-    { name: "Suite exterior", monthlyCost: 520 },
-    { name: "Habitación balcón", monthlyCost: 470 },
-    { name: "Habitación interior", monthlyCost: 420 },
-    { name: "Habitación estudio", monthlyCost: 390 }
-  ],
-  tenants: [
-    { email: "juan.demo@seed.flatshare.local", username: "juan_demo", displayName: "Juan Pérez", passwordSuffix: "juan01" },
-    { email: "maria.demo@seed.flatshare.local", username: "maria_demo", displayName: "María García", passwordSuffix: "maria02" },
-    { email: "lucia.demo@seed.flatshare.local", username: "lucia_demo", displayName: "Lucía Torres", passwordSuffix: "lucia03" },
-    { email: "alvaro.demo@seed.flatshare.local", username: "alvaro_demo", displayName: "Álvaro Ruiz", passwordSuffix: "alvaro04" }
-  ],
-  config: {
-    groupsCount: 1,
-    roomsPerGroup: 4,
-    usersCount: 4,
-    membersPerGroup: 4,
-    expensesPerGroup: 10,
-    paymentsPerGroup: 8,
-    remindersPerGroup: 4
+  "sergio-owner-plus": {
+    key: "sergio-owner-plus",
+    ownerEmail: "sergioaripe06@gmail.com",
+    ownerDisplayName: "Sergio Aripe",
+    groupName: "Piso Premium Sergio",
+    groupDescription: "Seed ampliada con Sergio como propietario y mas habitaciones.",
+    location: {
+      street: "Avenida del Puerto 48",
+      portal: "Portal C",
+      postalCode: "46024",
+      city: "Valencia",
+      province: "Valencia"
+    },
+    roomTemplates: [
+      { name: "Atico terraza", monthlyCost: 650 },
+      { name: "Doble luminosa", monthlyCost: 530 },
+      { name: "Interior economica", monthlyCost: 390 },
+      { name: "Estudio trabajo", monthlyCost: 480 },
+      { name: "Suite patio", monthlyCost: 560 }
+    ],
+    tenants: [
+      { email: "nerea.ownerplus@seed.flatshare.local", username: "nerea_ownerplus", displayName: "Nerea Campos", passwordSuffix: "nerea11" },
+      { email: "david.ownerplus@seed.flatshare.local", username: "david_ownerplus", displayName: "David Blasco", passwordSuffix: "david12" },
+      { email: "ines.ownerplus@seed.flatshare.local", username: "ines_ownerplus", displayName: "Ines Romero", passwordSuffix: "ines13" },
+      { email: "raul.ownerplus@seed.flatshare.local", username: "raul_ownerplus", displayName: "Raul Vega", passwordSuffix: "raul14" },
+      { email: "sara.ownerplus@seed.flatshare.local", username: "sara_ownerplus", displayName: "Sara Mena", passwordSuffix: "sara15" }
+    ],
+    config: {
+      groupsCount: 1,
+      roomsPerGroup: 5,
+      usersCount: 5,
+      membersPerGroup: 5,
+      expensesPerGroup: 14,
+      paymentsPerGroup: 10,
+      remindersPerGroup: 6
+    }
+  },
+  "sergio-tenant-plus": {
+    key: "sergio-tenant-plus",
+    ownerEmail: "laura.owner@seed.flatshare.local",
+    ownerDisplayName: "Laura Navarro",
+    groupName: "Piso Compartido Centro",
+    groupDescription: "Seed con Sergio como inquilino junto a varios companeros.",
+    location: {
+      street: "Calle de la Luna 9",
+      portal: "Portal B",
+      postalCode: "28004",
+      city: "Madrid",
+      province: "Madrid"
+    },
+    roomTemplates: [
+      { name: "Exterior esquina", monthlyCost: 540 },
+      { name: "Habitacion balcon", monthlyCost: 500 },
+      { name: "Interior tranquila", monthlyCost: 430 },
+      { name: "Loft pequeno", monthlyCost: 470 },
+      { name: "Suite compartida", monthlyCost: 520 }
+    ],
+    tenants: [
+      { email: "sergioaripe06@gmail.com", username: "sergioaripe06", displayName: "Sergio Aripe", passwordSuffix: "sergio20" },
+      { email: "paula.tenantplus@seed.flatshare.local", username: "paula_tenantplus", displayName: "Paula Herrero", passwordSuffix: "paula21" },
+      { email: "marcos.tenantplus@seed.flatshare.local", username: "marcos_tenantplus", displayName: "Marcos Soler", passwordSuffix: "marcos22" },
+      { email: "clara.tenantplus@seed.flatshare.local", username: "clara_tenantplus", displayName: "Clara Sanz", passwordSuffix: "clara23" },
+      { email: "hugo.tenantplus@seed.flatshare.local", username: "hugo_tenantplus", displayName: "Hugo Pardo", passwordSuffix: "hugo24" }
+    ],
+    config: {
+      groupsCount: 1,
+      roomsPerGroup: 5,
+      usersCount: 5,
+      membersPerGroup: 5,
+      expensesPerGroup: 12,
+      paymentsPerGroup: 10,
+      remindersPerGroup: 5
+    }
   }
 };
+
+function listPresetKeys() {
+  return Object.keys(PRESETS).sort();
+}
 
 function parseArgs(argv) {
   const args = {};
@@ -102,7 +182,7 @@ Uso:
     --reminders-per-group 4
 
  Opciones:
-  --preset <id>                  Preset de demo. Disponible: sergio-demo
+  --preset <id>                  Preset de demo. Disponibles: ${listPresetKeys().join(", ")}
   --service-account <ruta-json>   Ruta al JSON de service account (opcional si usas GOOGLE_APPLICATION_CREDENTIALS)
   --owner-email <email>           Email de la cuenta propietaria (obligatorio)
   --owner-password <password>     Password del owner si hay que crearlo
@@ -566,40 +646,40 @@ async function main() {
   }
 
   const presetKey = String(args.preset || "").trim().toLowerCase();
-  const useSergioDemoPreset = presetKey === SERGIO_DEMO_PRESET.key;
-  if (presetKey && !useSergioDemoPreset) {
-    throw new Error(`Preset no soportado: ${presetKey}. Usa "${SERGIO_DEMO_PRESET.key}".`);
+  const activePreset = presetKey ? PRESETS[presetKey] : null;
+  if (presetKey && !activePreset) {
+    throw new Error(`Preset no soportado: ${presetKey}. Disponibles: ${listPresetKeys().join(", ")}`);
   }
 
-  const ownerEmail = normalizeEmail(useSergioDemoPreset ? SERGIO_DEMO_PRESET.ownerEmail : args["owner-email"]);
+  const ownerEmail = normalizeEmail(activePreset ? activePreset.ownerEmail : args["owner-email"]);
   const ownerPassword = args["owner-password"] ? String(args["owner-password"]) : "";
   const groupsCount = asInt(
     args.groups,
-    useSergioDemoPreset ? SERGIO_DEMO_PRESET.config.groupsCount : 4
+    activePreset ? activePreset.config.groupsCount : 4
   );
   const roomsPerGroup = asInt(
     args.rooms,
-    useSergioDemoPreset ? SERGIO_DEMO_PRESET.config.roomsPerGroup : 3
+    activePreset ? activePreset.config.roomsPerGroup : 3
   );
   const usersCount = asInt(
     args.users,
-    useSergioDemoPreset ? SERGIO_DEMO_PRESET.config.usersCount : 12
+    activePreset ? activePreset.config.usersCount : 12
   );
   const membersPerGroup = asInt(
     args["members-per-group"],
-    useSergioDemoPreset ? SERGIO_DEMO_PRESET.config.membersPerGroup : 4
+    activePreset ? activePreset.config.membersPerGroup : 4
   );
   const expensesPerGroup = asInt(
     args["expenses-per-group"],
-    useSergioDemoPreset ? SERGIO_DEMO_PRESET.config.expensesPerGroup : 8
+    activePreset ? activePreset.config.expensesPerGroup : 8
   );
   const paymentsPerGroup = asInt(
     args["payments-per-group"],
-    useSergioDemoPreset ? SERGIO_DEMO_PRESET.config.paymentsPerGroup : 6
+    activePreset ? activePreset.config.paymentsPerGroup : 6
   );
   const remindersPerGroup = asInt(
     args["reminders-per-group"],
-    useSergioDemoPreset ? SERGIO_DEMO_PRESET.config.remindersPerGroup : 4
+    activePreset ? activePreset.config.remindersPerGroup : 4
   );
   const passwordPrefix = String(args["password-prefix"] || "FlatShareSeed!");
   const emailPrefix = String(args["email-prefix"] || "seeduser");
@@ -607,6 +687,7 @@ async function main() {
   const dryRun = Boolean(args["dry-run"]);
   const serviceAccountPath = args["service-account"] ? String(args["service-account"]) : "";
   const projectId = args["project-id"] ? String(args["project-id"]) : "";
+  const ownerPasswordEffective = ownerPassword || (activePreset ? `${passwordPrefix}owner00` : "");
 
   if (!ownerEmail) {
     usage();
@@ -640,8 +721,8 @@ async function main() {
   const db = admin.firestore();
 
   console.log("Iniciando seed admin...");
-  if (useSergioDemoPreset) {
-    console.log(`Preset activo: ${SERGIO_DEMO_PRESET.key}`);
+  if (activePreset) {
+    console.log(`Preset activo: ${activePreset.key}`);
   }
   console.log(`Owner: ${ownerEmail}`);
   console.log(
@@ -654,14 +735,14 @@ async function main() {
   const owner = await ensureAuthUser(
     auth,
     ownerEmail,
-    ownerPassword,
-    useSergioDemoPreset ? SERGIO_DEMO_PRESET.ownerDisplayName : "Owner Seed"
+    ownerPasswordEffective,
+    activePreset ? activePreset.ownerDisplayName : "Owner Seed"
   );
   console.log(`Owner ${owner.created ? "creado" : "encontrado"}: ${owner.uid}`);
 
   const generatedUsers = [];
-  if (useSergioDemoPreset) {
-    const selectedTenants = SERGIO_DEMO_PRESET.tenants.slice(0, usersCount);
+  if (activePreset) {
+    const selectedTenants = activePreset.tenants.slice(0, usersCount);
     for (let i = 0; i < selectedTenants.length; i++) {
       const tenant = selectedTenants[i];
       const suffix = String(i + 1).padStart(3, "0");
@@ -774,7 +855,7 @@ async function main() {
     }
 
     const groupId = dryRun ? `dry_group_${String(g).padStart(3, "0")}` : db.collection("groups").doc().id;
-    const groupName = useSergioDemoPreset && g === 1 ? SERGIO_DEMO_PRESET.groupName : `Piso Seed Admin ${g}`;
+    const groupName = activePreset && g === 1 ? activePreset.groupName : `Piso Seed Admin ${g}`;
     const shareCode = groupId.toUpperCase();
 
     if (dryRun) {
@@ -789,11 +870,11 @@ async function main() {
     const seededRooms = [];
     batch.set(groupRef, {
       name: groupName,
-      description: useSergioDemoPreset && g === 1
-        ? SERGIO_DEMO_PRESET.groupDescription
+      description: activePreset && g === 1
+        ? activePreset.groupDescription
         : "Piso de pruebas generado por firebase-admin seed",
-      location: useSergioDemoPreset && g === 1
-        ? { ...SERGIO_DEMO_PRESET.location }
+      location: activePreset && g === 1
+        ? { ...activePreset.location }
         : {
             street: `Calle Seed ${g}`,
             portal: `Portal ${g}`,
@@ -823,8 +904,8 @@ async function main() {
       const roomMember = groupMembers[(r - 1) % groupMembers.length];
       const roomMemberEmails = roomMember ? [roomMember.email] : [];
       const roomRef = db.collection("rooms_groups").doc();
-      const roomTemplate = useSergioDemoPreset && g === 1
-        ? SERGIO_DEMO_PRESET.roomTemplates[(r - 1) % SERGIO_DEMO_PRESET.roomTemplates.length]
+      const roomTemplate = activePreset && g === 1
+        ? activePreset.roomTemplates[(r - 1) % activePreset.roomTemplates.length]
         : null;
       const roomName = roomTemplate ? roomTemplate.name : `Habitacion ${r}`;
       const monthlyCost = roomTemplate ? roomTemplate.monthlyCost : 350 + r * 30;
@@ -932,3 +1013,4 @@ main().catch((err) => {
   console.error(err && err.stack ? err.stack : err);
   process.exit(1);
 });
+

@@ -13,7 +13,7 @@ Este script crea:
 - vencimientos en `payment_deadlines`,
 - recordatorios en `reminders`.
 
-La cuenta propietaria (`owner`) queda como admin en todos los pisos.
+La cuenta propietaria (`owner`) queda como admin en todos los pisos que crea el seed.
 
 ## Requisitos
 
@@ -46,9 +46,9 @@ node seed.js \
 
 ## Opciones
 
-- `--preset`: preset de demo. Disponible: `sergio-demo`.
+- `--preset`: preset de demo. Disponibles: `sergio-demo`, `sergio-owner-plus`, `sergio-tenant-plus`.
 - `--service-account`: ruta al JSON de service account.
-- `--owner-email`: cuenta propietaria de todos los pisos (obligatorio).
+- `--owner-email`: cuenta propietaria de todos los pisos (obligatorio si no usas preset).
 - `--owner-password`: solo se usa si el owner no existe y hay que crearlo.
 - `--users`: numero de cuentas inquilino a generar.
 - `--groups`: numero de pisos a crear.
@@ -63,26 +63,57 @@ node seed.js \
 - `--project-id`: project id de Firebase (opcional).
 - `--dry-run`: no escribe nada; solo muestra el plan.
 
-## Preset hardcodeado: `sergio-demo`
+## Presets disponibles
 
-Este preset crea un piso demo con:
+### `sergio-demo`
 
-- owner fijo: `sergioaripe06@gmail.com`,
-- 4 inquilinos inventados (Juan, María, Lucía y Álvaro),
-- 4 habitaciones con precios distintos,
-- gastos, pagos, vencimientos y recordatorios de prueba.
+Preset original de demo con:
 
-Comando rápido:
+- owner: `sergioaripe06@gmail.com`,
+- 4 inquilinos de prueba,
+- 4 habitaciones,
+- gastos, pagos, vencimientos y recordatorios.
+
+Comando:
 
 ```bash
 npm run seed:sergio-demo
 ```
 
-Si el owner no existe todavía en Firebase Auth, añade también `--owner-password`:
+### `sergio-owner-plus`
+
+Nuevo preset con Sergio como propietario y un piso mas grande:
+
+- owner: `sergioaripe06@gmail.com`,
+- 5 inquilinos de prueba,
+- 5 habitaciones distintas,
+- mayor volumen de gastos/pagos/recordatorios.
+
+Comando:
 
 ```bash
-node seed.js --service-account ./service-account.json --preset sergio-demo --owner-password TuPasswordSegura123!
+npm run seed:sergio-owner-plus
 ```
+
+### `sergio-tenant-plus`
+
+Nuevo preset donde Sergio es inquilino (no propietario):
+
+- owner: `laura.owner@seed.flatshare.local`,
+- Sergio (`sergioaripe06@gmail.com`) como inquilino,
+- varios inquilinos adicionales,
+- 5 habitaciones con datos financieros de prueba.
+
+Comando:
+
+```bash
+npm run seed:sergio-tenant-plus
+```
+
+## Nota sobre passwords
+
+Si una cuenta ya existe en Firebase Auth, el script no cambia su password.
+Si no existe, la crea usando el `password-prefix` + `passwordSuffix` del preset.
 
 ## Resultado
 
@@ -90,4 +121,4 @@ El script genera un archivo con credenciales en:
 
 `tools/firebase-admin-seed/output/seed-users-YYYYMMDD-HHMMSS.json`
 
-Guardalo para iniciar sesion con los usuarios de prueba.
+Guarda ese archivo para iniciar sesion con los usuarios de prueba.

@@ -21,14 +21,12 @@ import java.util.Locale;
 public class VerifyEmailActivity extends AppCompatActivity {
     public static final String EXTRA_EMAIL = "extra_email";
     public static final String EXTRA_FULL_NAME = "extra_full_name";
-    public static final String EXTRA_USERNAME = "extra_username";
     public static final String EXTRA_PHONE = "extra_phone";
     public static final String EXTRA_BIRTH_DATE = "extra_birth_date";
     public static final String EXTRA_TERMS_ACCEPTED = "extra_terms_accepted";
 
     private String email;
     private String fullName;
-    private String username;
     private String phone;
     private String birthDate;
     private boolean termsAccepted;
@@ -54,7 +52,6 @@ public class VerifyEmailActivity extends AppCompatActivity {
     private void readExtras() {
         Intent intent = getIntent();
         fullName = safe(intent.getStringExtra(EXTRA_FULL_NAME));
-        username = safe(intent.getStringExtra(EXTRA_USERNAME));
         phone = safe(intent.getStringExtra(EXTRA_PHONE));
         birthDate = safe(intent.getStringExtra(EXTRA_BIRTH_DATE));
         termsAccepted = intent.getBooleanExtra(EXTRA_TERMS_ACCEPTED, false);
@@ -69,13 +66,12 @@ public class VerifyEmailActivity extends AppCompatActivity {
             email = "(correo no disponible)";
         }
 
-        if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(username)) {
+        if (TextUtils.isEmpty(fullName)) {
             SessionStore.PendingRegistrationProfile pending = SessionStore.getPendingRegistrationProfile(this);
             String normalizedPendingEmail = safe(pending.email).toLowerCase(Locale.ROOT);
             String normalizedCurrentEmail = safe(email).toLowerCase(Locale.ROOT);
             if (!TextUtils.isEmpty(normalizedPendingEmail) && normalizedPendingEmail.equals(normalizedCurrentEmail)) {
                 fullName = safe(pending.fullName);
-                username = safe(pending.username);
                 phone = safe(pending.phone);
                 birthDate = safe(pending.birthDate);
                 termsAccepted = termsAccepted || pending.termsAccepted;
@@ -91,6 +87,7 @@ public class VerifyEmailActivity extends AppCompatActivity {
             return;
         }
 
+        AuthEmailLocale.apply(this);
         user.sendEmailVerification()
                 .addOnSuccessListener(unused -> Toast.makeText(this, "Correo de verificación reenviado", Toast.LENGTH_LONG).show())
                 .addOnFailureListener(e -> Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show());
@@ -133,8 +130,8 @@ public class VerifyEmailActivity extends AppCompatActivity {
     }
 
     private void finalizeProfileIfNeeded() {
-        if (!TextUtils.isEmpty(fullName) && !TextUtils.isEmpty(username)) {
-            UserSync.saveCurrentUserProfile(fullName, username, phone, birthDate);
+        if (!TextUtils.isEmpty(fullName)) {
+            UserSync.saveCurrentUserProfile(fullName, phone, birthDate);
         }
         if (termsAccepted) {
             UserSync.saveTermsAcceptance();

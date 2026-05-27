@@ -13,9 +13,15 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.FlatShare">
         <activity android:name="com.sergio.flatshare.features.groups.OwnerRoomsActivity" />
-        <activity android:name="com.sergio.flatshare.features.auth.VerifyEmailActivity" />
-        <activity android:name="com.sergio.flatshare.features.auth.RegisterActivity" />
-        <activity android:name="com.sergio.flatshare.features.auth.LoginActivity" />
+        <activity
+            android:name="com.sergio.flatshare.features.auth.VerifyEmailActivity"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name="com.sergio.flatshare.features.auth.RegisterActivity"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name="com.sergio.flatshare.features.auth.LoginActivity"
+            android:windowSoftInputMode="adjustResize" />
         <activity android:name="com.sergio.flatshare.features.shell.MainActivity" />
         <receiver android:name="com.sergio.flatshare.features.reminders.ReminderReceiver" />
         <activity

@@ -6,7 +6,9 @@
   "main": "seed.js",
   "scripts": {
     "seed": "node seed.js",
-    "seed:sergio-demo": "node seed.js --service-account ./service-account.json --preset sergio-demo"
+    "seed:sergio-demo": "node seed.js --service-account ./service-account.json --preset sergio-demo",
+    "seed:sergio-owner-plus": "node seed.js --service-account ./service-account.json --preset sergio-owner-plus",
+    "seed:sergio-tenant-plus": "node seed.js --service-account ./service-account.json --preset sergio-tenant-plus"
   },
   "dependencies": {
     "firebase-admin": "^12.7.0"

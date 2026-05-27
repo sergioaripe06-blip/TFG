@@ -3,6 +3,7 @@ package com.sergio.flatshare.features.auth;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.content.Intent;
+import android.graphics.Paint;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -15,9 +16,9 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseAuthUserCollisionException;
 import com.google.firebase.auth.UserProfileChangeRequest;
-import com.google.firebase.firestore.FirebaseFirestore;
 import com.sergio.flatshare.R;
 import com.sergio.flatshare.core.session.SessionStore;
 
@@ -34,7 +35,6 @@ public class RegisterActivity extends AppCompatActivity {
         setContentView(R.layout.activity_register);
 
         EditText fullNameEt = findViewById(R.id.fullNameEt);
-        EditText usernameEt = findViewById(R.id.usernameEt);
         EditText emailEt = findViewById(R.id.emailEt);
         EditText phoneEt = findViewById(R.id.phoneEt);
         EditText birthDateEt = findViewById(R.id.birthDateEt);
@@ -43,18 +43,27 @@ public class RegisterActivity extends AppCompatActivity {
         Button registerBtn = findViewById(R.id.registerBtn);
         TextView loginTv = findViewById(R.id.loginTv);
         TextView viewTermsTv = findViewById(R.id.viewTermsTv);
+        registerBtn.setPaintFlags(registerBtn.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
+        loginTv.setPaintFlags(loginTv.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
         setupBirthDateField(birthDateEt);
         viewTermsTv.setOnClickListener(v -> showTermsDialog());
 
         registerBtn.setOnClickListener(v -> {
             String fullName = fullNameEt.getText().toString().trim();
-            String username = usernameEt.getText().toString().trim().toLowerCase(Locale.ROOT);
             String email = emailEt.getText().toString().trim().toLowerCase(Locale.ROOT);
             String phone = phoneEt.getText().toString().trim();
             String birthDate = birthDateEt.getText().toString().trim();
             String password = passwordEt.getText().toString().trim();
 
-            if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(username) || TextUtils.isEmpty(email)
+            if (TextUtils.isEmpty(email)) {
+                Toast.makeText(this, "Falta el correo electrónico", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (TextUtils.isEmpty(password)) {
+                Toast.makeText(this, "Falta la contraseña", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(email)
                     || TextUtils.isEmpty(phone) || TextUtils.isEmpty(birthDate)
                     || TextUtils.isEmpty(password)) {
                 Toast.makeText(this, "Completa todos los campos del registro", Toast.LENGTH_SHORT).show();
@@ -71,53 +80,42 @@ public class RegisterActivity extends AppCompatActivity {
                 return;
             }
 
-            FirebaseFirestore.getInstance().collection("usernames")
-                    .document(username)
-                    .get()
-                    .addOnSuccessListener(result -> {
-                        if (result.exists()) {
-                            Toast.makeText(this, "Ese usuario ya existe", Toast.LENGTH_SHORT).show();
+            FirebaseAuth.getInstance().createUserWithEmailAndPassword(email, password)
+                    .addOnSuccessListener(authResult -> {
+                        if (authResult.getUser() == null) {
+                            Toast.makeText(this, "No se pudo crear la cuenta. Inténtalo de nuevo.", Toast.LENGTH_LONG).show();
                             return;
                         }
-
-                        FirebaseAuth.getInstance().createUserWithEmailAndPassword(email, password)
-                                .addOnSuccessListener(authResult -> {
-                                    if (authResult.getUser() == null) {
-                                        Toast.makeText(this, "No se pudo crear la cuenta. Inténtalo de nuevo.", Toast.LENGTH_LONG).show();
-                                        return;
-                                    }
-                                    UserProfileChangeRequest profile = new UserProfileChangeRequest.Builder()
-                                            .setDisplayName(fullName)
-                                            .build();
-                                    authResult.getUser().updateProfile(profile);
-                                    SessionStore.savePendingRegistrationProfile(
-                                            this,
-                                            email,
-                                            fullName,
-                                            username,
-                                            phone,
-                                            birthDate,
-                                            true
-                                    );
-                                    authResult.getUser().sendEmailVerification()
-                                            .addOnSuccessListener(unused -> {
-                                                Toast.makeText(this, "Te hemos enviado un correo de verificación", Toast.LENGTH_LONG).show();
-                                                openVerifyEmailScreen(email, fullName, username, phone, birthDate, true);
-                                            })
-                                            .addOnFailureListener(e -> {
-                                                Toast.makeText(this, "Cuenta creada, pero no pudimos enviar el correo de verificación. Puedes reenviarlo desde la siguiente pantalla.", Toast.LENGTH_LONG).show();
-                                                openVerifyEmailScreen(email, fullName, username, phone, birthDate, true);
-                                            });
+                        UserProfileChangeRequest profile = new UserProfileChangeRequest.Builder()
+                                .setDisplayName(fullName)
+                                .build();
+                        authResult.getUser().updateProfile(profile);
+                        SessionStore.savePendingRegistrationProfile(
+                                this,
+                                email,
+                                fullName,
+                                phone,
+                                birthDate,
+                                true
+                        );
+                        AuthEmailLocale.apply(this);
+                        authResult.getUser().sendEmailVerification()
+                                .addOnSuccessListener(unused -> {
+                                    Toast.makeText(this, "Te hemos enviado un correo de verificación", Toast.LENGTH_LONG).show();
+                                    openVerifyEmailScreen(email, fullName, phone, birthDate, true);
                                 })
                                 .addOnFailureListener(e -> {
-                                    if (e instanceof FirebaseAuthUserCollisionException) {
-                                        Toast.makeText(this, "Ese correo ya tiene una cuenta registrada", Toast.LENGTH_LONG).show();
-                                        return;
-                                    }
-                                    Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
+                                    Toast.makeText(this, "Cuenta creada, pero no pudimos enviar el correo de verificación. Puedes reenviarlo desde la siguiente pantalla.", Toast.LENGTH_LONG).show();
+                                    openVerifyEmailScreen(email, fullName, phone, birthDate, true);
                                 });
                     })
-                    .addOnFailureListener(e -> Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show());
+                    .addOnFailureListener(e -> {
+                        if (e instanceof FirebaseAuthUserCollisionException) {
+                            Toast.makeText(this, "Ese correo ya tiene una cuenta registrada", Toast.LENGTH_LONG).show();
+                            return;
+                        }
+                        Toast.makeText(this, mapAuthErrorToSpanish(e), Toast.LENGTH_LONG).show();
+                    });
         });
 
         loginTv.setOnClickListener(v -> finish());
@@ -160,6 +158,8 @@ public class RegisterActivity extends AppCompatActivity {
     }
 
     private void setupBirthDateField(EditText birthDateEt) {
+        String todayIso = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(new Date());
+        birthDateEt.setText(todayIso);
         birthDateEt.setKeyListener(null);
         birthDateEt.setFocusable(false);
         birthDateEt.setFocusableInTouchMode(false);
@@ -201,15 +201,26 @@ public class RegisterActivity extends AppCompatActivity {
         dialog.show();
     }
 
-    private void openVerifyEmailScreen(String email, String fullName, String username, String phone, String birthDate, boolean termsAccepted) {
+    private void openVerifyEmailScreen(String email, String fullName, String phone, String birthDate, boolean termsAccepted) {
         Intent intent = new Intent(this, VerifyEmailActivity.class);
         intent.putExtra(VerifyEmailActivity.EXTRA_EMAIL, email);
         intent.putExtra(VerifyEmailActivity.EXTRA_FULL_NAME, fullName);
-        intent.putExtra(VerifyEmailActivity.EXTRA_USERNAME, username);
         intent.putExtra(VerifyEmailActivity.EXTRA_PHONE, phone);
         intent.putExtra(VerifyEmailActivity.EXTRA_BIRTH_DATE, birthDate);
         intent.putExtra(VerifyEmailActivity.EXTRA_TERMS_ACCEPTED, termsAccepted);
         startActivity(intent);
         finish();
+    }
+
+    private String mapAuthErrorToSpanish(Exception e) {
+        if (e instanceof FirebaseAuthException authException) {
+            String code = authException.getErrorCode();
+            if ("ERROR_INVALID_EMAIL".equals(code)) return "El correo electrónico no es válido.";
+            if ("ERROR_WEAK_PASSWORD".equals(code)) return "La contraseña es demasiado débil. Usa al menos 6 caracteres.";
+            if ("ERROR_EMAIL_ALREADY_IN_USE".equals(code)) return "Ese correo ya tiene una cuenta registrada.";
+            if ("ERROR_NETWORK_REQUEST_FAILED".equals(code)) return "Error de conexión. Revisa internet e inténtalo otra vez.";
+            if ("ERROR_TOO_MANY_REQUESTS".equals(code)) return "Demasiados intentos. Espera un momento y vuelve a intentarlo.";
+        }
+        return "No se pudo completar el registro. Revisa los datos e inténtalo de nuevo.";
     }
 }
