@@ -154,6 +154,7 @@ Anadir:
 - Por email (coleccion `invitations`).
 - El destinatario debe iniciar sesion con ese mismo email para ver/aceptar la invitacion.
 - Al entrar en la app, si hay invitaciones pendientes, se muestra un dialogo con datos del piso (propietario, miembros, ubicacion, codigo e invitador) y accion `Unirme` o `Rechazar`.
+- En acciones de personas (por ejemplo `Expulsar inquilino`), la app muestra `Nombre` y debajo `correo` para identificar bien a cada miembro.
 
 ## 6.3 Habitaciones del propietario (`OwnerRoomsActivity`)
 Controles clave:
@@ -281,6 +282,7 @@ Modulos:
 
 Operaciones:
 - Altas, ediciones, estados, historicos y trazabilidad por modulo.
+- En formularios de `Cobros`, `Incidencias` y `Automatizacion`, los selectores de persona muestran `Nombre` en primera linea y `correo` en segunda linea.
 
 ## 6.5 Balance personal (`PersonalBalanceFragment`)
 - Selector de piso (o todos).
@@ -579,3 +581,32 @@ En cada tarea nueva:
 - Archivos de código y recursos guardados en UTF-8 sin BOM para evitar errores de compilación en Java.
 - Se corrigen textos con codificación dañada en pantallas de gastos, pagos y pisos.
 
+
+### Avisos persistentes (Ajustes)
+- En el flujo de borrado de cuenta (`Ajustes`), los avisos ahora se muestran como ventana emergente con boton `Aceptar`.
+- Se evita asi que mensajes importantes desaparezcan en 2 segundos mientras el usuario escribe.
+
+### Login (ajuste visual)
+- Se mejora la presentación de `Iniciar sesión` para evitar apariencia descompensada:
+- Fondo adaptado al tema de la app.
+- Tarjeta de acceso centrada y con mejor espaciado.
+- Botón principal de inicio de sesión más claro y visible.
+- Textos revisados en español con acentos correctos.
+
+### Nuevo gasto: reparto por personas
+- En `Reparto personalizado` y `Reparto equitativo`, el formulario empieza con 1 persona.
+- Puedes añadir o quitar personas manualmente con `+` y `-` en ambos modos.
+- En modo equitativo, la pantalla muestra cálculo en vivo por persona para validar que el reparto cuadra con el total.
+
+### Correccion tecnica de compilacion (2026-05-28)
+- Se corrige una incidencia interna de codificacion que impedia compilar la app en Android Studio.
+- No cambia el flujo funcional para usuario final; mejora la estabilidad del build.
+
+### Registro y textos (2026-05-28)
+- Crear cuenta ahora mantiene el mismo estilo visual de Iniciar sesión (fondo y tipografia coherentes).
+- Se corrigen textos de autenticacion con tildes y ñ en UTF-8.
+- Mejora de uso con teclado en registro para que los campos no queden ocultos al escribir.
+
+### Corrección de textos (2026-05-28)
+- Arreglados textos visibles con tildes/ñ en el flujo de gastos y pagos.
+- Eliminadas cadenas corruptas para que la interfaz muestre español correcto en todas las pantallas afectadas.

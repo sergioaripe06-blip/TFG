@@ -8,15 +8,25 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
+import android.widget.Toast;
 import android.widget.ArrayAdapter;
+import android.widget.Toast;
 import android.widget.BaseAdapter;
+import android.widget.Toast;
 import android.widget.Button;
+import android.widget.Toast;
 import android.widget.CalendarView;
+import android.widget.Toast;
 import android.widget.EditText;
+import android.widget.Toast;
 import android.widget.LinearLayout;
+import android.widget.Toast;
 import android.widget.ListView;
+import android.widget.Toast;
 import android.widget.ScrollView;
+import android.widget.Toast;
 import android.widget.Spinner;
+import android.widget.Toast;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -34,6 +44,7 @@ import com.google.firebase.firestore.QuerySnapshot;
 import com.sergio.flatshare.R;
 import com.sergio.flatshare.core.notifications.ReminderScheduler;
 import com.sergio.flatshare.shared.ui.DialogUtils;
+import com.sergio.flatshare.shared.ui.NoticeUtils;
 
 import java.text.DecimalFormat;
 import java.text.ParseException;
@@ -295,7 +306,7 @@ public class CalendarFragment extends Fragment {
                 .get()
                 .addOnSuccessListener(doc -> {
                     if (!doc.exists()) {
-                        Toast.makeText(requireContext(), "El recordatorio ya no existe", Toast.LENGTH_SHORT).show();
+                        NoticeUtils.show(requireContext(), "El recordatorio ya no existe");
                         return;
                     }
                     showReminderActionsDialog(row, doc);
@@ -407,7 +418,7 @@ public class CalendarFragment extends Fragment {
 
     private void showReminderEditDialog(@NonNull DocumentSnapshot reminderDoc) {
         if (!canEditReminder(reminderDoc)) {
-            Toast.makeText(requireContext(), "Solo quien lo creó puede editarlo", Toast.LENGTH_SHORT).show();
+            NoticeUtils.show(requireContext(), "Solo quien lo creó puede editarlo");
             return;
         }
 
@@ -487,17 +498,17 @@ public class CalendarFragment extends Fragment {
         shell.confirmBtn.setOnClickListener(v -> {
             String title = titleEt.getText() == null ? "" : titleEt.getText().toString().trim();
             if (title.isEmpty()) {
-                Toast.makeText(requireContext(), "El título es obligatorio", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "El título es obligatorio");
                 return;
             }
             String startTextValue = startDateEt.getText() == null ? "" : startDateEt.getText().toString().trim();
             Date startAt = parseReminderDateOrNull(startTextValue);
             if (startAt == null) {
-                Toast.makeText(requireContext(), "Fecha de inicio no válida", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "Fecha de inicio no válida");
                 return;
             }
             if (startAt.getTime() < startOfDay(System.currentTimeMillis())) {
-                Toast.makeText(requireContext(), "La fecha de inicio no puede ser pasada", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "La fecha de inicio no puede ser pasada");
                 return;
             }
 
@@ -506,11 +517,11 @@ public class CalendarFragment extends Fragment {
             if (!endTextValue.isEmpty()) {
                 endAt = parseReminderDateOrNull(endTextValue);
                 if (endAt == null) {
-                    Toast.makeText(requireContext(), "Fecha de fin no válida", Toast.LENGTH_SHORT).show();
+                    NoticeUtils.show(requireContext(), "Fecha de fin no válida");
                     return;
                 }
                 if (endAt.before(startAt)) {
-                    Toast.makeText(requireContext(), "La fecha fin debe ser posterior a inicio", Toast.LENGTH_SHORT).show();
+                    NoticeUtils.show(requireContext(), "La fecha fin debe ser posterior a inicio");
                     return;
                 }
             }
@@ -525,7 +536,7 @@ public class CalendarFragment extends Fragment {
                     intervalDays = 0;
                 }
                 if (intervalDays <= 0) {
-                    Toast.makeText(requireContext(), "Indica cada cuántos días", Toast.LENGTH_SHORT).show();
+                    NoticeUtils.show(requireContext(), "Indica cada cuántos días");
                     return;
                 }
             }
@@ -546,7 +557,7 @@ public class CalendarFragment extends Fragment {
                     .update(updates)
                     .addOnSuccessListener(done -> {
                         rescheduleReminderForCurrentUser(reminderDoc, title, startAt.getTime(), newIntervalKey, finalIntervalDays);
-                        Toast.makeText(requireContext(), "Recordatorio actualizado", Toast.LENGTH_SHORT).show();
+                        NoticeUtils.show(requireContext(), "Recordatorio actualizado");
                         dialog.dismiss();
                         loadDeadlines();
                     })
@@ -919,5 +930,6 @@ public class CalendarFragment extends Fragment {
         }
     }
 }
+
 
 

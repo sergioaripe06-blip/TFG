@@ -14,15 +14,25 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.AdapterView;
+import android.widget.Toast;
 import android.widget.AutoCompleteTextView;
+import android.widget.Toast;
 import android.widget.ArrayAdapter;
+import android.widget.Toast;
 import android.widget.BaseAdapter;
+import android.widget.Toast;
 import android.widget.Button;
+import android.widget.Toast;
 import android.widget.EditText;
+import android.widget.Toast;
 import android.widget.ImageView;
+import android.widget.Toast;
 import android.widget.LinearLayout;
+import android.widget.Toast;
 import android.widget.ListView;
+import android.widget.Toast;
 import android.widget.Spinner;
+import android.widget.Toast;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -55,6 +65,7 @@ import com.sergio.flatshare.core.sound.AppSoundFx;
 import com.sergio.flatshare.features.shell.MainActivity;
 import com.sergio.flatshare.core.session.SessionStore;
 import com.sergio.flatshare.shared.ui.DialogUtils;
+import com.sergio.flatshare.shared.ui.NoticeUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -104,7 +115,7 @@ public class GroupsFragment extends Fragment {
                 String raw = result.getContents().trim();
                 String code = extractGroupCode(raw);
                 if (code.isEmpty()) {
-                    Toast.makeText(requireContext(), "QR no válido para unirse al piso", Toast.LENGTH_SHORT).show();
+                    NoticeUtils.show(requireContext(), "QR no válido para unirse al piso");
                     return;
                 }
                 joinGroupByCode(code);
@@ -253,11 +264,11 @@ public class GroupsFragment extends Fragment {
                 String city = getInputValue(cityInput);
 
                 if (name.isEmpty() || street.isEmpty() || portal.isEmpty() || number.isEmpty() || postalCode.isEmpty() || city.isEmpty()) {
-                    Toast.makeText(requireContext(), "Completa todos los datos del piso", Toast.LENGTH_SHORT).show();
+                    NoticeUtils.show(requireContext(), "Completa todos los datos del piso");
                     return;
                 }
                 if (province.isEmpty()) {
-                    Toast.makeText(requireContext(), "Indica una provincia", Toast.LENGTH_SHORT).show();
+                    NoticeUtils.show(requireContext(), "Indica una provincia");
                     return;
                 }
                 showStepTwo.run();
@@ -276,15 +287,15 @@ public class GroupsFragment extends Fragment {
             int splitModeSelection = variableSplitSpinner.getSelectedItemPosition();
 
             if (roomCountText.isEmpty()) {
-                Toast.makeText(requireContext(), "Indica el número de habitaciones", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "Indica el número de habitaciones");
                 return;
             }
             if (rentModeSelection <= 0) {
-                Toast.makeText(requireContext(), "Selecciona el tipo de alquiler", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "Selecciona el tipo de alquiler");
                 return;
             }
             if (rentModeSelection == 2 && splitModeSelection <= 0) {
-                Toast.makeText(requireContext(), "Selecciona el reparto del alquiler variable", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "Selecciona el reparto del alquiler variable");
                 return;
             }
 
@@ -292,11 +303,11 @@ public class GroupsFragment extends Fragment {
             try {
                 roomCount = Integer.parseInt(roomCountText);
             } catch (NumberFormatException e) {
-                Toast.makeText(requireContext(), "El número de habitaciones no es válido", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "El número de habitaciones no es válido");
                 return;
             }
             if (roomCount <= 0) {
-                Toast.makeText(requireContext(), "Debe haber al menos una habitación", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "Debe haber al menos una habitación");
                 return;
             }
 
@@ -338,7 +349,7 @@ public class GroupsFragment extends Fragment {
                 loadGroups();
                 dialog.dismiss();
                 AppSoundFx.playByName(requireContext(), AppSoundFx.FX_GROUP_CREATED);
-                Toast.makeText(requireContext(), "Piso creado. Define las habitaciones.", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "Piso creado. Define las habitaciones.");
                 startInitialRoomsSetup(selectedGroupId, roomCount);
                     },
                     error -> Toast.makeText(requireContext(), "Error creando piso: " + error, Toast.LENGTH_LONG).show()
@@ -393,7 +404,7 @@ public class GroupsFragment extends Fragment {
                 confirmDialog.dismiss();
                 dialog.dismiss();
                 deleteGroupCascade(groupId);
-                Toast.makeText(requireContext(), "Se canceló la creación y se eliminó el piso", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "Se canceló la creación y se eliminó el piso");
             });
         });
         shell.confirmBtn.setOnClickListener(v -> {
@@ -401,7 +412,7 @@ public class GroupsFragment extends Fragment {
             String capacityText = roomCapacityEt.getText().toString().trim();
             String costText = roomCostEt.getText().toString().trim();
             if (name.isEmpty() || capacityText.isEmpty() || costText.isEmpty()) {
-                Toast.makeText(requireContext(), "Completa todos los campos de la habitación", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "Completa todos los campos de la habitación");
                 return;
             }
             int capacity;
@@ -410,15 +421,15 @@ public class GroupsFragment extends Fragment {
                 capacity = Integer.parseInt(capacityText);
                 monthlyCost = Double.parseDouble(costText);
             } catch (NumberFormatException e) {
-                Toast.makeText(requireContext(), "Capacidad o coste no válidos", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "Capacidad o coste no válidos");
                 return;
             }
             if (capacity <= 0) {
-                Toast.makeText(requireContext(), "La capacidad debe ser mayor que 0", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "La capacidad debe ser mayor que 0");
                 return;
             }
             if (monthlyCost < 0) {
-                Toast.makeText(requireContext(), "El coste no puede ser negativo", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "El coste no puede ser negativo");
                 return;
             }
             drafts.add(new RoomDraft(currentNumber, name, capacity, monthlyCost));
@@ -447,15 +458,11 @@ public class GroupsFragment extends Fragment {
                 uid,
                 inputs,
                 () -> {
-                    Toast.makeText(requireContext(), "Habitaciones guardadas", Toast.LENGTH_SHORT).show();
+                    NoticeUtils.show(requireContext(), "Habitaciones guardadas");
                     openCurrentGroupWorkspace();
                 },
                 error -> {
-                    Toast.makeText(
-                            requireContext(),
-                            "No se pudieron guardar todas las habitaciones: " + error,
-                            Toast.LENGTH_LONG
-                    ).show();
+                    NoticeUtils.show(requireContext(), "No se pudieron guardar todas las habitaciones: " + error);
                     openCurrentGroupWorkspace();
                 }
         );
@@ -572,7 +579,7 @@ public class GroupsFragment extends Fragment {
 
     private void showInviteOptionsDialog(String groupId) {
         if (groupId == null) {
-            Toast.makeText(requireContext(), "Selecciona un grupo primero", Toast.LENGTH_SHORT).show();
+            NoticeUtils.show(requireContext(), "Selecciona un grupo primero");
             return;
         }
         View content = DialogUtils.createVerticalActions(requireContext());
@@ -617,7 +624,7 @@ public class GroupsFragment extends Fragment {
                 value -> {
                     String invitedEmail = value.trim().toLowerCase(Locale.ROOT);
                     if (invitedEmail.isEmpty() || !invitedEmail.contains("@")) {
-                        Toast.makeText(requireContext(), "Email invalido", Toast.LENGTH_SHORT).show();
+                        NoticeUtils.show(requireContext(), "Email invalido");
                         return false;
                     }
 
@@ -848,7 +855,7 @@ public class GroupsFragment extends Fragment {
             });
         }).addOnFailureListener(e -> {
             if (!isAdded()) return;
-            Toast.makeText(requireContext(), "No se pudo leer la invitacion", Toast.LENGTH_SHORT).show();
+            NoticeUtils.show(requireContext(), "No se pudo leer la invitacion");
             showInvitationDecision(pendingInvitations, index + 1);
         });
     }
@@ -919,7 +926,7 @@ public class GroupsFragment extends Fragment {
                 },
                 error -> {
                     if (!isAdded()) return;
-                    Toast.makeText(requireContext(), "No se pudo aceptar la invitacion", Toast.LENGTH_SHORT).show();
+                    NoticeUtils.show(requireContext(), "No se pudo aceptar la invitacion");
                 }
         );
     }
@@ -965,7 +972,7 @@ public class GroupsFragment extends Fragment {
             totalMembersTv.setText(String.valueOf(membersTotal));
         }, error -> {
             if (!isAdded()) return;
-            Toast.makeText(requireContext(), "Error cargando pisos: " + error, Toast.LENGTH_LONG).show();
+            NoticeUtils.show(requireContext(), "Error cargando pisos: " + error);
             if (emptyGroupsTv != null) emptyGroupsTv.setVisibility(View.VISIBLE);
         });
     }
@@ -1083,7 +1090,7 @@ public class GroupsFragment extends Fragment {
         String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
         String email = FirebaseAuth.getInstance().getCurrentUser().getEmail();
         if (email == null || email.trim().isEmpty()) {
-            Toast.makeText(requireContext(), "No se pudo obtener tu correo.", Toast.LENGTH_SHORT).show();
+            NoticeUtils.show(requireContext(), "No se pudo obtener tu correo.");
             return;
         }
         final String emailLc = email.trim().toLowerCase(Locale.ROOT);
@@ -1091,12 +1098,12 @@ public class GroupsFragment extends Fragment {
         db.collection("groups").document(groupId).get().addOnSuccessListener(groupDoc -> {
             if (!isAdded()) return;
             if (!groupDoc.exists()) {
-                Toast.makeText(requireContext(), "El piso ya no existe.", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "El piso ya no existe.");
                 return;
             }
             String ownerId = stringValue(groupDoc.getString("ownerId"));
             if (uid.equals(ownerId)) {
-                Toast.makeText(requireContext(), "El propietario no puede salir desde aqui.", Toast.LENGTH_LONG).show();
+                NoticeUtils.show(requireContext(), "El propietario no puede salir desde aqui.");
                 return;
             }
 
@@ -1127,17 +1134,17 @@ public class GroupsFragment extends Fragment {
                             selectedGroupId = null;
                             selectedGroupIsOwner = false;
                             detailsCard.setVisibility(View.GONE);
-                            Toast.makeText(requireContext(), "Has salido del piso.", Toast.LENGTH_SHORT).show();
+                            NoticeUtils.show(requireContext(), "Has salido del piso.");
                             loadGroups();
                         });
                     })
                     .addOnFailureListener(e -> {
                         if (!isAdded()) return;
-                        Toast.makeText(requireContext(), "No se pudo salir del piso: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                        NoticeUtils.show(requireContext(), "No se pudo salir del piso: " + e.getMessage());
                     });
         }).addOnFailureListener(e -> {
             if (!isAdded()) return;
-            Toast.makeText(requireContext(), "No se pudo cargar el piso: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            NoticeUtils.show(requireContext(), "No se pudo cargar el piso: " + e.getMessage());
         });
     }
 
@@ -1147,43 +1154,62 @@ public class GroupsFragment extends Fragment {
         db.collection("groups").document(group.id).get().addOnSuccessListener(groupDoc -> {
             if (!isAdded()) return;
             if (!groupDoc.exists()) {
-                Toast.makeText(requireContext(), "El piso ya no existe.", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "El piso ya no existe.");
                 return;
             }
 
             String ownerId = stringValue(groupDoc.getString("ownerId"));
             List<String> members = castStrings(groupDoc.get("members"));
             List<String> memberEmails = castStrings(groupDoc.get("memberEmails"));
-            int size = Math.min(members.size(), memberEmails.size());
+            resolveMemberDisplayNames(members, memberEmails, labels -> {
+                if (!isAdded()) return;
+                int size = Math.min(members.size(), memberEmails.size());
+                List<KickCandidate> candidates = new ArrayList<>();
+                for (int i = 0; i < size; i++) {
+                    String memberUid = stringValue(members.get(i));
+                    String memberEmail = stringValue(memberEmails.get(i)).toLowerCase(Locale.ROOT);
+                    if (memberUid.isEmpty() || memberUid.equals(ownerId)) continue;
+                    String memberName = i < labels.size() ? stringValue(labels.get(i)) : "";
+                    if (memberName.isEmpty() || memberName.equalsIgnoreCase(memberEmail)) {
+                        memberName = fallbackMemberName(memberEmail);
+                    }
+                    if (memberName.isEmpty()) memberName = "Sin datos";
+                    candidates.add(new KickCandidate(memberUid, memberEmail, memberName));
+                }
 
-            List<String> kickUids = new ArrayList<>();
-            List<String> kickLabels = new ArrayList<>();
-            for (int i = 0; i < size; i++) {
-                String memberUid = stringValue(members.get(i));
-                String memberEmail = stringValue(memberEmails.get(i)).toLowerCase(Locale.ROOT);
-                if (memberUid.isEmpty() || memberUid.equals(ownerId)) continue;
-                kickUids.add(memberUid);
-                kickLabels.add(memberEmail.isEmpty() ? memberUid : memberEmail);
-            }
+                if (candidates.isEmpty()) {
+                    NoticeUtils.show(requireContext(), "No hay inquilinos para expulsar.");
+                    return;
+                }
 
-            if (kickUids.isEmpty()) {
-                Toast.makeText(requireContext(), "No hay inquilinos para expulsar.", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            View content = DialogUtils.createVerticalActions(requireContext());
-            final AlertDialog[] pickerDialogRef = new AlertDialog[1];
-            for (int i = 0; i < kickLabels.size(); i++) {
-                final int idx = i;
-                Button actionBtn = DialogUtils.createActionButton(requireContext(), kickLabels.get(i), i == 0);
-                actionBtn.setOnClickListener(v -> {
-                    if (pickerDialogRef[0] != null) pickerDialogRef[0].dismiss();
-                    String targetUid = kickUids.get(idx);
-                    String targetLabel = kickLabels.get(idx);
-                    requestKickMember(group.id, targetUid, targetLabel);
-                });
-                ((LinearLayout) content).addView(actionBtn);
-            }
+                View content = DialogUtils.createVerticalActions(requireContext());
+                final AlertDialog[] pickerDialogRef = new AlertDialog[1];
+                for (int i = 0; i < candidates.size(); i++) {
+                    final int idx = i;
+                    KickCandidate candidate = candidates.get(i);
+                    Button actionBtn = DialogUtils.createActionButton(
+                            requireContext(),
+                            formatMemberTwoLines(candidate.displayName, candidate.email),
+                            i == 0
+                    );
+                    actionBtn.setSingleLine(false);
+                    actionBtn.setMaxLines(3);
+                    actionBtn.setMinHeight(dp(56));
+                    actionBtn.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
+                    actionBtn.setGravity(android.view.Gravity.START | android.view.Gravity.CENTER_VERTICAL);
+                    ViewGroup.LayoutParams params = actionBtn.getLayoutParams();
+                    if (params != null) {
+                        params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+                        actionBtn.setLayoutParams(params);
+                    }
+                    actionBtn.setPadding(dp(14), dp(10), dp(14), dp(10));
+                    actionBtn.setOnClickListener(v -> {
+                        if (pickerDialogRef[0] != null) pickerDialogRef[0].dismiss();
+                        KickCandidate target = candidates.get(idx);
+                        requestKickMember(group.id, target.uid, target.displayName, target.email);
+                    });
+                    ((LinearLayout) content).addView(actionBtn);
+                }
 
             DialogUtils.Shell shell = DialogUtils.buildShell(
                     requireContext(),
@@ -1196,15 +1222,20 @@ public class GroupsFragment extends Fragment {
             AlertDialog pickerDialog = DialogUtils.show(requireContext(), shell.root);
             pickerDialogRef[0] = pickerDialog;
             shell.cancelBtn.setOnClickListener(v -> pickerDialog.dismiss());
+            });
         }).addOnFailureListener(e -> {
             if (!isAdded()) return;
-            Toast.makeText(requireContext(), "No se pudo cargar el piso: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            NoticeUtils.show(requireContext(), "No se pudo cargar el piso: " + e.getMessage());
         });
     }
 
     @SuppressWarnings("unchecked")
-    private void requestKickMember(String groupId, String memberUid, String memberLabel) {
-        String message = "Se expulsara a " + memberLabel + " del piso.";
+    private void requestKickMember(String groupId, String memberUid, String memberName, String memberEmail) {
+        String message = "Se expulsara a:\n"
+                + memberName
+                + "\n"
+                + (memberEmail == null || memberEmail.trim().isEmpty() ? "sin correo" : memberEmail.trim().toLowerCase(Locale.ROOT))
+                + "\n\ndel piso.";
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 "Confirmar expulsion",
@@ -1220,7 +1251,7 @@ public class GroupsFragment extends Fragment {
             db.collection("groups").document(groupId).get().addOnSuccessListener(groupDoc -> {
                 if (!isAdded()) return;
                 if (!groupDoc.exists()) {
-                    Toast.makeText(requireContext(), "El piso ya no existe.", Toast.LENGTH_SHORT).show();
+                    NoticeUtils.show(requireContext(), "El piso ya no existe.");
                     return;
                 }
 
@@ -1252,7 +1283,7 @@ public class GroupsFragment extends Fragment {
                         .addOnSuccessListener(v2 -> {
                             removeMemberFromGroupRooms(groupId, emailToRemoveFinal, () -> {
                                 if (!isAdded()) return;
-                                Toast.makeText(requireContext(), "Inquilino expulsado.", Toast.LENGTH_SHORT).show();
+                                NoticeUtils.show(requireContext(), "Inquilino expulsado: " + memberName);
                                 loadGroups();
                                 if (groupId.equals(selectedGroupId)) {
                                     loadGroupDetails(groupId);
@@ -1261,11 +1292,11 @@ public class GroupsFragment extends Fragment {
                         })
                         .addOnFailureListener(e -> {
                             if (!isAdded()) return;
-                            Toast.makeText(requireContext(), "No se pudo expulsar: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                            NoticeUtils.show(requireContext(), "No se pudo expulsar: " + e.getMessage());
                         });
             }).addOnFailureListener(e -> {
                 if (!isAdded()) return;
-                Toast.makeText(requireContext(), "No se pudo cargar el piso: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                NoticeUtils.show(requireContext(), "No se pudo cargar el piso: " + e.getMessage());
             });
         });
     }
@@ -1393,6 +1424,39 @@ public class GroupsFragment extends Fragment {
         return value.toString().trim();
     }
 
+    private String formatMemberTwoLines(@Nullable String displayName, @Nullable String email) {
+        String normalizedEmail = stringValue(email).toLowerCase(Locale.ROOT);
+        String resolvedName = stringValue(displayName);
+        if (resolvedName.isEmpty() || resolvedName.equalsIgnoreCase(normalizedEmail)) {
+            resolvedName = fallbackMemberName(normalizedEmail);
+        }
+        if (resolvedName.isEmpty()) resolvedName = "Sin datos";
+        String secondLine = normalizedEmail.isEmpty() ? "sin correo" : normalizedEmail;
+        return resolvedName + "\n" + secondLine;
+    }
+
+    private String fallbackMemberName(@Nullable String email) {
+        String normalizedEmail = stringValue(email).toLowerCase(Locale.ROOT);
+        if (normalizedEmail.isEmpty()) return "";
+        int at = normalizedEmail.indexOf('@');
+        if (at <= 0) return normalizedEmail;
+        String local = normalizedEmail.substring(0, at)
+                .replace('.', ' ')
+                .replace('_', ' ')
+                .replace('-', ' ')
+                .trim();
+        if (local.isEmpty()) return normalizedEmail;
+        String[] parts = local.split("\\s+");
+        StringBuilder out = new StringBuilder();
+        for (String part : parts) {
+            if (part.isEmpty()) continue;
+            if (out.length() > 0) out.append(" ");
+            out.append(Character.toUpperCase(part.charAt(0)));
+            if (part.length() > 1) out.append(part.substring(1));
+        }
+        return out.length() == 0 ? normalizedEmail : out.toString();
+    }
+
     private void resolveMemberDisplayNames(List<String> memberIds, List<String> memberEmails, MemberLabelsCallback callback) {
         if (memberEmails.isEmpty()) {
             callback.onResolved(new ArrayList<>());
@@ -1451,11 +1515,11 @@ public class GroupsFragment extends Fragment {
 
     private void editSelectedGroup() {
         if (selectedGroupId == null) {
-            Toast.makeText(requireContext(), "Selecciona un grupo primero", Toast.LENGTH_SHORT).show();
+            NoticeUtils.show(requireContext(), "Selecciona un grupo primero");
             return;
         }
         if (!selectedGroupIsOwner) {
-            Toast.makeText(requireContext(), "Solo el propietario puede editar este piso", Toast.LENGTH_SHORT).show();
+            NoticeUtils.show(requireContext(), "Solo el propietario puede editar este piso");
             return;
         }
         View form = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_edit_group, null, false);
@@ -1501,11 +1565,11 @@ public class GroupsFragment extends Fragment {
             int rentModeSelection = rentModeSpinner.getSelectedItemPosition();
             int splitModeSelection = variableSplitSpinner.getSelectedItemPosition();
             if (rentModeSelection <= 0) {
-                Toast.makeText(requireContext(), "Selecciona el tipo de alquiler", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "Selecciona el tipo de alquiler");
                 return;
             }
             if (rentModeSelection == 2 && splitModeSelection <= 0) {
-                Toast.makeText(requireContext(), "Selecciona el reparto del alquiler variable", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "Selecciona el reparto del alquiler variable");
                 return;
             }
             String rentMode = rentModeSelection == 1 ? RENT_MODE_FIXED : RENT_MODE_VARIABLE;
@@ -1525,11 +1589,11 @@ public class GroupsFragment extends Fragment {
 
     private void requestDeleteSelectedGroup() {
         if (selectedGroupId == null) {
-            Toast.makeText(requireContext(), "Selecciona un piso primero", Toast.LENGTH_SHORT).show();
+            NoticeUtils.show(requireContext(), "Selecciona un piso primero");
             return;
         }
         if (!selectedGroupIsOwner) {
-            Toast.makeText(requireContext(), "Solo el propietario puede eliminar este piso", Toast.LENGTH_SHORT).show();
+            NoticeUtils.show(requireContext(), "Solo el propietario puede eliminar este piso");
             return;
         }
         View content = DialogUtils.createMessageView(requireContext(),
@@ -1590,7 +1654,7 @@ public class GroupsFragment extends Fragment {
                                 for (String roomName : occupiedRoomNames) {
                                     details.append("• ").append(roomName).append("\n");
                                 }
-                                Toast.makeText(requireContext(), details.toString().trim(), Toast.LENGTH_LONG).show();
+                                NoticeUtils.show(requireContext(), details.toString().trim());
                                 return;
                             }
 
@@ -1617,7 +1681,7 @@ public class GroupsFragment extends Fragment {
                                         }
                                         selectedGroupId = null;
                                         detailsCard.setVisibility(View.GONE);
-                                        Toast.makeText(requireContext(), "Piso eliminado", Toast.LENGTH_SHORT).show();
+                                        NoticeUtils.show(requireContext(), "Piso eliminado");
                                         loadGroups();
                                     })
                                     .addOnFailureListener(e -> Toast.makeText(
@@ -1882,6 +1946,18 @@ public class GroupsFragment extends Fragment {
         void onResolved(List<String> labels);
     }
 
+    private static class KickCandidate {
+        final String uid;
+        final String email;
+        final String displayName;
+
+        KickCandidate(String uid, String email, String displayName) {
+            this.uid = uid;
+            this.email = email;
+            this.displayName = displayName;
+        }
+    }
+
     private static class GroupItem {
         final String id;
         final String name;
@@ -1961,3 +2037,4 @@ public class GroupsFragment extends Fragment {
         }
     }
 }
+

@@ -8,8 +8,11 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.Toast;
 import android.widget.EditText;
+import android.widget.Toast;
 import android.widget.ImageButton;
+import android.widget.Toast;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -32,6 +35,7 @@ import com.google.firebase.firestore.SetOptions;
 import com.sergio.flatshare.R;
 import com.sergio.flatshare.features.settings.SettingsFragment;
 import com.sergio.flatshare.shared.ui.DialogUtils;
+import com.sergio.flatshare.shared.ui.NoticeUtils;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -131,7 +135,7 @@ public class ProfileFragment extends Fragment {
                 })
                 .addOnFailureListener(e -> {
                     if (!isAdded()) return;
-                    Toast.makeText(requireContext(), "Error cargando perfil", Toast.LENGTH_SHORT).show();
+                    NoticeUtils.show(requireContext(), "Error cargando perfil");
                 });
     }
 
@@ -199,11 +203,11 @@ public class ProfileFragment extends Fragment {
             String newPhone = phoneEt.getText().toString().trim();
             String newBirthDate = birthDateEt.getText().toString().trim();
             if (newName.isEmpty() || newPhone.isEmpty() || newBirthDate.isEmpty()) {
-                Toast.makeText(requireContext(), "Completa todos los campos del perfil", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "Completa todos los campos del perfil");
                 return;
             }
             if (!newBirthDate.isEmpty() && !isAdult(newBirthDate)) {
-                Toast.makeText(requireContext(), "Debes tener al menos 18 años", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "Debes tener al menos 18 años");
                 return;
             }
 
@@ -341,8 +345,9 @@ public class ProfileFragment extends Fragment {
             }
             return ageYears >= 18;
         } catch (ParseException e) {
-            Toast.makeText(requireContext(), "Formato inválido. Usa YYYY-MM-DD", Toast.LENGTH_SHORT).show();
+            NoticeUtils.show(requireContext(), "Formato inválido. Usa YYYY-MM-DD");
             return false;
         }
     }
 }
+

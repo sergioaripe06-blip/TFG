@@ -10,13 +10,21 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
+import android.widget.Toast;
 import android.widget.ArrayAdapter;
+import android.widget.Toast;
 import android.widget.BaseAdapter;
+import android.widget.Toast;
 import android.widget.Button;
+import android.widget.Toast;
 import android.widget.EditText;
+import android.widget.Toast;
 import android.widget.LinearLayout;
+import android.widget.Toast;
 import android.widget.ListView;
+import android.widget.Toast;
 import android.widget.Spinner;
+import android.widget.Toast;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -33,6 +41,7 @@ import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.sergio.flatshare.R;
 import com.sergio.flatshare.shared.ui.DialogUtils;
+import com.sergio.flatshare.shared.ui.NoticeUtils;
 import com.sergio.flatshare.core.notifications.ReminderScheduler;
 import com.sergio.flatshare.core.session.SessionStore;
 import com.sergio.flatshare.features.workspace.services.CollectionsService;
@@ -73,6 +82,7 @@ public class RentalManagementFragment extends Fragment {
     private final List<ModuleDef> modules = new ArrayList<>();
     private final List<ManagementRow> rows = new ArrayList<>();
     private final List<String> groupMemberEmails = new ArrayList<>();
+    private final Map<String, String> groupMemberNamesByEmail = new HashMap<>();
     private final DecimalFormat moneyFormat = new DecimalFormat("0.00");
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT);
     private final Random random = new Random();
@@ -184,13 +194,54 @@ public class RentalManagementFragment extends Fragment {
 
     private void loadGroupMembersAndThen(Runnable done) {
         groupMemberEmails.clear();
+        groupMemberNamesByEmail.clear();
         db.collection("groups").document(currentGroupId).get().addOnSuccessListener(doc -> {
             List<String> emails = castEmails(doc.get("memberEmails"));
             groupMemberEmails.addAll(emails);
-            if (done != null) done.run();
+            resolveGroupMemberNames(emails, done);
         }).addOnFailureListener(e -> {
             if (done != null) done.run();
         });
+    }
+
+    private void resolveGroupMemberNames(List<String> emails, @Nullable Runnable done) {
+        List<String> normalizedEmails = new ArrayList<>();
+        for (String email : emails) {
+            String normalized = normalizeEmail(email);
+            if (normalized.isEmpty() || normalizedEmails.contains(normalized)) continue;
+            normalizedEmails.add(normalized);
+        }
+        if (normalizedEmails.isEmpty()) {
+            if (done != null) done.run();
+            return;
+        }
+
+        List<Task<?>> tasks = new ArrayList<>();
+        int chunkSize = 10;
+        for (int start = 0; start < normalizedEmails.size(); start += chunkSize) {
+            int end = Math.min(start + chunkSize, normalizedEmails.size());
+            List<String> chunk = new ArrayList<>(normalizedEmails.subList(start, end));
+            Task<?> task = db.collection("users")
+                    .whereIn("email", chunk)
+                    .get()
+                    .addOnSuccessListener(snapshot -> {
+                        for (DocumentSnapshot userDoc : snapshot.getDocuments()) {
+                            String email = normalizeEmail(userDoc.getString("email"));
+                            if (email.isEmpty()) continue;
+                            String displayName = safe(userDoc.getString("name"));
+                            if (displayName.isEmpty()) displayName = safe(userDoc.getString("displayName"));
+                            if (displayName.isEmpty()) displayName = safe(userDoc.getString("username"));
+                            if (displayName.isEmpty()) displayName = fallbackNameFromEmail(email);
+                            groupMemberNamesByEmail.put(email, displayName);
+                        }
+                    });
+            tasks.add(task);
+        }
+
+        Tasks.whenAllComplete(tasks)
+                .addOnCompleteListener(doneTask -> {
+                    if (done != null) done.run();
+                });
     }
 
     private void loadCurrentModuleRows() {
@@ -213,7 +264,7 @@ public class RentalManagementFragment extends Fragment {
 
     private void handlePrimaryAction() {
         if (currentGroupId == null || currentGroupId.trim().isEmpty()) {
-            Toast.makeText(requireContext(), "Selecciona un piso primero", Toast.LENGTH_SHORT).show();
+            NoticeUtils.show(requireContext(), "Selecciona un piso primero");
             return;
         }
         switch (selectedModuleId) {
@@ -302,9 +353,10 @@ public class RentalManagementFragment extends Fragment {
                         double surcharge = safeDouble(doc.getDouble("surcharge"));
                         double amountPaid = safeDouble(doc.getDouble("amountPaid"));
                         double total = amountBase + surcharge;
+                        String tenantLabel = tenant.isEmpty() ? "Sin inquilino" : formatMemberTwoLines(tenant);
                         String subtitle = "Mes " + (monthKey.isEmpty() ? "-" : monthKey)
-                                + " · " + (room.isEmpty() ? "Sin habitación" : room)
-                                + " · " + (tenant.isEmpty() ? "Sin inquilino" : tenant);
+                                + " - " + (room.isEmpty() ? "Sin habitación" : room)
+                                + "\nInquilino:\n" + tenantLabel;
                         String amount = moneyFormat.format(amountPaid) + " / " + moneyFormat.format(total) + " EUR";
                         String detail = "Estado: " + (status.isEmpty() ? "pendiente" : status)
                                 + "\nVence: " + safe(doc.getString("dueDateText"))
@@ -333,7 +385,7 @@ public class RentalManagementFragment extends Fragment {
                         double cost = safeDouble(doc.getDouble("finalCost"));
                         if (cost <= 0) cost = safeDouble(doc.getDouble("estimatedCost"));
                         String subtitle = (room.isEmpty() ? "Sin habitación" : room)
-                                + " · Responsable: " + (responsible.isEmpty() ? "Sin asignar" : responsible);
+                                + "\nResponsable:\n" + (responsible.isEmpty() ? "Sin asignar" : formatMemberTwoLines(responsible));
                         String detail = "Estado: " + (status.isEmpty() ? "abierta" : status)
                                 + " · Coste: " + moneyFormat.format(cost) + " EUR";
                         rows.add(new ManagementRow(MODULE_MAINTENANCE, doc.getId(), title.isEmpty() ? "Incidencia" : title, subtitle, detail, doc, "Incidencia"));
@@ -411,7 +463,7 @@ public class RentalManagementFragment extends Fragment {
                         String start = safe(doc.getString("startDate"));
                         String end = safe(doc.getString("endDate"));
                         String subtitle = (room.isEmpty() ? "Sin habitación" : room)
-                                + " · " + (tenant.isEmpty() ? "Sin inquilino" : tenant);
+                                + "\nInquilino:\n" + (tenant.isEmpty() ? "Sin inquilino" : formatMemberTwoLines(tenant));
                         String detail = "Cobro día " + day + " · " + moneyFormat.format(amount) + " EUR/mes";
                         rows.add(new ManagementRow(MODULE_AUTOMATION, doc.getId(), start + " → " + (end.isEmpty() ? "sin fin" : end), subtitle, detail, doc, "Regla de automatización"));
                     }
@@ -538,13 +590,13 @@ public class RentalManagementFragment extends Fragment {
             String start = startEt.getText().toString().trim();
             String end = endEt.getText().toString().trim();
             if (!isValidDate(start) || !isValidDate(end)) {
-                Toast.makeText(requireContext(), "Revisa formato de fechas (YYYY-MM-DD)", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "Revisa formato de fechas (YYYY-MM-DD)");
                 return;
             }
             double deposit = parseDouble(depositEt.getText().toString().trim(), -1);
             long extensions = parseLong(extensionEt.getText().toString().trim(), -1);
             if (deposit < 0 || extensions < 0) {
-                Toast.makeText(requireContext(), "Fianza o prórrogas inválidas", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "Fianza o prórrogas inválidas");
                 return;
             }
             String ownerSigner = normalizeEmail(ownerSignerEt.getText().toString());
@@ -557,15 +609,15 @@ public class RentalManagementFragment extends Fragment {
                     : "";
 
             if (!isLikelyEmail(ownerSigner) || !isLikelyEmail(tenantSigner)) {
-                Toast.makeText(requireContext(), "Propietario e inquilino deben tener email válido", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "Propietario e inquilino deben tener email válido");
                 return;
             }
             if (!coSigner.isEmpty() && !isLikelyEmail(coSigner)) {
-                Toast.makeText(requireContext(), "El cotitular no tiene email válido", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "El cotitular no tiene email válido");
                 return;
             }
             if (!guarantor.isEmpty() && !isLikelyEmail(guarantor)) {
-                Toast.makeText(requireContext(), "El avalista no tiene email válido", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "El avalista no tiene email válido");
                 return;
             }
 
@@ -615,7 +667,7 @@ public class RentalManagementFragment extends Fragment {
         LinearLayout form = buildVerticalForm();
         EditText monthEt = addLabeledEditText(form, "Mes (YYYY-MM)", "2026-05", InputType.TYPE_CLASS_TEXT);
         EditText roomEt = addLabeledEditText(form, "Habitación", "Habitación 1", InputType.TYPE_CLASS_TEXT);
-        Spinner tenantSpinner = addLabeledSpinner(form, "Inquilino", groupMemberEmails.isEmpty() ? new String[]{"Sin miembros"} : groupMemberEmails.toArray(new String[0]));
+        Spinner tenantSpinner = addLabeledMemberSpinner(form, "Inquilino");
         EditText amountEt = addLabeledEditText(form, "Base mensual (EUR)", "450", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
         EditText paidEt = addLabeledEditText(form, "Pagado hasta ahora (EUR)", "0", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
         EditText surchargeEt = addLabeledEditText(form, "Recargo (EUR)", "0", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
@@ -626,7 +678,7 @@ public class RentalManagementFragment extends Fragment {
         if (existingDoc != null) {
             monthEt.setText(safe(existingDoc.getString("monthKey")));
             roomEt.setText(safe(existingDoc.getString("roomName")));
-            selectSpinnerValue(tenantSpinner, safe(existingDoc.getString("tenantEmail")));
+            selectMemberSpinnerEmail(tenantSpinner, safe(existingDoc.getString("tenantEmail")));
             amountEt.setText(String.valueOf(safeDouble(existingDoc.getDouble("amountBase"))));
             paidEt.setText(String.valueOf(safeDouble(existingDoc.getDouble("amountPaid"))));
             surchargeEt.setText(String.valueOf(safeDouble(existingDoc.getDouble("surcharge"))));
@@ -647,22 +699,26 @@ public class RentalManagementFragment extends Fragment {
         shell.confirmBtn.setOnClickListener(v -> {
             String monthKey = monthEt.getText().toString().trim();
             if (!isValidMonth(monthKey)) {
-                Toast.makeText(requireContext(), "Mes inválido. Usa YYYY-MM", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "Mes inválido. Usa YYYY-MM");
                 return;
             }
             String dueDate = dueDateEt.getText().toString().trim();
             if (!isValidDate(dueDate)) {
-                Toast.makeText(requireContext(), "Fecha de vencimiento inválida", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "Fecha de vencimiento inválida");
                 return;
             }
             double baseAmount = parseDouble(amountEt.getText().toString().trim(), -1);
             double paidAmount = parseDouble(paidEt.getText().toString().trim(), -1);
             double surcharge = parseDouble(surchargeEt.getText().toString().trim(), -1);
             if (baseAmount < 0 || paidAmount < 0 || surcharge < 0) {
-                Toast.makeText(requireContext(), "Importes inválidos", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "Importes inválidos");
                 return;
             }
-            String tenant = selectedSpinnerValue(tenantSpinner);
+            String tenant = selectedMemberEmail(tenantSpinner);
+            if (tenant.isEmpty()) {
+                NoticeUtils.show(requireContext(), "Selecciona un inquilino valido");
+                return;
+            }
             String status = selectedSpinnerValue(statusSpinner);
             String roomName = roomEt.getText().toString().trim();
             String uniqueKey = currentGroupId + "|" + monthKey + "|" + roomName.toLowerCase(Locale.ROOT) + "|" + tenant.toLowerCase(Locale.ROOT);
@@ -714,7 +770,7 @@ public class RentalManagementFragment extends Fragment {
         LinearLayout form = buildVerticalForm();
         EditText titleEt = addLabeledEditText(form, "Incidencia", "Ejemplo: Fuga en baño", InputType.TYPE_CLASS_TEXT);
         EditText roomEt = addLabeledEditText(form, "Habitación/Zona", "Ejemplo: Cocina", InputType.TYPE_CLASS_TEXT);
-        Spinner responsibleSpinner = addLabeledSpinner(form, "Responsable", groupMemberEmails.isEmpty() ? new String[]{"Sin miembros"} : groupMemberEmails.toArray(new String[0]));
+        Spinner responsibleSpinner = addLabeledMemberSpinner(form, "Responsable");
         Spinner statusSpinner = addLabeledSpinner(form, "Estado", new String[]{"abierta", "en_progreso", "resuelta", "cancelada"});
         EditText estimatedEt = addLabeledEditText(form, "Coste estimado (EUR)", "0", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
         EditText finalEt = addLabeledEditText(form, "Coste final (EUR)", "0", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
@@ -723,7 +779,7 @@ public class RentalManagementFragment extends Fragment {
         if (existingDoc != null) {
             titleEt.setText(safe(existingDoc.getString("title")));
             roomEt.setText(safe(existingDoc.getString("roomName")));
-            selectSpinnerValue(responsibleSpinner, safe(existingDoc.getString("responsibleEmail")));
+            selectMemberSpinnerEmail(responsibleSpinner, safe(existingDoc.getString("responsibleEmail")));
             selectSpinnerValue(statusSpinner, safe(existingDoc.getString("status")));
             estimatedEt.setText(String.valueOf(safeDouble(existingDoc.getDouble("estimatedCost"))));
             finalEt.setText(String.valueOf(safeDouble(existingDoc.getDouble("finalCost"))));
@@ -743,15 +799,19 @@ public class RentalManagementFragment extends Fragment {
         shell.confirmBtn.setOnClickListener(v -> {
             String title = titleEt.getText().toString().trim();
             if (title.isEmpty()) {
-                Toast.makeText(requireContext(), "Indica un título para la incidencia", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "Indica un título para la incidencia");
                 return;
             }
             String status = selectedSpinnerValue(statusSpinner);
-            String responsible = selectedSpinnerValue(responsibleSpinner);
+            String responsible = selectedMemberEmail(responsibleSpinner);
+            if (responsible.isEmpty()) {
+                NoticeUtils.show(requireContext(), "Selecciona una persona responsable");
+                return;
+            }
             double estimatedCost = parseDouble(estimatedEt.getText().toString().trim(), -1);
             double finalCost = parseDouble(finalEt.getText().toString().trim(), -1);
             if (estimatedCost < 0 || finalCost < 0) {
-                Toast.makeText(requireContext(), "Los costes no pueden ser negativos", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "Los costes no pueden ser negativos");
                 return;
             }
 
@@ -829,12 +889,12 @@ public class RentalManagementFragment extends Fragment {
         shell.confirmBtn.setOnClickListener(v -> {
             String date = dateEt.getText().toString().trim();
             if (!date.isEmpty() && !isValidDate(date)) {
-                Toast.makeText(requireContext(), "Fecha inválida. Usa YYYY-MM-DD", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "Fecha inválida. Usa YYYY-MM-DD");
                 return;
             }
             String title = titleEt.getText().toString().trim();
             if (title.isEmpty()) {
-                Toast.makeText(requireContext(), "El título es obligatorio", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "El título es obligatorio");
                 return;
             }
             Map<String, Object> data = new HashMap<>();
@@ -891,7 +951,7 @@ public class RentalManagementFragment extends Fragment {
     private void openAutomationDialog(@Nullable DocumentSnapshot existingDoc) {
         LinearLayout form = buildVerticalForm();
         EditText roomEt = addLabeledEditText(form, "Habitación", "Habitación 1", InputType.TYPE_CLASS_TEXT);
-        Spinner tenantSpinner = addLabeledSpinner(form, "Inquilino", groupMemberEmails.isEmpty() ? new String[]{"Sin miembros"} : groupMemberEmails.toArray(new String[0]));
+        Spinner tenantSpinner = addLabeledMemberSpinner(form, "Inquilino");
         EditText rentEt = addLabeledEditText(form, "Renta mensual (EUR)", "450", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
         EditText billingDayEt = addLabeledEditText(form, "Día de cobro (1-28)", "5", InputType.TYPE_CLASS_NUMBER);
         EditText startEt = addLabeledEditText(form, "Inicio ocupación (YYYY-MM-DD)", "2026-05-01", InputType.TYPE_CLASS_TEXT);
@@ -901,7 +961,7 @@ public class RentalManagementFragment extends Fragment {
 
         if (existingDoc != null) {
             roomEt.setText(safe(existingDoc.getString("roomName")));
-            selectSpinnerValue(tenantSpinner, safe(existingDoc.getString("tenantEmail")));
+            selectMemberSpinnerEmail(tenantSpinner, safe(existingDoc.getString("tenantEmail")));
             rentEt.setText(String.valueOf(safeDouble(existingDoc.getDouble("monthlyRent"))));
             billingDayEt.setText(String.valueOf(safeLong(existingDoc.getLong("billingDay"))));
             startEt.setText(safe(existingDoc.getString("startDate")));
@@ -922,23 +982,28 @@ public class RentalManagementFragment extends Fragment {
             String startDate = startEt.getText().toString().trim();
             String endDate = endEt.getText().toString().trim();
             if (!isValidDate(startDate) || (!endDate.isEmpty() && !isValidDate(endDate))) {
-                Toast.makeText(requireContext(), "Revisa fechas de ocupación", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "Revisa fechas de ocupación");
                 return;
             }
             long billingDay = parseLong(billingDayEt.getText().toString().trim(), -1);
             if (billingDay < 1 || billingDay > 28) {
-                Toast.makeText(requireContext(), "El día de cobro debe estar entre 1 y 28", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "El día de cobro debe estar entre 1 y 28");
                 return;
             }
             double rent = parseDouble(rentEt.getText().toString().trim(), -1);
             if (rent <= 0) {
-                Toast.makeText(requireContext(), "La renta mensual debe ser mayor que 0", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "La renta mensual debe ser mayor que 0");
+                return;
+            }
+            String tenantEmail = selectedMemberEmail(tenantSpinner);
+            if (tenantEmail.isEmpty()) {
+                NoticeUtils.show(requireContext(), "Selecciona un inquilino valido");
                 return;
             }
             Map<String, Object> data = new HashMap<>();
             data.put("groupId", currentGroupId);
             data.put("roomName", roomEt.getText().toString().trim());
-            data.put("tenantEmail", selectedSpinnerValue(tenantSpinner));
+            data.put("tenantEmail", tenantEmail);
             data.put("monthlyRent", rent);
             data.put("billingDay", billingDay);
             data.put("startDate", startDate);
@@ -971,7 +1036,7 @@ public class RentalManagementFragment extends Fragment {
                 .addOnSuccessListener(rulesSnapshot -> {
                     List<DocumentSnapshot> rules = rulesSnapshot.getDocuments();
                     if (rules.isEmpty()) {
-                        Toast.makeText(requireContext(), "No hay reglas de automatización", Toast.LENGTH_SHORT).show();
+                        NoticeUtils.show(requireContext(), "No hay reglas de automatización");
                         return;
                     }
                     db.collection("rent_collections")
@@ -988,13 +1053,13 @@ public class RentalManagementFragment extends Fragment {
                                     created += buildChargesFromRule(rule, existingKeys, tasks);
                                 }
                                 if (tasks.isEmpty()) {
-                                    Toast.makeText(requireContext(), "No hay nuevos cobros por generar", Toast.LENGTH_SHORT).show();
+                                    NoticeUtils.show(requireContext(), "No hay nuevos cobros por generar");
                                     return;
                                 }
                                 int createdFinal = created;
                                 Tasks.whenAllComplete(tasks).addOnSuccessListener(done -> {
                                     writeAudit("Automatización", "ejecutar", "Cobros generados: " + createdFinal, "");
-                                    Toast.makeText(requireContext(), "Cobros generados: " + createdFinal, Toast.LENGTH_SHORT).show();
+                                    NoticeUtils.show(requireContext(), "Cobros generados: " + createdFinal);
                                     loadRentRows();
                                 }).addOnFailureListener(e -> Toast.makeText(requireContext(), "Error generando cobros automáticos", Toast.LENGTH_SHORT).show());
                             });
@@ -1107,13 +1172,13 @@ public class RentalManagementFragment extends Fragment {
         shell.confirmBtn.setOnClickListener(v -> {
             long offsetDays = parseLong(offsetEt.getText().toString().trim(), Long.MIN_VALUE);
             if (offsetDays == Long.MIN_VALUE) {
-                Toast.makeText(requireContext(), "Offset inválido", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "Offset inválido");
                 return;
             }
             String title = titleEt.getText().toString().trim();
             String body = bodyEt.getText().toString().trim();
             if (title.isEmpty() || body.isEmpty()) {
-                Toast.makeText(requireContext(), "Título y mensaje son obligatorios", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(requireContext(), "Título y mensaje son obligatorios");
                 return;
             }
             boolean enabled = "si".equalsIgnoreCase(selectedSpinnerValue(enabledSpinner));
@@ -1230,11 +1295,29 @@ public class RentalManagementFragment extends Fragment {
         return selected == null ? "" : selected.toString().trim();
     }
 
+    private String selectedMemberEmail(Spinner spinner) {
+        if (groupMemberEmails.isEmpty()) return "";
+        int index = spinner.getSelectedItemPosition();
+        if (index < 0 || index >= groupMemberEmails.size()) return "";
+        return groupMemberEmails.get(index);
+    }
+
     private void selectSpinnerValue(Spinner spinner, String value) {
         if (value == null) return;
         for (int i = 0; i < spinner.getCount(); i++) {
             Object item = spinner.getItemAtPosition(i);
             if (item != null && value.equalsIgnoreCase(item.toString())) {
+                spinner.setSelection(i);
+                return;
+            }
+        }
+    }
+
+    private void selectMemberSpinnerEmail(Spinner spinner, @Nullable String email) {
+        String normalized = normalizeEmail(email);
+        if (normalized.isEmpty()) return;
+        for (int i = 0; i < groupMemberEmails.size(); i++) {
+            if (normalized.equals(groupMemberEmails.get(i))) {
                 spinner.setSelection(i);
                 return;
             }
@@ -1311,6 +1394,17 @@ public class RentalManagementFragment extends Fragment {
         spinner.setAdapter(adapter);
         parent.addView(spinner);
         return spinner;
+    }
+
+    private Spinner addLabeledMemberSpinner(LinearLayout parent, String label) {
+        if (groupMemberEmails.isEmpty()) {
+            return addLabeledSpinner(parent, label, new String[]{"Sin miembros"});
+        }
+        String[] labels = new String[groupMemberEmails.size()];
+        for (int i = 0; i < groupMemberEmails.size(); i++) {
+            labels[i] = formatMemberTwoLines(groupMemberEmails.get(i));
+        }
+        return addLabeledSpinner(parent, label, labels);
     }
 
     private void setupDatePicker(EditText target) {
@@ -1465,6 +1559,38 @@ public class RentalManagementFragment extends Fragment {
     private String normalizeEmail(String value) {
         if (value == null) return "";
         return value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String formatMemberTwoLines(@Nullable String email) {
+        String normalized = normalizeEmail(email);
+        if (normalized.isEmpty()) return "Sin datos\nsin correo";
+        String displayName = groupMemberNamesByEmail.get(normalized);
+        if (displayName == null || displayName.trim().isEmpty() || displayName.equalsIgnoreCase(normalized)) {
+            displayName = fallbackNameFromEmail(normalized);
+        }
+        return displayName + "\n" + normalized;
+    }
+
+    private String fallbackNameFromEmail(@Nullable String email) {
+        String normalized = normalizeEmail(email);
+        if (normalized.isEmpty()) return "Sin datos";
+        int at = normalized.indexOf('@');
+        if (at <= 0) return normalized;
+        String local = normalized.substring(0, at)
+                .replace('.', ' ')
+                .replace('_', ' ')
+                .replace('-', ' ')
+                .trim();
+        if (local.isEmpty()) return normalized;
+        String[] parts = local.split("\\s+");
+        StringBuilder out = new StringBuilder();
+        for (String part : parts) {
+            if (part.isEmpty()) continue;
+            if (out.length() > 0) out.append(" ");
+            out.append(Character.toUpperCase(part.charAt(0)));
+            if (part.length() > 1) out.append(part.substring(1));
+        }
+        return out.length() == 0 ? normalized : out.toString();
     }
 
     private boolean isLikelyEmail(String value) {
@@ -1648,4 +1774,5 @@ public class RentalManagementFragment extends Fragment {
         }
     }
 }
+
 

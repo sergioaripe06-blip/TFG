@@ -1,5 +1,7 @@
 package com.sergio.flatshare.features.auth;
 
+import com.sergio.flatshare.shared.ui.NoticeUtils;
+
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.content.Intent;
@@ -8,7 +10,9 @@ import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.widget.Button;
+import android.widget.Toast;
 import android.widget.EditText;
+import android.widget.Toast;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -56,34 +60,34 @@ public class RegisterActivity extends AppCompatActivity {
             String password = passwordEt.getText().toString().trim();
 
             if (TextUtils.isEmpty(email)) {
-                Toast.makeText(this, "Falta el correo electrónico", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(this, "Falta el correo electrónico");
                 return;
             }
             if (TextUtils.isEmpty(password)) {
-                Toast.makeText(this, "Falta la contraseña", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(this, "Falta la contraseña");
                 return;
             }
             if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(email)
                     || TextUtils.isEmpty(phone) || TextUtils.isEmpty(birthDate)
                     || TextUtils.isEmpty(password)) {
-                Toast.makeText(this, "Completa todos los campos del registro", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(this, "Completa todos los campos del registro");
                 return;
             }
 
             if (!isAdult(birthDate)) {
-                Toast.makeText(this, "Debes tener al menos 18 años", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(this, "Debes tener al menos 18 años");
                 return;
             }
 
             if (!termsSwitch.isChecked()) {
-                Toast.makeText(this, "Debes aceptar los términos y condiciones de uso", Toast.LENGTH_LONG).show();
+                NoticeUtils.show(this, "Debes aceptar los términos y condiciones de uso");
                 return;
             }
 
             FirebaseAuth.getInstance().createUserWithEmailAndPassword(email, password)
                     .addOnSuccessListener(authResult -> {
                         if (authResult.getUser() == null) {
-                            Toast.makeText(this, "No se pudo crear la cuenta. Inténtalo de nuevo.", Toast.LENGTH_LONG).show();
+                            NoticeUtils.show(this, "No se pudo crear la cuenta. Inténtalo de nuevo.");
                             return;
                         }
                         UserProfileChangeRequest profile = new UserProfileChangeRequest.Builder()
@@ -101,7 +105,7 @@ public class RegisterActivity extends AppCompatActivity {
                         AuthEmailLocale.apply(this);
                         authResult.getUser().sendEmailVerification()
                                 .addOnSuccessListener(unused -> {
-                                    Toast.makeText(this, "Te hemos enviado un correo de verificación", Toast.LENGTH_LONG).show();
+                                    NoticeUtils.show(this, "Te hemos enviado un correo de verificación");
                                     openVerifyEmailScreen(email, fullName, phone, birthDate, true);
                                 })
                                 .addOnFailureListener(e -> {
@@ -111,10 +115,10 @@ public class RegisterActivity extends AppCompatActivity {
                     })
                     .addOnFailureListener(e -> {
                         if (e instanceof FirebaseAuthUserCollisionException) {
-                            Toast.makeText(this, "Ese correo ya tiene una cuenta registrada", Toast.LENGTH_LONG).show();
+                            NoticeUtils.show(this, "Ese correo ya tiene una cuenta registrada");
                             return;
                         }
-                        Toast.makeText(this, mapAuthErrorToSpanish(e), Toast.LENGTH_LONG).show();
+                        NoticeUtils.show(this, mapAuthErrorToSpanish(e));
                     });
         });
 
@@ -144,7 +148,7 @@ public class RegisterActivity extends AppCompatActivity {
         try {
             birthDate = fmt.parse(birthDateIso);
         } catch (ParseException e) {
-            Toast.makeText(this, "Formato inválido. Usa YYYY-MM-DD", Toast.LENGTH_SHORT).show();
+            NoticeUtils.show(this, "Formato inválido. Usa YYYY-MM-DD");
             return false;
         }
         Calendar birth = Calendar.getInstance();
@@ -224,3 +228,4 @@ public class RegisterActivity extends AppCompatActivity {
         return "No se pudo completar el registro. Revisa los datos e inténtalo de nuevo.";
     }
 }
+

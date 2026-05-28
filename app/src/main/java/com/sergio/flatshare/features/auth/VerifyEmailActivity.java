@@ -1,9 +1,12 @@
 package com.sergio.flatshare.features.auth;
 
+import com.sergio.flatshare.shared.ui.NoticeUtils;
+
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.widget.Button;
+import android.widget.Toast;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -82,7 +85,7 @@ public class VerifyEmailActivity extends AppCompatActivity {
     private void resendVerificationEmail() {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user == null) {
-            Toast.makeText(this, "Tu sesión ha caducado. Inicia sesión de nuevo.", Toast.LENGTH_LONG).show();
+            NoticeUtils.show(this, "Tu sesión ha caducado. Inicia sesión de nuevo.");
             returnToLogin();
             return;
         }
@@ -96,7 +99,7 @@ public class VerifyEmailActivity extends AppCompatActivity {
     private void checkVerificationAndContinue() {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user == null) {
-            Toast.makeText(this, "Tu sesión ha caducado. Inicia sesión de nuevo.", Toast.LENGTH_LONG).show();
+            NoticeUtils.show(this, "Tu sesión ha caducado. Inicia sesión de nuevo.");
             returnToLogin();
             return;
         }
@@ -105,14 +108,14 @@ public class VerifyEmailActivity extends AppCompatActivity {
                 .addOnSuccessListener(unused -> {
                     FirebaseUser refreshedUser = FirebaseAuth.getInstance().getCurrentUser();
                     if (refreshedUser == null) {
-                        Toast.makeText(this, "Tu sesión ha caducado. Inicia sesión de nuevo.", Toast.LENGTH_LONG).show();
+                        NoticeUtils.show(this, "Tu sesión ha caducado. Inicia sesión de nuevo.");
                         returnToLogin();
                         return;
                     }
 
                     if (!refreshedUser.isEmailVerified()) {
-                        Toast.makeText(this, "Aún no está verificado. Revisa tu correo y pulsa " +
-                                "\"Ya he verificado\".", Toast.LENGTH_LONG).show();
+                        NoticeUtils.show(this, "Aún no está verificado. Revisa tu correo y pulsa " +
+                                "\"Ya he verificado\".");
                         return;
                     }
 
@@ -121,7 +124,7 @@ public class VerifyEmailActivity extends AppCompatActivity {
                                 finalizeProfileIfNeeded();
                                 UserSync.ensureCurrentUserDocument();
                                 SessionStore.clearPendingRegistrationProfile(this);
-                                Toast.makeText(this, "Correo verificado. Bienvenido/a", Toast.LENGTH_SHORT).show();
+                                NoticeUtils.show(this, "Correo verificado. Bienvenido/a");
                                 openMain();
                             })
                             .addOnFailureListener(e -> Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show());
@@ -157,3 +160,4 @@ public class VerifyEmailActivity extends AppCompatActivity {
         return value == null ? "" : value.trim();
     }
 }
+

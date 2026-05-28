@@ -13,15 +13,25 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
+import android.widget.Toast;
 import android.widget.ArrayAdapter;
+import android.widget.Toast;
 import android.widget.BaseAdapter;
+import android.widget.Toast;
 import android.widget.Button;
+import android.widget.Toast;
 import android.widget.EditText;
+import android.widget.Toast;
 import android.widget.ImageView;
+import android.widget.Toast;
 import android.widget.LinearLayout;
+import android.widget.Toast;
 import android.widget.ListView;
+import android.widget.Toast;
 import android.widget.ScrollView;
+import android.widget.Toast;
 import android.widget.Spinner;
+import android.widget.Toast;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -44,6 +54,7 @@ import com.sergio.flatshare.R;
 import com.sergio.flatshare.core.session.SessionStore;
 import com.sergio.flatshare.features.shell.MainActivity;
 import com.sergio.flatshare.shared.ui.DialogUtils;
+import com.sergio.flatshare.shared.ui.NoticeUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -89,7 +100,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
 
         groupId = getIntent().getStringExtra(EXTRA_GROUP_ID);
         if (groupId == null || groupId.trim().isEmpty()) {
-            Toast.makeText(this, "No se encontró el piso", Toast.LENGTH_SHORT).show();
+            NoticeUtils.show(this, "No se encontró el piso");
             finish();
             return;
         }
@@ -141,7 +152,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
     private void loadGroupData() {
         db.collection("groups").document(groupId).get().addOnSuccessListener(doc -> {
             if (!doc.exists()) {
-                Toast.makeText(this, "El piso no existe", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(this, "El piso no existe");
                 finish();
                 return;
             }
@@ -237,7 +248,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
             String capacityText = roomCapacityEt.getText().toString().trim();
             String costText = roomCostEt.getText().toString().trim();
             if (roomName.isEmpty() || capacityText.isEmpty() || costText.isEmpty()) {
-                Toast.makeText(this, "Completa todos los datos de la habitacion", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(this, "Completa todos los datos de la habitacion");
                 return;
             }
 
@@ -248,15 +259,15 @@ public class OwnerRoomsActivity extends AppCompatActivity {
                 capacity = Integer.parseInt(capacityText);
                 monthlyCost = Double.parseDouble(costText);
             } catch (NumberFormatException e) {
-                Toast.makeText(this, "Capacidad o coste no validos", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(this, "Capacidad o coste no validos");
                 return;
             }
             if (capacity <= 0) {
-                Toast.makeText(this, "La capacidad debe ser mayor que 0", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(this, "La capacidad debe ser mayor que 0");
                 return;
             }
             if (monthlyCost < 0) {
-                Toast.makeText(this, "El coste no puede ser negativo", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(this, "El coste no puede ser negativo");
                 return;
             }
 
@@ -289,7 +300,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
                         db.collection("rooms_groups")
                                 .add(room)
                                 .addOnSuccessListener(v2 -> {
-                                    Toast.makeText(this, "Habitacion creada", Toast.LENGTH_SHORT).show();
+                                    NoticeUtils.show(this, "Habitacion creada");
                                     loadRooms();
                                     dialog.dismiss();
                                 })
@@ -356,7 +367,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
                     db.collection("rooms_groups").document(room.id)
                             .update(updates)
                             .addOnSuccessListener(v -> {
-                                Toast.makeText(this, "Habitacion actualizada", Toast.LENGTH_SHORT).show();
+                                NoticeUtils.show(this, "Habitacion actualizada");
                                 loadRooms();
                             })
                             .addOnFailureListener(e -> Toast.makeText(this, "No se pudo guardar", Toast.LENGTH_SHORT).show());
@@ -374,7 +385,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
                 value -> {
                     String newName = value.trim();
                     if (newName.isEmpty()) {
-                        Toast.makeText(this, "El nombre es obligatorio", Toast.LENGTH_SHORT).show();
+                        NoticeUtils.show(this, "El nombre es obligatorio");
                         return false;
                     }
                     Map<String, Object> updates = new HashMap<>();
@@ -385,7 +396,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
                     db.collection("rooms_groups").document(room.id)
                             .update(updates)
                             .addOnSuccessListener(v -> {
-                                Toast.makeText(this, "Nombre actualizado", Toast.LENGTH_SHORT).show();
+                                NoticeUtils.show(this, "Nombre actualizado");
                                 loadRooms();
                             })
                             .addOnFailureListener(e -> Toast.makeText(this, "No se pudo guardar", Toast.LENGTH_SHORT).show());
@@ -396,7 +407,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
 
     private void deleteRoomDialog(RoomItem room) {
         if (room != null && room.memberEmails != null && !room.memberEmails.isEmpty()) {
-            Toast.makeText(this, "No puedes eliminar una habitacion con inquilinos. Quitalos o cambialos de habitacion primero.", Toast.LENGTH_LONG).show();
+            NoticeUtils.show(this, "No puedes eliminar una habitacion con inquilinos. Quitalos o cambialos de habitacion primero.");
             return;
         }
         View content = DialogUtils.createMessageView(this, "Esta accion eliminara la habitacion y su asignacion de residentes.");
@@ -415,13 +426,13 @@ public class OwnerRoomsActivity extends AppCompatActivity {
                     .addOnSuccessListener(doc -> {
                         List<String> memberEmails = castEmails(doc.get("memberEmails"));
                         if (!memberEmails.isEmpty()) {
-                            Toast.makeText(this, "No puedes eliminar una habitacion con inquilinos. Quitalos o cambialos de habitacion primero.", Toast.LENGTH_LONG).show();
+                            NoticeUtils.show(this, "No puedes eliminar una habitacion con inquilinos. Quitalos o cambialos de habitacion primero.");
                             return;
                         }
                         db.collection("rooms_groups").document(room.id)
                                 .delete()
                                 .addOnSuccessListener(v2 -> {
-                                    Toast.makeText(this, "Habitacion eliminada", Toast.LENGTH_SHORT).show();
+                                    NoticeUtils.show(this, "Habitacion eliminada");
                                     loadRooms();
                                 })
                                 .addOnFailureListener(e -> Toast.makeText(this, "No se pudo eliminar", Toast.LENGTH_SHORT).show());
@@ -498,7 +509,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
                 value -> {
                     String invitedEmail = value.trim().toLowerCase(Locale.ROOT);
                     if (invitedEmail.isEmpty() || !invitedEmail.contains("@")) {
-                        Toast.makeText(this, "Debes indicar un email valido", Toast.LENGTH_SHORT).show();
+                        NoticeUtils.show(this, "Debes indicar un email valido");
                         return false;
                     }
                     String currentShareCode = (shareCode == null || shareCode.trim().isEmpty())
@@ -855,7 +866,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
 
             Set<String> unique = new HashSet<>(selectedResidents);
             if (unique.size() != selectedResidents.size()) {
-                Toast.makeText(this, "No repitas inquilinos en varias plazas", Toast.LENGTH_SHORT).show();
+                NoticeUtils.show(this, "No repitas inquilinos en varias plazas");
                 return;
             }
 
@@ -870,7 +881,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
             List<String> splitOrder = new ArrayList<>(selectedResidents);
             if (ROOM_SPLIT_PERCENTAGE.equals(splitMode)) {
                 if (selectedResidents.isEmpty()) {
-                    Toast.makeText(this, "No hay inquilinos para repartir", Toast.LENGTH_SHORT).show();
+                    NoticeUtils.show(this, "No hay inquilinos para repartir");
                     return;
                 }
                 double sum = 0.0;
@@ -881,7 +892,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
                     splitPercentages.put(percentResidents.get(i), round2(value));
                 }
                 if (sum > 100.0) {
-                    Toast.makeText(this, "La suma de porcentajes no puede superar 100", Toast.LENGTH_SHORT).show();
+                    NoticeUtils.show(this, "La suma de porcentajes no puede superar 100");
                     return;
                 }
                 String autoResident = selectedResidents.get(selectedResidents.size() - 1);
@@ -1251,3 +1262,4 @@ public class OwnerRoomsActivity extends AppCompatActivity {
         return "Miembro " + index + ":\nNombre: " + name + "\nCorreo: " + emailLine;
     }
 }
+

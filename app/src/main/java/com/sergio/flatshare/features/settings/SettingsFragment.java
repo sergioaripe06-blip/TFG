@@ -13,7 +13,6 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -36,6 +35,7 @@ import com.sergio.flatshare.core.session.SessionStore;
 import com.sergio.flatshare.core.settings.SettingsStore;
 import com.sergio.flatshare.features.auth.LoginActivity;
 import com.sergio.flatshare.shared.ui.DialogUtils;
+import com.sergio.flatshare.shared.ui.NoticeUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -128,7 +128,7 @@ public class SettingsFragment extends Fragment {
     private void showPasswordConfirmationDialog() {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user == null || user.getEmail() == null) {
-            Toast.makeText(requireContext(), R.string.settings_delete_account_need_login, Toast.LENGTH_LONG).show();
+            NoticeUtils.show(requireContext(), R.string.settings_delete_account_need_login);
             return;
         }
 
@@ -183,15 +183,15 @@ public class SettingsFragment extends Fragment {
             String currentEmail = user.getEmail() == null ? "" : user.getEmail().trim().toLowerCase(Locale.ROOT);
 
             if (enteredEmail.isEmpty()) {
-                Toast.makeText(requireContext(), R.string.settings_delete_account_email_empty, Toast.LENGTH_LONG).show();
+                NoticeUtils.show(requireContext(), R.string.settings_delete_account_email_empty);
                 return;
             }
             if (password.isEmpty()) {
-                Toast.makeText(requireContext(), R.string.settings_delete_account_password_empty, Toast.LENGTH_LONG).show();
+                NoticeUtils.show(requireContext(), R.string.settings_delete_account_password_empty);
                 return;
             }
             if (!enteredEmail.equals(currentEmail)) {
-                Toast.makeText(requireContext(), R.string.settings_delete_account_credentials_invalid, Toast.LENGTH_LONG).show();
+                NoticeUtils.show(requireContext(), R.string.settings_delete_account_credentials_invalid);
                 return;
             }
             dialog.dismiss();
@@ -201,12 +201,12 @@ public class SettingsFragment extends Fragment {
 
     private void reauthenticateThenConfirm(FirebaseUser user, String email, String password) {
         if (email == null || email.trim().isEmpty()) {
-            Toast.makeText(requireContext(), R.string.settings_delete_account_need_login, Toast.LENGTH_LONG).show();
+            NoticeUtils.show(requireContext(), R.string.settings_delete_account_need_login);
             return;
         }
         user.reauthenticate(EmailAuthProvider.getCredential(email.trim(), password))
                 .addOnSuccessListener(unused -> showDeleteAccountConfirmation())
-                .addOnFailureListener(e -> Toast.makeText(requireContext(), R.string.settings_delete_account_credentials_invalid, Toast.LENGTH_LONG).show());
+                .addOnFailureListener(e -> NoticeUtils.show(requireContext(), R.string.settings_delete_account_credentials_invalid));
     }
 
     private void showDeleteAccountConfirmation() {
@@ -230,12 +230,12 @@ public class SettingsFragment extends Fragment {
     private void deleteCurrentAccount() {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user == null || user.getEmail() == null) {
-            Toast.makeText(requireContext(), R.string.settings_delete_account_need_login, Toast.LENGTH_LONG).show();
+            NoticeUtils.show(requireContext(), R.string.settings_delete_account_need_login);
             return;
         }
 
         deleteAccountBtn.setEnabled(false);
-        Toast.makeText(requireContext(), R.string.settings_delete_account_progress, Toast.LENGTH_SHORT).show();
+        NoticeUtils.show(requireContext(), R.string.settings_delete_account_progress);
 
         String uid = user.getUid();
         String email = user.getEmail().trim().toLowerCase(Locale.ROOT);
@@ -247,7 +247,7 @@ public class SettingsFragment extends Fragment {
                 .addOnSuccessListener(groupsResult -> processGroupCleanupAndDelete(db, user, uid, email, groupsResult))
                 .addOnFailureListener(e -> {
                     deleteAccountBtn.setEnabled(true);
-                    Toast.makeText(requireContext(), e.getMessage(), Toast.LENGTH_LONG).show();
+                    NoticeUtils.show(requireContext(), e.getMessage());
                 });
     }
 
@@ -274,7 +274,7 @@ public class SettingsFragment extends Fragment {
 
             if (isOwner && remainingMembers.isEmpty()) {
                 deleteAccountBtn.setEnabled(true);
-                Toast.makeText(requireContext(), R.string.settings_delete_account_owner_blocked, Toast.LENGTH_LONG).show();
+                NoticeUtils.show(requireContext(), R.string.settings_delete_account_owner_blocked);
                 return;
             }
 
@@ -324,7 +324,7 @@ public class SettingsFragment extends Fragment {
                         if (!result.isSuccessful()) {
                             Exception ex = result.getException();
                             deleteAccountBtn.setEnabled(true);
-                            Toast.makeText(requireContext(), ex == null ? "No se pudo completar el borrado" : ex.getMessage(), Toast.LENGTH_LONG).show();
+                            NoticeUtils.show(requireContext(), ex == null ? "No se pudo completar el borrado" : ex.getMessage());
                             return;
                         }
                     }
@@ -332,7 +332,7 @@ public class SettingsFragment extends Fragment {
                 })
                 .addOnFailureListener(e -> {
                     deleteAccountBtn.setEnabled(true);
-                    Toast.makeText(requireContext(), e.getMessage(), Toast.LENGTH_LONG).show();
+                    NoticeUtils.show(requireContext(), e.getMessage());
                 });
     }
 
@@ -374,9 +374,9 @@ public class SettingsFragment extends Fragment {
                     deleteAccountBtn.setEnabled(true);
                     String message = e.getMessage();
                     if (!TextUtils.isEmpty(message) && message.toLowerCase(Locale.ROOT).contains("recent")) {
-                        Toast.makeText(requireContext(), R.string.settings_delete_account_need_login, Toast.LENGTH_LONG).show();
+                        NoticeUtils.show(requireContext(), R.string.settings_delete_account_need_login);
                     } else {
-                        Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show();
+                        NoticeUtils.show(requireContext(), message);
                     }
                 });
     }
@@ -398,4 +398,5 @@ public class SettingsFragment extends Fragment {
     }
 
 }
+
 

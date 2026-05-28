@@ -1,5 +1,7 @@
 package com.sergio.flatshare.features.auth;
 
+import com.sergio.flatshare.shared.ui.NoticeUtils;
+
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.graphics.Color;
@@ -11,7 +13,9 @@ import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
+import android.widget.Toast;
 import android.widget.EditText;
+import android.widget.Toast;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -81,7 +85,7 @@ public class LoginActivity extends AppCompatActivity {
             }
             SessionStore.setRememberMeEnabled(this, false);
             FirebaseAuth.getInstance().signOut();
-            Toast.makeText(this, "Debes verificar tu correo antes de entrar", Toast.LENGTH_LONG).show();
+            NoticeUtils.show(this, "Debes verificar tu correo antes de entrar");
         });
     }
 
@@ -91,11 +95,11 @@ public class LoginActivity extends AppCompatActivity {
         boolean rememberMe = rememberMeSwitch.isChecked();
 
         if (TextUtils.isEmpty(email)) {
-            Toast.makeText(this, "Falta el correo electrónico", Toast.LENGTH_SHORT).show();
+            NoticeUtils.show(this, "Falta el correo electrónico");
             return;
         }
         if (TextUtils.isEmpty(password)) {
-            Toast.makeText(this, "Falta la contraseña", Toast.LENGTH_SHORT).show();
+            NoticeUtils.show(this, "Falta la contraseña");
             return;
         }
         signIn(email, password, rememberMe);
@@ -106,20 +110,20 @@ public class LoginActivity extends AppCompatActivity {
                 .addOnSuccessListener(result -> {
                     FirebaseUser user = result.getUser();
                     if (user == null) {
-                        Toast.makeText(this, "No se pudo iniciar sesión", Toast.LENGTH_LONG).show();
+                        NoticeUtils.show(this, "No se pudo iniciar sesión");
                         return;
                     }
 
                     user.reload().addOnCompleteListener(task -> {
                         FirebaseUser refreshedUser = FirebaseAuth.getInstance().getCurrentUser();
                         if (refreshedUser == null) {
-                            Toast.makeText(this, "Sesión no disponible", Toast.LENGTH_LONG).show();
+                            NoticeUtils.show(this, "Sesión no disponible");
                             return;
                         }
 
                         if (!refreshedUser.isEmailVerified()) {
                             SessionStore.setRememberMeEnabled(this, false);
-                            Toast.makeText(this, "Tu correo aún no está verificado", Toast.LENGTH_LONG).show();
+                            NoticeUtils.show(this, "Tu correo aún no está verificado");
                             openVerifyEmailScreen(refreshedUser.getEmail());
                             return;
                         }
@@ -165,12 +169,12 @@ public class LoginActivity extends AppCompatActivity {
 
     private void requestPasswordReset(String email) {
         if (TextUtils.isEmpty(email)) {
-            Toast.makeText(this, "Introduce tu correo electrónico", Toast.LENGTH_SHORT).show();
+            NoticeUtils.show(this, "Introduce tu correo electrónico");
             return;
         }
 
         if (!email.contains("@")) {
-            Toast.makeText(this, "La recuperación solo está disponible con correo electrónico", Toast.LENGTH_LONG).show();
+            NoticeUtils.show(this, "La recuperación solo está disponible con correo electrónico");
             return;
         }
 
@@ -246,3 +250,4 @@ public class LoginActivity extends AppCompatActivity {
         boolean onConfirm(String value);
     }
 }
+
