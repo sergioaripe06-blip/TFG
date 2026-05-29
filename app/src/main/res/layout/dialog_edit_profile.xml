@@ -30,18 +30,27 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
-        android:text="Teléfono:"
+        android:text="Tel&#233;fono:"
         android:textColor="@color/text_light"
         android:textSize="12sp"
         android:textStyle="bold" />
+
+    <Spinner
+        android:id="@+id/editPhoneCountrySpinner"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/bg_select_dark_round"
+        android:paddingHorizontal="12dp"
+        android:popupBackground="@drawable/bg_spinner_popup" />
 
     <EditText
         android:id="@+id/editPhoneEt"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="8dp"
         android:background="@drawable/bg_input_dark_round"
-        android:hint="Escribe el teléfono"
+        android:hint="Escribe tu n&#250;mero"
         android:inputType="phone"
         android:paddingHorizontal="16dp"
         android:paddingVertical="12dp"

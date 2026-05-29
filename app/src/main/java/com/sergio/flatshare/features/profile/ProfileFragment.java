@@ -1,18 +1,16 @@
 package com.sergio.flatshare.features.profile;
 
+import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
-import android.app.DatePickerDialog;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.Toast;
 import android.widget.EditText;
-import android.widget.Toast;
 import android.widget.ImageButton;
-import android.widget.Toast;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -23,9 +21,9 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 
-import com.google.android.material.imageview.ShapeableImageView;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
+import com.google.android.material.imageview.ShapeableImageView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.UserProfileChangeRequest;
 import com.google.firebase.firestore.DocumentSnapshot;
@@ -34,20 +32,21 @@ import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.firestore.SetOptions;
 import com.sergio.flatshare.R;
 import com.sergio.flatshare.features.settings.SettingsFragment;
+import com.sergio.flatshare.shared.ui.CountryPhoneUtils;
 import com.sergio.flatshare.shared.ui.DialogUtils;
 import com.sergio.flatshare.shared.ui.NoticeUtils;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 public class ProfileFragment extends Fragment {
     private ShapeableImageView profilePhotoIv;
@@ -181,10 +180,22 @@ public class ProfileFragment extends Fragment {
     private void showEditProfileDialog() {
         View form = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_edit_profile, null, false);
         EditText fullNameEt = form.findViewById(R.id.editFullNameEt);
+        Spinner phoneCountrySpinner = form.findViewById(R.id.editPhoneCountrySpinner);
         EditText phoneEt = form.findViewById(R.id.editPhoneEt);
         EditText birthDateEt = form.findViewById(R.id.editBirthDateEt);
+
+        List<CountryPhoneUtils.CountryOption> countries = CountryPhoneUtils.loadCountries();
+        phoneCountrySpinner.setAdapter(CountryPhoneUtils.buildAdapter(requireContext(), countries));
+
+        CountryPhoneUtils.ParsedPhone parsedPhone = CountryPhoneUtils.splitStoredPhone(phone, countries);
+        if (parsedPhone.selectedIndex >= 0 && parsedPhone.selectedIndex < countries.size()) {
+            phoneCountrySpinner.setSelection(parsedPhone.selectedIndex);
+        } else {
+            CountryPhoneUtils.selectRegion(phoneCountrySpinner, countries, "ES");
+        }
+
         fullNameEt.setText(fullName);
-        phoneEt.setText(phone);
+        phoneEt.setText(parsedPhone.localNumber);
         birthDateEt.setText(birthDate);
         setupBirthDateField(birthDateEt);
 
@@ -200,16 +211,19 @@ public class ProfileFragment extends Fragment {
         shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
         shell.confirmBtn.setOnClickListener(v -> {
             String newName = fullNameEt.getText().toString().trim();
-            String newPhone = phoneEt.getText().toString().trim();
+            String localPhone = phoneEt.getText().toString().trim();
             String newBirthDate = birthDateEt.getText().toString().trim();
-            if (newName.isEmpty() || newPhone.isEmpty() || newBirthDate.isEmpty()) {
+            if (newName.isEmpty() || localPhone.isEmpty() || newBirthDate.isEmpty()) {
                 NoticeUtils.show(requireContext(), "Completa todos los campos del perfil");
                 return;
             }
-            if (!newBirthDate.isEmpty() && !isAdult(newBirthDate)) {
+            if (!isAdult(newBirthDate)) {
                 NoticeUtils.show(requireContext(), "Debes tener al menos 18 años");
                 return;
             }
+
+            CountryPhoneUtils.CountryOption selectedCountry = CountryPhoneUtils.selected(phoneCountrySpinner, countries);
+            String newPhone = CountryPhoneUtils.buildFullPhone(selectedCountry, localPhone);
 
             var user = FirebaseAuth.getInstance().getCurrentUser();
             if (user == null) return;
@@ -350,4 +364,3 @@ public class ProfileFragment extends Fragment {
         }
     }
 }
-

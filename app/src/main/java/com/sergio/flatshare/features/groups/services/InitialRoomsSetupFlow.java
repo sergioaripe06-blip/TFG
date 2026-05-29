@@ -14,17 +14,22 @@ import java.util.List;
 import java.util.Map;
 
 public class InitialRoomsSetupFlow {
+    private static final String ROOM_SPLIT_EQUAL = "equal";
+    private static final String ROOM_SPLIT_PERCENTAGE = "percentage";
+
     public static class RoomDraftInput {
         public final int roomNumber;
         public final String name;
         public final int capacity;
         public final double monthlyCost;
+        public final String rentSplitMode;
 
-        public RoomDraftInput(int roomNumber, @NonNull String name, int capacity, double monthlyCost) {
+        public RoomDraftInput(int roomNumber, @NonNull String name, int capacity, double monthlyCost, @NonNull String rentSplitMode) {
             this.roomNumber = roomNumber;
             this.name = name;
             this.capacity = capacity;
             this.monthlyCost = monthlyCost;
+            this.rentSplitMode = ROOM_SPLIT_PERCENTAGE.equalsIgnoreCase(rentSplitMode.trim()) ? ROOM_SPLIT_PERCENTAGE : ROOM_SPLIT_EQUAL;
         }
     }
 
@@ -63,6 +68,9 @@ public class InitialRoomsSetupFlow {
             roomData.put("monthlyCost", draft.monthlyCost);
             roomData.put("memberEmails", new ArrayList<String>());
             roomData.put("memberCount", 0);
+            roomData.put("rentSplitMode", draft.rentSplitMode);
+            roomData.put("rentSplitPercentages", new HashMap<String, Object>());
+            roomData.put("rentSplitOrder", new ArrayList<String>());
             roomData.put("createdByUid", createdByUid);
             roomData.put("updatedByUid", createdByUid);
             roomData.put("createdAt", com.google.firebase.firestore.FieldValue.serverTimestamp());

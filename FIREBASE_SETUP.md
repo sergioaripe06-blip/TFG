@@ -364,16 +364,18 @@ Resumen:
 - `expenses`, `payments`, `payment_deadlines`, `activity_logs`: solo miembros del grupo.
 - `reminders`: solo miembros leen; actualizar/eliminar solo creador (`ownerUid`) o propietario del piso.
 - `payments`: para seed demo, el propietario puede crear pagos con `seed=true` y `fromEmail` tipo `seeduserNNN@seed.flatshare.local` dirigidos a su propio correo.
+- `payments`: el propietario puede eliminar pagos del grupo para soportar borrado en cascada del piso.
 - `rental_contracts`: lectura de miembros, gestión del propietario.
 - `rent_collections`: miembros del grupo pueden crear/leer; solo el propietario puede actualizar o eliminar.
 - `maintenance_tickets`: miembros del grupo pueden crear/leer; solo el propietario puede actualizar o eliminar.
 - `group_documents`: miembros del grupo pueden crear/leer; solo el propietario puede actualizar o eliminar.
-- `audit_events`: miembros leen y crean; no se permite editar ni borrar.
+- `audit_events`: miembros leen y crean; no se permite editar. El propietario puede borrar en limpieza del piso.
 - `rent_automations` y `event_reminder_rules`: lectura de miembros, gestión del propietario.
-- `event_reminder_jobs`: miembros leen y crean; no se permite editar ni borrar.
+- `event_reminder_jobs`: miembros leen y crean; no se permite editar. El propietario puede borrar en limpieza del piso.
 - `invitations`: acceso para quien invita o quien recibe.
 - `groups`: se permite auto-salida segura del propio usuario (`isSelfLeaveUpdate`) para soportar borrado de cuenta.
 - `groups`: el propietario puede actualizar membresía del piso (por ejemplo expulsar inquilinos), manteniendo `members`, `memberEmails` y `roles` alineados.
+- `group_codes`: crear/actualizar/eliminar queda ligado al propietario actual del grupo (`groups.ownerId`) para evitar bloqueos tras transferir propiedad.
 
 ## Cómo aplicarlo en Firebase
 
@@ -436,10 +438,30 @@ Uso rápido:
 ## Politica de pagos (owner-centric)
 - Solo el propietario (ownerId) puede cambiar estado de un pago entre requested, pending y confirmed.
 - Inquilinos: solo lectura para estados de pago.
-- Solo el propietario puede eliminar un pago cuando esta en estado requested.
+- Solo el propietario puede eliminar pagos del grupo. En la UI diaria se mantiene el borrado en `requested`, y para borrado de piso se permite limpieza completa.
 - Para mostrar nombres reales en UI, se lee users.name (con fallback si no existe).
 - En registro, el usuario debe aceptar términos y se guardan `users.termsAccepted=true` y `users.termsAcceptedAt`.
 
 
 
 
+
+## Actualizacion funcional (2026-05-29)
+
+### Variable rent: source of truth
+- `groups.variableSplitMode` se mantiene como preferencia por defecto para nuevas habitaciones.
+- El reparto efectivo en alquiler variable se resuelve por habitacion en `rooms_groups` con:
+- `monthlyCost`
+- `rentSplitMode` (`equal` o `percentage`)
+- `rentSplitPercentages`
+
+### Join flow and room assignment
+- Un usuario que entra por codigo o invitacion se agrega a `groups.members/memberEmails`.
+- No se asigna automaticamente a `rooms_groups.memberEmails`.
+- El propietario debe asignarlo manualmente a una habitacion desde la gestion de habitaciones.
+
+### Initial room setup
+- En creacion inicial de habitaciones se guardan tambien:
+- `rentSplitMode`
+- `rentSplitPercentages` (map vacio)
+- `rentSplitOrder` (array vacio)

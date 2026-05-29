@@ -21,11 +21,12 @@ public final class SettingsStore {
     }
 
     public static String getLanguage(Context context) {
-        return prefs(context).getString(KEY_LANGUAGE, "es");
+        return normalizeLanguageCode(prefs(context).getString(KEY_LANGUAGE, "es"));
     }
 
     public static void setLanguage(Context context, String languageCode) {
-        prefs(context).edit().putString(KEY_LANGUAGE, languageCode).apply();
+        // Keep this synchronous to avoid races with immediate Activity recreation.
+        prefs(context).edit().putString(KEY_LANGUAGE, normalizeLanguageCode(languageCode)).commit();
     }
 
     public static boolean areNotificationsEnabled(Context context) {
@@ -47,5 +48,11 @@ public final class SettingsStore {
 
     private static SharedPreferences prefs(Context context) {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+    }
+
+    private static String normalizeLanguageCode(String raw) {
+        if (raw == null) return "es";
+        String normalized = raw.trim().toLowerCase();
+        return normalized.startsWith("en") ? "en" : "es";
     }
 }

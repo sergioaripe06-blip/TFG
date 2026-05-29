@@ -79,10 +79,9 @@ service cloud.firestore {
         && resource.data.status in ['requested', 'pending', 'confirmed'];
     }
 
-    function canOwnerDeletePaymentBeforeDue() {
+    function canGroupOwnerDeletePayment() {
       return signedInAndVerified()
-        && isGroupOwner(resource.data.groupId)
-        && resource.data.status == 'requested';
+        && isGroupOwner(resource.data.groupId);
     }
 
     match /users/{userId} {
@@ -93,9 +92,10 @@ service cloud.firestore {
     match /group_codes/{code} {
       allow read: if signedInAndVerified();
       allow create, update: if signedInAndVerified()
-        && request.resource.data.ownerId == authUid();
+        && request.resource.data.groupId is string
+        && isGroupOwner(request.resource.data.groupId);
       allow delete: if signedInAndVerified()
-        && resource.data.ownerId == authUid();
+        && isGroupOwner(resource.data.groupId);
     }
 
     match /groups/{groupId} {
@@ -160,7 +160,7 @@ service cloud.firestore {
 
       allow update: if isPaymentStatusToggleByOwner();
 
-      allow delete: if canOwnerDeletePaymentBeforeDue();
+      allow delete: if canGroupOwnerDeletePayment();
     }
 
     match /payment_deadlines/{deadlineId} {
@@ -246,7 +246,9 @@ service cloud.firestore {
       allow read: if signedInAndVerified()
         && isGroupMember(resource.data.groupId);
 
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if signedInAndVerified()
+        && isGroupOwner(resource.data.groupId);
     }
 
     match /rent_automations/{ruleId} {
@@ -278,7 +280,9 @@ service cloud.firestore {
       allow read: if signedInAndVerified()
         && isGroupMember(resource.data.groupId);
 
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if signedInAndVerified()
+        && isGroupOwner(resource.data.groupId);
     }
 
     match /invitations/{invitationId} {

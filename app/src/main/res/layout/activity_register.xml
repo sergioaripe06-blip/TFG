@@ -132,11 +132,20 @@
                     android:textSize="13sp"
                     android:textStyle="bold" />
 
+                <Spinner
+                    android:id="@+id/phoneCountrySpinner"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:layout_marginTop="4dp"
+                    android:background="@drawable/bg_select_dark_round"
+                    android:paddingHorizontal="12dp"
+                    android:popupBackground="@drawable/bg_spinner_popup" />
+
                 <com.google.android.material.textfield.TextInputLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:hint="Escribe tu tel&#233;fono"
+                    android:layout_marginTop="8dp"
+                    android:hint="Escribe tu n&#250;mero"
                     app:boxBackgroundColor="@color/surface_chip"
                     app:boxBackgroundMode="filled"
                     app:boxCornerRadiusBottomEnd="16dp"

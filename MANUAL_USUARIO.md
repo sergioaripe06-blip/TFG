@@ -610,3 +610,14 @@ En cada tarea nueva:
 ### Corrección de textos (2026-05-28)
 - Arreglados textos visibles con tildes/ñ en el flujo de gastos y pagos.
 - Eliminadas cadenas corruptas para que la interfaz muestre español correcto en todas las pantallas afectadas.
+
+### Firebase/Reglas (2026-05-29) - Alineación con borrado de piso
+- Se ajustan reglas para que el borrado en cascada del piso no falle por permisos.
+- `payments`: el propietario puede borrar pagos del grupo (incluye estados no `requested` en contexto de limpieza).
+- `audit_events` y `event_reminder_jobs`: se mantiene bloqueo de edición, pero el propietario puede borrarlos al eliminar piso.
+- `group_codes`: la autorización ya depende del propietario actual del grupo y no del `ownerId` histórico del documento.
+
+### Ajustes (2026-05-29) - Sincronización de idioma al cambiar
+- Se corrige una desincronización en `Ajustes > Idioma` donde el spinner podía mostrar un idioma distinto al aplicado en la UI.
+- Ahora el idioma seleccionado se guarda de forma síncrona antes de recrear la actividad.
+- El selector de idioma toma como referencia el locale activo de `AppCompat`, evitando estados mezclados.

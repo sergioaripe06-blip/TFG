@@ -1059,3 +1059,19 @@ En cada avance relevante anadir:
 - Tipo: Limpieza global de mojibake en textos visibles
 - Se corrigen textos corruptos en ExpensesFragment (ej: 'Nueva acción', 'Gestión', 'Habitación', 'línea', '¿Deseas continuar?').
 - Se valida pp/src/main sin secuencias corruptas (�, Ã, Â, ï¿½) y en UTF-8 sin BOM.
+
+## 2026-05-29
+- Tipo: Alineación de `firestore.rules` con flujos reales de borrado
+- Se corrigen permisos para evitar fallos `PERMISSION_DENIED` en borrado en cascada de piso.
+- Cambios de reglas:
+  - `payments.delete`: ahora permitido al propietario del grupo para soportar limpieza completa del piso.
+  - `audit_events.delete` y `event_reminder_jobs.delete`: permitido al propietario del grupo (se mantiene `update` bloqueado).
+  - `group_codes`: create/update/delete pasan a depender del propietario actual del grupo (`groups.ownerId`) en lugar del `ownerId` histórico del documento.
+- Documentación actualizada: `FIREBASE_SETUP.md`, `MANUAL_USUARIO.md`.
+
+## 2026-05-29
+- Tipo: Corrección de sincronización de idioma en Ajustes
+- Se corrige una carrera al cambiar idioma: el valor de `SettingsStore` se guardaba con `apply()` y podía quedar desfasado tras `recreate()`.
+- `SettingsStore.setLanguage(...)` pasa a guardado síncrono (`commit()`).
+- `SettingsFragment` ahora compara y selecciona idioma usando el locale activo de `AppCompatDelegate`, con fallback a preferencias.
+- Resultado esperado: al alternar `Español/Inglés`, el spinner y la UI quedan alineados sin estados mezclados.

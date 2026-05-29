@@ -415,7 +415,7 @@ public class ExpensesFragment extends Fragment {
                 String membersLabel = formatMembersDetailed(memberEmails);
                 String billingLabel = BILLING_FIXED.equals(currentBillingModel)
                         ? "Alquiler fijo"
-                        : ("Alquiler variable (" + (VARIABLE_SPLIT_PERCENTAGE.equals(currentVariableSplitMode) ? "porcentual" : "equitativo") + ")");
+                        : "Alquiler variable (por habitación)";
                 String safeOwner = ownerLabel.isEmpty() ? "Sin datos" : ownerLabel;
                 String meta = "Piso: " + description
                         + "\nPropietario: " + safeOwner
@@ -2819,7 +2819,10 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             }
             if (roomAmount <= 0.0) continue;
 
-            Map<String, Double> residentPercents = resolveRoomResidentPercentages(room);
+            Map<String, Double> residentPercents = resolveRoomResidentPercentagesForAllocation(room);
+            if (residentPercents == null) {
+                return new ArrayList<>();
+            }
             if (residentPercents.isEmpty()) continue;
 
             for (Map.Entry<String, Double> entry : residentPercents.entrySet()) {
@@ -3791,9 +3794,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 return;
             }
             String billingModel = normalizeBillingModel(groupDoc.getString("billingModel"));
-            String variableSplitMode = normalizeVariableSplitMode(groupDoc.getString("variableSplitMode"));
             currentBillingModel = billingModel;
-            currentVariableSplitMode = variableSplitMode;
 
             Map<String, Double> net = new HashMap<>();
             for (String member : members) {
@@ -3803,17 +3804,12 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             if (BILLING_FIXED.equals(billingModel)) {
                 loadFixedRentFinancials(groupDoc, members, net);
             } else {
-                loadVariableRentFinancials(members, net, VARIABLE_SPLIT_PERCENTAGE.equals(variableSplitMode));
+                loadVariableRentFinancials(members, net);
             }
         });
     }
 
-    private void loadVariableRentFinancials(List<String> members, Map<String, Double> net, boolean percentageMode) {
-        if (!percentageMode) {
-            computeExpenseImpacts(members, net, null);
-            return;
-        }
-
+    private void loadVariableRentFinancials(List<String> members, Map<String, Double> net) {
         loadCurrentGroupRooms(rooms -> {
             Map<String, Double> memberWeights = computeMemberWeightsFromRooms(members, rooms);
             computeExpenseImpacts(members, net, memberWeights);
@@ -3917,18 +3913,20 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     private Map<String, Double> computeMemberWeightsFromRooms(List<String> members, List<RoomOption> rooms) {
         Map<String, Double> weights = new HashMap<>();
         for (String member : members) {
-            weights.put(member, 1.0);
+            weights.put(member, 0.0);
         }
 
         for (RoomOption room : rooms) {
             if (hasRoomContext() && !room.id.equals(currentRoomId)) continue;
             if (room.memberEmails.isEmpty()) continue;
 
-            double roomWeight = room.capacity > 0 ? room.capacity : 1.0;
-            double residentWeight = roomWeight / room.memberEmails.size();
-            for (String resident : room.memberEmails) {
+            double roomWeight = room.monthlyCost > 0.0 ? room.monthlyCost : 1.0;
+            Map<String, Double> roomPercentages = resolveRoomResidentPercentages(room);
+            for (Map.Entry<String, Double> shareEntry : roomPercentages.entrySet()) {
+                String resident = shareEntry.getKey();
                 if (!weights.containsKey(resident)) continue;
-                weights.put(resident, weights.getOrDefault(resident, 1.0) + residentWeight);
+                double residentWeight = roomWeight * (Math.max(0.0, shareEntry.getValue()) / 100.0);
+                weights.put(resident, weights.getOrDefault(resident, 0.0) + residentWeight);
             }
         }
         return weights;
@@ -4289,6 +4287,34 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             out.put(resident, (value * 100.0) / providedSum);
         }
         return out;
+    }
+
+    @Nullable
+    private Map<String, Double> resolveRoomResidentPercentagesForAllocation(@NonNull RoomOption room) {
+        List<String> residents = deduplicateStringKeys(room.memberEmails);
+        if (residents.isEmpty()) return new LinkedHashMap<>();
+        if (residents.size() == 1) {
+            Map<String, Double> single = new LinkedHashMap<>();
+            single.put(residents.get(0), 100.0);
+            return single;
+        }
+
+        String splitMode = normalizeRoomSplitMode(room.rentSplitMode);
+        if (ROOM_SPLIT_PERCENTAGE.equals(splitMode)) {
+            double providedSum = 0.0;
+            for (String resident : residents) {
+                double value = room.rentSplitPercentages.getOrDefault(resident, 0.0);
+                if (value > 0.0) providedSum += value;
+            }
+            if (providedSum <= 0.0) {
+                NoticeUtils.show(
+                        requireContext(),
+                        "La habitación " + room.name + " está en reparto personalizado. Configura sus porcentajes antes de continuar."
+                );
+                return null;
+            }
+        }
+        return resolveRoomResidentPercentages(room);
     }
 
     private void resolveMemberDisplayNames(List<String> memberIds, List<String> memberEmails, Runnable onDone) {
@@ -5908,19 +5934,19 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                         NoticeUtils.show(requireContext(), "Hay una habitación de reparto no válida");
                         return null;
                     }
-                    List<String> residents = new ArrayList<>();
-                    for (String resident : room.memberEmails) {
-                        if (resident == null) continue;
-                        String email = resident.trim().toLowerCase(Locale.ROOT);
-                        if (!email.isEmpty()) residents.add(email);
+                    Map<String, Double> residentsSplit = resolveRoomResidentPercentagesForAllocation(room);
+                    if (residentsSplit == null) {
+                        return null;
                     }
-                    if (residents.isEmpty()) {
+                    if (residentsSplit.isEmpty()) {
                         NoticeUtils.show(requireContext(), "Una habitación seleccionada no tiene inquilinos");
                         return null;
                     }
-                    double amountPerResident = partAmount / residents.size();
-                    for (String resident : residents) {
-                        splitsByEmail.put(resident, splitsByEmail.getOrDefault(resident, 0.0) + amountPerResident);
+                    for (Map.Entry<String, Double> splitEntry : residentsSplit.entrySet()) {
+                        String resident = splitEntry.getKey();
+                        double percent = splitEntry.getValue();
+                        double amountForResident = (partAmount * Math.max(0.0, percent)) / 100.0;
+                        splitsByEmail.put(resident, splitsByEmail.getOrDefault(resident, 0.0) + amountForResident);
                     }
                 } else {
                     String email = selected.toLowerCase(Locale.ROOT);

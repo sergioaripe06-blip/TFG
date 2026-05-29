@@ -295,7 +295,7 @@ public class GroupsFragment extends Fragment {
                 return;
             }
             if (rentModeSelection == 2 && splitModeSelection <= 0) {
-                NoticeUtils.show(requireContext(), "Selecciona el reparto del alquiler variable");
+                NoticeUtils.show(requireContext(), "Selecciona el reparto por habitación para alquiler variable");
                 return;
             }
 
@@ -312,7 +312,7 @@ public class GroupsFragment extends Fragment {
             }
 
             String rentMode = rentModeSelection == 1 ? RENT_MODE_FIXED : RENT_MODE_VARIABLE;
-            String variableSplitMode = splitModeSelection == 2 ? VARIABLE_SPLIT_PERCENTAGE : VARIABLE_SPLIT_EQUAL;
+            String defaultRoomSplitMode = splitModeSelection == 2 ? VARIABLE_SPLIT_PERCENTAGE : VARIABLE_SPLIT_EQUAL;
 
             String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
             String email = FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
@@ -336,7 +336,7 @@ public class GroupsFragment extends Fragment {
             group.put("memberEmails", java.util.Collections.singletonList(email));
             group.put("roomCount", roomCount);
             group.put("billingModel", rentMode);
-            group.put("variableSplitMode", variableSplitMode);
+            group.put("variableSplitMode", defaultRoomSplitMode);
             group.put("createdAt", FieldValue.serverTimestamp());
 
             groupService.createGroup(
@@ -350,7 +350,7 @@ public class GroupsFragment extends Fragment {
                 dialog.dismiss();
                 AppSoundFx.playByName(requireContext(), AppSoundFx.FX_GROUP_CREATED);
                 NoticeUtils.show(requireContext(), "Piso creado. Define las habitaciones.");
-                startInitialRoomsSetup(selectedGroupId, roomCount);
+                startInitialRoomsSetup(selectedGroupId, roomCount, defaultRoomSplitMode);
                     },
                     error -> Toast.makeText(requireContext(), "Error creando piso: " + error, Toast.LENGTH_LONG).show()
             );
@@ -359,13 +359,13 @@ public class GroupsFragment extends Fragment {
         showStepOne.run();
     }
 
-    private void startInitialRoomsSetup(String groupId, int roomCount) {
-        collectRoomDrafts(groupId, roomCount, 1, new ArrayList<>());
+    private void startInitialRoomsSetup(String groupId, int roomCount, String defaultRoomSplitMode) {
+        collectRoomDrafts(groupId, roomCount, 1, new ArrayList<>(), defaultRoomSplitMode);
     }
 
-    private void collectRoomDrafts(String groupId, int totalRooms, int currentNumber, List<RoomDraft> drafts) {
+    private void collectRoomDrafts(String groupId, int totalRooms, int currentNumber, List<RoomDraft> drafts, String defaultRoomSplitMode) {
         if (currentNumber > totalRooms) {
-            saveInitialRooms(groupId, drafts);
+            saveInitialRooms(groupId, drafts, defaultRoomSplitMode);
             return;
         }
         View form = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_room_setup, null, false);
@@ -434,11 +434,11 @@ public class GroupsFragment extends Fragment {
             }
             drafts.add(new RoomDraft(currentNumber, name, capacity, monthlyCost));
             dialog.dismiss();
-            collectRoomDrafts(groupId, totalRooms, currentNumber + 1, drafts);
+            collectRoomDrafts(groupId, totalRooms, currentNumber + 1, drafts, defaultRoomSplitMode);
         });
     }
 
-    private void saveInitialRooms(String groupId, List<RoomDraft> drafts) {
+    private void saveInitialRooms(String groupId, List<RoomDraft> drafts, String defaultRoomSplitMode) {
         if (drafts.isEmpty()) {
             openCurrentGroupWorkspace();
             return;
@@ -450,7 +450,8 @@ public class GroupsFragment extends Fragment {
                     draft.roomNumber,
                     draft.name,
                     draft.capacity,
-                    draft.monthlyCost
+                    draft.monthlyCost,
+                    defaultRoomSplitMode
             ));
         }
         initialRoomsSetupFlow.saveInitialRooms(
@@ -569,6 +570,7 @@ public class GroupsFragment extends Fragment {
                     SessionStore.setCurrentGroup(requireContext(), groupId);
                     SessionStore.clearCurrentRoom(requireContext());
                     loadGroups();
+                    NoticeUtils.show(requireContext(), "Te uniste al piso. Quedas sin habitación hasta que el propietario te asigne una.");
                     if (requireActivity() instanceof MainActivity) {
                         ((MainActivity) requireActivity()).openCurrentGroupWorkspace();
                     }
@@ -920,6 +922,7 @@ public class GroupsFragment extends Fragment {
                     SessionStore.setCurrentGroup(requireContext(), groupId);
                     SessionStore.clearCurrentRoom(requireContext());
                     loadGroups();
+                    NoticeUtils.show(requireContext(), "Te uniste al piso. Quedas sin habitación hasta que el propietario te asigne una.");
                     if (requireActivity() instanceof MainActivity) {
                         ((MainActivity) requireActivity()).openCurrentGroupWorkspace();
                     }
@@ -1569,7 +1572,7 @@ public class GroupsFragment extends Fragment {
                 return;
             }
             if (rentModeSelection == 2 && splitModeSelection <= 0) {
-                NoticeUtils.show(requireContext(), "Selecciona el reparto del alquiler variable");
+                NoticeUtils.show(requireContext(), "Selecciona el reparto por habitación para alquiler variable");
                 return;
             }
             String rentMode = rentModeSelection == 1 ? RENT_MODE_FIXED : RENT_MODE_VARIABLE;
@@ -1792,7 +1795,7 @@ public class GroupsFragment extends Fragment {
                 "Alquiler variable"
         );
         List<String> variableSplitModes = Arrays.asList(
-                "Selecciona reparto",
+                "Selecciona reparto por habitación",
                 "Equitativo",
                 "Porcentual"
         );

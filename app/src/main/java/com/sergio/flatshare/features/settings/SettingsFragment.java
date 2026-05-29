@@ -95,15 +95,15 @@ public class SettingsFragment extends Fragment {
         };
         languageAdapter.setDropDownViewResource(R.layout.item_spinner_dropdown);
         languageSpinner.setAdapter(languageAdapter);
-        boolean spanishSelected = "es".equals(SettingsStore.getLanguage(requireContext()));
+        boolean spanishSelected = "es".equals(resolveCurrentLanguageCode());
         languageSpinner.setSelection(spanishSelected ? 0 : 1);
         languageSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
                 String languageCode = position == 0 ? "es" : "en";
-                if (!languageCode.equals(SettingsStore.getLanguage(requireContext()))) {
-                    SettingsStore.setLanguage(requireContext(), languageCode);
+                if (!languageCode.equals(resolveCurrentLanguageCode())) {
                     AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(languageCode));
+                    SettingsStore.setLanguage(requireContext(), languageCode);
                     requireActivity().recreate();
                 }
             }
@@ -172,7 +172,7 @@ public class SettingsFragment extends Fragment {
                 getString(R.string.settings_delete_account_password_title),
                 getString(R.string.settings_delete_account_confirm_body),
                 formLayout,
-                "Cancelar",
+                getString(R.string.common_cancel),
                 getString(R.string.settings_delete_account_password_cta)
         );
         AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
@@ -216,7 +216,7 @@ public class SettingsFragment extends Fragment {
                 getString(R.string.settings_delete_account_confirm_title),
                 null,
                 message,
-                "Cancelar",
+                getString(R.string.common_cancel),
                 getString(R.string.settings_delete_account_confirm_action)
         );
         AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
@@ -395,6 +395,17 @@ public class SettingsFragment extends Fragment {
 
     private String safe(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private String resolveCurrentLanguageCode() {
+        LocaleListCompat locales = AppCompatDelegate.getApplicationLocales();
+        String tags = locales == null ? "" : locales.toLanguageTags();
+        if (tags != null && !tags.trim().isEmpty()) {
+            String primary = tags.split(",")[0].trim().toLowerCase(Locale.ROOT);
+            if (primary.startsWith("en")) return "en";
+            if (primary.startsWith("es")) return "es";
+        }
+        return SettingsStore.getLanguage(requireContext());
     }
 
 }

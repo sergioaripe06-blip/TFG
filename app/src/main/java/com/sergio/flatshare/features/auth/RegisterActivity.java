@@ -1,7 +1,5 @@
 package com.sergio.flatshare.features.auth;
 
-import com.sergio.flatshare.shared.ui.NoticeUtils;
-
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.content.Intent;
@@ -10,9 +8,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.widget.Button;
-import android.widget.Toast;
 import android.widget.EditText;
-import android.widget.Toast;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -25,11 +22,14 @@ import com.google.firebase.auth.FirebaseAuthUserCollisionException;
 import com.google.firebase.auth.UserProfileChangeRequest;
 import com.sergio.flatshare.R;
 import com.sergio.flatshare.core.session.SessionStore;
+import com.sergio.flatshare.shared.ui.CountryPhoneUtils;
+import com.sergio.flatshare.shared.ui.NoticeUtils;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 
 public class RegisterActivity extends AppCompatActivity {
@@ -40,6 +40,7 @@ public class RegisterActivity extends AppCompatActivity {
 
         EditText fullNameEt = findViewById(R.id.fullNameEt);
         EditText emailEt = findViewById(R.id.emailEt);
+        Spinner phoneCountrySpinner = findViewById(R.id.phoneCountrySpinner);
         EditText phoneEt = findViewById(R.id.phoneEt);
         EditText birthDateEt = findViewById(R.id.birthDateEt);
         EditText passwordEt = findViewById(R.id.passwordEt);
@@ -47,6 +48,11 @@ public class RegisterActivity extends AppCompatActivity {
         Button registerBtn = findViewById(R.id.registerBtn);
         TextView loginTv = findViewById(R.id.loginTv);
         TextView viewTermsTv = findViewById(R.id.viewTermsTv);
+
+        List<CountryPhoneUtils.CountryOption> countries = CountryPhoneUtils.loadCountries();
+        phoneCountrySpinner.setAdapter(CountryPhoneUtils.buildAdapter(this, countries));
+        CountryPhoneUtils.selectRegion(phoneCountrySpinner, countries, "ES");
+
         registerBtn.setPaintFlags(registerBtn.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
         loginTv.setPaintFlags(loginTv.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
         setupBirthDateField(birthDateEt);
@@ -55,9 +61,12 @@ public class RegisterActivity extends AppCompatActivity {
         registerBtn.setOnClickListener(v -> {
             String fullName = fullNameEt.getText().toString().trim();
             String email = emailEt.getText().toString().trim().toLowerCase(Locale.ROOT);
-            String phone = phoneEt.getText().toString().trim();
+            String localPhone = phoneEt.getText().toString().trim();
             String birthDate = birthDateEt.getText().toString().trim();
             String password = passwordEt.getText().toString().trim();
+
+            CountryPhoneUtils.CountryOption selectedCountry = CountryPhoneUtils.selected(phoneCountrySpinner, countries);
+            String phone = CountryPhoneUtils.buildFullPhone(selectedCountry, localPhone);
 
             if (TextUtils.isEmpty(email)) {
                 NoticeUtils.show(this, "Falta el correo electrónico");
@@ -67,9 +76,8 @@ public class RegisterActivity extends AppCompatActivity {
                 NoticeUtils.show(this, "Falta la contraseña");
                 return;
             }
-            if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(email)
-                    || TextUtils.isEmpty(phone) || TextUtils.isEmpty(birthDate)
-                    || TextUtils.isEmpty(password)) {
+            if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(localPhone)
+                    || TextUtils.isEmpty(birthDate) || TextUtils.isEmpty(password)) {
                 NoticeUtils.show(this, "Completa todos los campos del registro");
                 return;
             }
@@ -109,7 +117,11 @@ public class RegisterActivity extends AppCompatActivity {
                                     openVerifyEmailScreen(email, fullName, phone, birthDate, true);
                                 })
                                 .addOnFailureListener(e -> {
-                                    Toast.makeText(this, "Cuenta creada, pero no pudimos enviar el correo de verificación. Puedes reenviarlo desde la siguiente pantalla.", Toast.LENGTH_LONG).show();
+                                    Toast.makeText(
+                                            this,
+                                            "Cuenta creada, pero no pudimos enviar el correo de verificación. Puedes reenviarlo desde la siguiente pantalla.",
+                                            Toast.LENGTH_LONG
+                                    ).show();
                                     openVerifyEmailScreen(email, fullName, phone, birthDate, true);
                                 });
                     })
@@ -228,4 +240,3 @@ public class RegisterActivity extends AppCompatActivity {
         return "No se pudo completar el registro. Revisa los datos e inténtalo de nuevo.";
     }
 }
-

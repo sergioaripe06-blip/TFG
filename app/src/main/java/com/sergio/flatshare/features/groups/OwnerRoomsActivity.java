@@ -73,6 +73,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
     public static final String EXTRA_OPEN_WORKSPACE = "open_workspace";
     private static final String ROOM_SPLIT_EQUAL = "equal";
     private static final String ROOM_SPLIT_PERCENTAGE = "percentage";
+    private static final int MAX_UNASSIGNED_PREVIEW = 3;
 
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
     private final List<RoomItem> rooms = new ArrayList<>();
@@ -176,9 +177,7 @@ public class OwnerRoomsActivity extends AppCompatActivity {
             resolveMemberDisplayNames(castStrings(doc.get("members")), groupMembers, this::loadRooms);
 
             roomsTitleTv.setText("Habitaciones de " + groupName);
-            roomsSubtitleTv.setText(isOwner
-                    ? "Crea habitaciones, invita residentes y asigna quién vive en cada una."
-                    : "Vista de habitaciones del piso compartido.");
+            updateRoomsSubtitle();
             shareCodeTv.setText("Código: " + shareCode);
         }).addOnFailureListener(e ->
                 Toast.makeText(this, "No se pudo cargar el piso", Toast.LENGTH_SHORT).show()
@@ -221,8 +220,53 @@ public class OwnerRoomsActivity extends AppCompatActivity {
                     Collections.sort(rooms, Comparator.comparingInt(a -> a.roomNumber <= 0 ? Integer.MAX_VALUE : a.roomNumber));
                     adapter.notifyDataSetChanged();
                     emptyRoomsTv.setVisibility(rooms.isEmpty() ? View.VISIBLE : View.GONE);
+                    updateRoomsSubtitle();
                 })
                 .addOnFailureListener(e -> Toast.makeText(this, "No se pudo cargar habitaciones", Toast.LENGTH_SHORT).show());
+    }
+
+    private void updateRoomsSubtitle() {
+        String base = isOwner
+                ? "Crea habitaciones, invita residentes y asigna quién vive en cada una."
+                : "Vista de habitaciones del piso compartido.";
+        List<String> unassigned = collectUnassignedMembers();
+        if (unassigned.isEmpty()) {
+            roomsSubtitleTv.setText(base + "\nTodos los miembros tienen habitación asignada.");
+            return;
+        }
+
+        StringBuilder summary = new StringBuilder(base)
+                .append("\nSin habitación (")
+                .append(unassigned.size())
+                .append("): ");
+        int previewCount = Math.min(MAX_UNASSIGNED_PREVIEW, unassigned.size());
+        for (int i = 0; i < previewCount; i++) {
+            if (i > 0) summary.append(", ");
+            summary.append(displayNameForEmail(unassigned.get(i)));
+        }
+        if (unassigned.size() > previewCount) {
+            summary.append(" +").append(unassigned.size() - previewCount).append(" más");
+        }
+        roomsSubtitleTv.setText(summary.toString());
+    }
+
+    private List<String> collectUnassignedMembers() {
+        Set<String> assigned = new HashSet<>();
+        for (RoomItem room : rooms) {
+            for (String resident : room.memberEmails) {
+                String normalized = resident == null ? "" : resident.trim().toLowerCase(Locale.ROOT);
+                if (!normalized.isEmpty()) assigned.add(normalized);
+            }
+        }
+        List<String> unassigned = new ArrayList<>();
+        for (String member : groupMembers) {
+            String normalized = member == null ? "" : member.trim().toLowerCase(Locale.ROOT);
+            if (normalized.isEmpty()) continue;
+            if (!assigned.contains(normalized)) {
+                unassigned.add(normalized);
+            }
+        }
+        return unassigned;
     }
 
     private void createRoomDialog() {

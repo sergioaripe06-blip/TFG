@@ -58,6 +58,9 @@ public class PersonalBalanceFragment extends Fragment {
     };
     private static final String GROUP_ALL = "Todas las habitaciones";
     private static final int MONTHLY_BAR_COUNT = 6;
+    private static final int BASE_PIE_CHART_HEIGHT_DP = 270;
+    private static final int PIE_CHART_STEP_HEIGHT_DP = 18;
+    private static final int PIE_CHART_MAX_HEIGHT_DP = 360;
 
     private enum OwnerPeriod {
         MONTH("Mes actual", 1),
@@ -631,7 +634,31 @@ public class PersonalBalanceFragment extends Fragment {
             valueTv.setText(df.format(percentage) + "%  -  " + df.format(value) + " EUR");
             legend.addView(item);
         }
+        applyDynamicPieChartHeight(rows.size());
         chart.setSlices(slices);
+    }
+
+    private void applyDynamicPieChartHeight(int categoryCount) {
+        if (!canUseUi() || chart == null) return;
+        ViewGroup.LayoutParams params = chart.getLayoutParams();
+        if (params == null) return;
+
+        int extraCategories = Math.max(0, categoryCount - 6);
+        int targetDp = BASE_PIE_CHART_HEIGHT_DP + (extraCategories * PIE_CHART_STEP_HEIGHT_DP);
+        targetDp = Math.min(targetDp, PIE_CHART_MAX_HEIGHT_DP);
+        int targetPx = dpToPx(targetDp);
+
+        if (params.height != targetPx) {
+            params.height = targetPx;
+            chart.setLayoutParams(params);
+        }
+    }
+
+    private int dpToPx(int dp) {
+        Context context = getContext();
+        if (context == null) return dp;
+        float density = context.getResources().getDisplayMetrics().density;
+        return Math.round(dp * density);
     }
 
     private void refreshMonthlyPaidBars(List<String> groupIds, String myEmail) {
