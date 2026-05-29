@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -26,7 +26,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:gravity="center"
-                android:text="Crear cuenta"
+                android:text="@string/register_title"
                 android:textColor="@color/text_light"
                 android:textSize="32sp"
                 android:textStyle="bold" />
@@ -36,7 +36,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:gravity="center"
-                android:text="Empieza a compartir gastos"
+                android:text="@string/register_subtitle"
                 android:textColor="@color/text_muted"
                 android:textSize="14sp" />
 
@@ -54,7 +54,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:gravity="center"
-                    android:text="Registro"
+                    android:text="@string/register_heading"
                     android:textColor="@color/text_light"
                     android:textSize="28sp"
                     android:textStyle="bold" />
@@ -63,7 +63,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="18dp"
-                    android:text="Nombre completo:"
+                    android:text="@string/register_full_name_label"
                     android:textColor="@color/text_light"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -72,7 +72,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:hint="Escribe tu nombre completo"
+                    android:hint="@string/register_full_name_hint"
                     app:boxBackgroundColor="@color/surface_chip"
                     app:boxBackgroundMode="filled"
                     app:boxCornerRadiusBottomEnd="16dp"
@@ -95,7 +95,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
-                    android:text="Correo electr&#243;nico:"
+                    android:text="@string/common_email_label"
                     android:textColor="@color/text_light"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -104,7 +104,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:hint="Escribe tu correo electr&#243;nico"
+                    android:hint="@string/login_email_hint"
                     app:boxBackgroundColor="@color/surface_chip"
                     app:boxBackgroundMode="filled"
                     app:boxCornerRadiusBottomEnd="16dp"
@@ -127,7 +127,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
-                    android:text="Tel&#233;fono:"
+                    android:text="@string/register_phone_label"
                     android:textColor="@color/text_light"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -145,7 +145,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:hint="Escribe tu n&#250;mero"
+                    android:hint="@string/register_phone_hint"
                     app:boxBackgroundColor="@color/surface_chip"
                     app:boxBackgroundMode="filled"
                     app:boxCornerRadiusBottomEnd="16dp"
@@ -168,7 +168,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
-                    android:text="Fecha de nacimiento:"
+                    android:text="@string/register_birth_date_label"
                     android:textColor="@color/text_light"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -177,7 +177,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:hint="AAAA-MM-DD"
+                    android:hint="@string/register_birth_date_hint"
                     app:boxBackgroundColor="@color/surface_chip"
                     app:boxBackgroundMode="filled"
                     app:boxCornerRadiusBottomEnd="16dp"
@@ -200,7 +200,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
-                    android:text="Contrase&#241;a:"
+                    android:text="@string/common_password_label"
                     android:textColor="@color/text_light"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -209,7 +209,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:hint="Escribe tu contrase&#241;a"
+                    android:hint="@string/login_password_hint"
                     app:boxBackgroundColor="@color/surface_chip"
                     app:boxBackgroundMode="filled"
                     app:boxCornerRadiusBottomEnd="16dp"
@@ -234,7 +234,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:text="Acepto los t&#233;rminos y condiciones de uso"
+                    android:text="@string/register_terms_switch"
                     android:textColor="@color/text_light" />
 
                 <TextView
@@ -243,7 +243,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:gravity="center"
-                    android:text="Ver t&#233;rminos y condiciones"
+                    android:text="@string/register_view_terms"
                     android:textColor="@color/auth_link_blue"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -254,7 +254,7 @@
                     android:layout_height="48dp"
                     android:layout_marginTop="16dp"
                     android:background="@drawable/bg_button_pill_primary"
-                    android:text="Crear cuenta"
+                    android:text="@string/register_title"
                     android:textAllCaps="false"
                     android:textColor="@color/on_primary_green"
                     android:textSize="17sp"
@@ -268,7 +268,7 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:gravity="center"
-                    android:text="Iniciar sesi&#243;n"
+                    android:text="@string/login_title"
                     android:textColor="@color/auth_link_blue"
                     android:textSize="16sp"
                     android:textStyle="bold" />

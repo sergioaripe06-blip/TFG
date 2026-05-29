@@ -36,7 +36,7 @@ public class BalancesFragment extends Fragment {
     private void calculate(TextView tv) {
         String groupId = SessionStore.getCurrentGroup(requireContext());
         if (groupId == null) {
-            tv.setText("Selecciona un grupo para ver balances.");
+            tv.setText(getString(R.string.balance_select_group));
             return;
         }
         String myEmail = FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
@@ -44,7 +44,7 @@ public class BalancesFragment extends Fragment {
         db.collection("groups").document(groupId).get().addOnSuccessListener(groupDoc -> {
             List<String> members = (List<String>) groupDoc.get("memberEmails");
             if (members == null || members.isEmpty()) {
-                tv.setText("Grupo sin miembros válidos.");
+                tv.setText(getString(R.string.balance_invalid_group_members));
                 return;
             }
 
@@ -94,14 +94,18 @@ public class BalancesFragment extends Fragment {
             }
             double myNet = net.getOrDefault(myEmail, 0.0);
             DecimalFormat df = new DecimalFormat("0.00");
-            String msg = myNet >= 0 ? "Te deben " + df.format(myNet) + " €" : "Debes " + df.format(Math.abs(myNet)) + " €";
-            StringBuilder all = new StringBuilder(msg).append("\n\nBalance del grupo:\n");
+            String msg = myNet >= 0
+                    ? getString(R.string.balance_they_owe_you, df.format(myNet))
+                    : getString(R.string.balance_you_owe, df.format(Math.abs(myNet)));
+            StringBuilder all = new StringBuilder(msg).append("\n\n")
+                    .append(getString(R.string.balance_group_title)).append("\n");
             for (Map.Entry<String, Double> e : net.entrySet()) {
-                all.append(e.getKey()).append(": ").append(df.format(e.getValue())).append(" €\n");
+                all.append(e.getKey())
+                        .append(": ")
+                        .append(df.format(e.getValue()))
+                        .append(" €\n");
             }
             tv.setText(all.toString());
         });
     }
 }
-
-

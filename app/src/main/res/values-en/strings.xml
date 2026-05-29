@@ -45,5 +45,77 @@
     <string name="save">Save</string>
     <string name="calendar_title">Calendar</string>
     <string name="due_date_hint">Due date (YYYY-MM-DD)</string>
+    <string name="common_send">Send</string>
+    <string name="common_close">Close</string>
+    <string name="common_email_label">Email:</string>
+    <string name="common_password_label">Password:</string>
+
+    <string name="login_title">Log in</string>
+    <string name="login_subtitle">Manage your shared flat</string>
+    <string name="login_email_hint">Type your email</string>
+    <string name="login_password_hint">Type your password</string>
+    <string name="login_remember_me">Remember me</string>
+    <string name="login_forgot_password">Forgot your password?</string>
+
+    <string name="auth_verify_required">You must verify your email before entering</string>
+    <string name="auth_email_missing">Email is required</string>
+    <string name="auth_password_missing">Password is required</string>
+    <string name="auth_login_unavailable">Could not sign in</string>
+    <string name="auth_session_unavailable">Session unavailable</string>
+    <string name="auth_verify_pending">Your email is not verified yet</string>
+    <string name="auth_forgot_title">Forgot password?</string>
+    <string name="auth_forgot_subtitle">Enter your email and we will send you a reset link.</string>
+    <string name="auth_enter_email">Enter your email</string>
+    <string name="auth_forgot_email_only">Recovery is only available with email</string>
+    <string name="auth_forgot_email_sent">We sent you an email to reset your password</string>
+    <string name="auth_error_invalid_email">Email format is invalid.</string>
+    <string name="auth_error_user_not_found">No account was found with that email.</string>
+    <string name="auth_error_bad_credentials">Incorrect email or password.</string>
+    <string name="auth_error_user_disabled">This account is disabled.</string>
+    <string name="auth_error_too_many_requests">Too many attempts. Please try again later.</string>
+    <string name="auth_error_network">Network error. Check your internet and try again.</string>
+    <string name="auth_error_generic">Could not complete the operation. Check your data and try again.</string>
+
+    <string name="register_title">Create account</string>
+    <string name="register_subtitle">Start sharing expenses</string>
+    <string name="register_heading">Sign up</string>
+    <string name="register_full_name_label">Full name:</string>
+    <string name="register_full_name_hint">Type your full name</string>
+    <string name="register_phone_label">Phone:</string>
+    <string name="register_phone_hint">Type your number</string>
+    <string name="register_birth_date_label">Birth date:</string>
+    <string name="register_birth_date_hint">YYYY-MM-DD</string>
+    <string name="register_terms_switch">I accept the terms and conditions</string>
+    <string name="register_view_terms">View terms and conditions</string>
+    <string name="register_complete_all_fields">Complete all registration fields</string>
+    <string name="register_adult_required">You must be at least 18 years old</string>
+    <string name="register_terms_required">You must accept the terms and conditions</string>
+    <string name="register_create_failed">Could not create the account. Try again.</string>
+    <string name="register_verification_sent">We sent you a verification email</string>
+    <string name="register_verification_send_failed">Account created, but we could not send the verification email. You can resend it from the next screen.</string>
+    <string name="register_email_already_used">That email is already registered</string>
+    <string name="register_birth_date_invalid">Invalid format. Use YYYY-MM-DD</string>
+    <string name="register_error_weak_password">Password is too weak. Use at least 6 characters.</string>
+    <string name="register_error_generic">Could not complete registration. Check your data and try again.</string>
+    <string name="register_terms_title">Terms and conditions</string>
+    <string name="register_terms_content">Terms and conditions of use\n\n1. You must use the app legally and respectfully.\n2. You are responsible for the data you enter.\n3. Do not share access to your account.\n4. Expenses, payments, and reminders are the responsibility of users.\n5. You can stop using the app whenever you want.\n6. By signing up, you accept these terms.</string>
+
+    <string name="verify_email_title">Verify your email</string>
+    <string name="verify_email_subtitle">We sent you a link to validate your account</string>
+    <string name="verify_email_sent_to">Verification email sent to</string>
+    <string name="verify_email_resend">Resend email</string>
+    <string name="verify_email_checked">I have verified</string>
+    <string name="verify_email_back_login">Back to login</string>
+    <string name="verify_email_session_expired">Your session has expired. Sign in again.</string>
+    <string name="verify_email_resent">Verification email resent</string>
+    <string name="verify_email_still_pending">It is not verified yet. Check your email and tap \"I have verified\".</string>
+    <string name="verify_email_success">Email verified. Welcome</string>
+    <string name="verify_email_unavailable_email">(email unavailable)</string>
+
+    <string name="balance_select_group">Select a group to see balances.</string>
+    <string name="balance_invalid_group_members">Group has no valid members.</string>
+    <string name="balance_they_owe_you">You are owed %1$s â‚¬</string>
+    <string name="balance_you_owe">You owe %1$s â‚¬</string>
+    <string name="balance_group_title">Group balance:</string>
 </resources>
 

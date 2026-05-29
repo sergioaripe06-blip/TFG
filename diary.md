@@ -1075,3 +1075,23 @@ En cada avance relevante anadir:
 - `SettingsStore.setLanguage(...)` pasa a guardado síncrono (`commit()`).
 - `SettingsFragment` ahora compara y selecciona idioma usando el locale activo de `AppCompatDelegate`, con fallback a preferencias.
 - Resultado esperado: al alternar `Español/Inglés`, el spinner y la UI quedan alineados sin estados mezclados.
+
+## 2026-05-29
+- Tipo: Localización UI ES/EN (fase autenticación + balance)
+- Se migran textos hardcoded a recursos traducibles en:
+  - `activity_login.xml`
+  - `activity_register.xml`
+  - `activity_verify_email.xml`
+  - `LoginActivity.java`
+  - `RegisterActivity.java`
+  - `VerifyEmailActivity.java`
+  - `BalancesFragment.java`
+- Se amplían catálogos de i18n en:
+  - `values/strings.xml` (ES base)
+  - `values-en/strings.xml` (EN)
+- Impacto: al cambiar idioma en Ajustes, ahora se traducen también avisos, errores y textos de formularios de autenticación.
+
+## 2026-05-29
+- Tipo: Correccion de build Android por recurso i18n EN
+- Se corrige `register_terms_content` en `values-en/strings.xml` para evitar un escape conflictivo durante mergeDebugResources (Invalid unicode escape sequence).
+- Se revisan escapes en el archivo y se deja en UTF-8 sin BOM.

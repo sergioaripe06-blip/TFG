@@ -23,7 +23,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:gravity="center"
-                android:text="Verifica tu correo"
+                android:text="@string/verify_email_title"
                 android:textColor="@color/text_light"
                 android:textSize="32sp"
                 android:textStyle="bold" />
@@ -33,7 +33,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
                 android:gravity="center"
-                android:text="Te enviamos un enlace para validar tu cuenta"
+                android:text="@string/verify_email_subtitle"
                 android:textColor="@color/text_muted"
                 android:textSize="14sp" />
 
@@ -49,7 +49,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:gravity="center"
-                    android:text="Correo de verificación enviado a"
+                    android:text="@string/verify_email_sent_to"
                     android:textColor="@color/text_light"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -70,7 +70,7 @@
                     android:layout_height="48dp"
                     android:layout_marginTop="22dp"
                     android:background="@drawable/bg_button_pill_secondary"
-                    android:text="Reenviar correo"
+                    android:text="@string/verify_email_resend"
                     android:textAllCaps="false"
                     android:textColor="@color/text_light" />
 
@@ -80,7 +80,7 @@
                     android:layout_height="48dp"
                     android:layout_marginTop="12dp"
                     android:background="@drawable/bg_button_pill_primary"
-                    android:text="Ya he verificado"
+                    android:text="@string/verify_email_checked"
                     android:textAllCaps="false"
                     android:textColor="@color/on_primary_green" />
 
@@ -90,10 +90,12 @@
                     android:layout_height="48dp"
                     android:layout_marginTop="12dp"
                     android:background="@drawable/bg_button_pill_secondary"
-                    android:text="Volver a iniciar sesión"
+                    android:text="@string/verify_email_back_login"
                     android:textAllCaps="false"
                     android:textColor="@color/text_light" />
             </LinearLayout>
         </LinearLayout>
     </ScrollView>
 </FrameLayout>
+
+

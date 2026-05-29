@@ -69,33 +69,33 @@ public class RegisterActivity extends AppCompatActivity {
             String phone = CountryPhoneUtils.buildFullPhone(selectedCountry, localPhone);
 
             if (TextUtils.isEmpty(email)) {
-                NoticeUtils.show(this, "Falta el correo electrónico");
+                NoticeUtils.show(this, getString(R.string.auth_email_missing));
                 return;
             }
             if (TextUtils.isEmpty(password)) {
-                NoticeUtils.show(this, "Falta la contraseña");
+                NoticeUtils.show(this, getString(R.string.auth_password_missing));
                 return;
             }
             if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(localPhone)
                     || TextUtils.isEmpty(birthDate) || TextUtils.isEmpty(password)) {
-                NoticeUtils.show(this, "Completa todos los campos del registro");
+                NoticeUtils.show(this, getString(R.string.register_complete_all_fields));
                 return;
             }
 
             if (!isAdult(birthDate)) {
-                NoticeUtils.show(this, "Debes tener al menos 18 años");
+                NoticeUtils.show(this, getString(R.string.register_adult_required));
                 return;
             }
 
             if (!termsSwitch.isChecked()) {
-                NoticeUtils.show(this, "Debes aceptar los términos y condiciones de uso");
+                NoticeUtils.show(this, getString(R.string.register_terms_required));
                 return;
             }
 
             FirebaseAuth.getInstance().createUserWithEmailAndPassword(email, password)
                     .addOnSuccessListener(authResult -> {
                         if (authResult.getUser() == null) {
-                            NoticeUtils.show(this, "No se pudo crear la cuenta. Inténtalo de nuevo.");
+                            NoticeUtils.show(this, getString(R.string.register_create_failed));
                             return;
                         }
                         UserProfileChangeRequest profile = new UserProfileChangeRequest.Builder()
@@ -113,13 +113,13 @@ public class RegisterActivity extends AppCompatActivity {
                         AuthEmailLocale.apply(this);
                         authResult.getUser().sendEmailVerification()
                                 .addOnSuccessListener(unused -> {
-                                    NoticeUtils.show(this, "Te hemos enviado un correo de verificación");
+                                    NoticeUtils.show(this, getString(R.string.register_verification_sent));
                                     openVerifyEmailScreen(email, fullName, phone, birthDate, true);
                                 })
                                 .addOnFailureListener(e -> {
                                     Toast.makeText(
                                             this,
-                                            "Cuenta creada, pero no pudimos enviar el correo de verificación. Puedes reenviarlo desde la siguiente pantalla.",
+                                            getString(R.string.register_verification_send_failed),
                                             Toast.LENGTH_LONG
                                     ).show();
                                     openVerifyEmailScreen(email, fullName, phone, birthDate, true);
@@ -127,10 +127,10 @@ public class RegisterActivity extends AppCompatActivity {
                     })
                     .addOnFailureListener(e -> {
                         if (e instanceof FirebaseAuthUserCollisionException) {
-                            NoticeUtils.show(this, "Ese correo ya tiene una cuenta registrada");
+                            NoticeUtils.show(this, getString(R.string.register_email_already_used));
                             return;
                         }
-                        NoticeUtils.show(this, mapAuthErrorToSpanish(e));
+                        NoticeUtils.show(this, mapAuthError(e));
                     });
         });
 
@@ -138,18 +138,10 @@ public class RegisterActivity extends AppCompatActivity {
     }
 
     private void showTermsDialog() {
-        String content = "Términos y condiciones de uso\n\n"
-                + "1. Debes usar la app de forma legal y respetuosa.\n"
-                + "2. Eres responsable de los datos que introduces.\n"
-                + "3. No debes compartir el acceso de tu cuenta.\n"
-                + "4. Los gastos, pagos y recordatorios son responsabilidad de los usuarios.\n"
-                + "5. Puedes dejar de usar la app cuando quieras.\n"
-                + "6. Al registrarte, aceptas estas condiciones.";
-
         new AlertDialog.Builder(this)
-                .setTitle("Términos y condiciones")
-                .setMessage(content)
-                .setPositiveButton("Cerrar", null)
+                .setTitle(getString(R.string.register_terms_title))
+                .setMessage(getString(R.string.register_terms_content))
+                .setPositiveButton(getString(R.string.common_close), null)
                 .show();
     }
 
@@ -160,7 +152,7 @@ public class RegisterActivity extends AppCompatActivity {
         try {
             birthDate = fmt.parse(birthDateIso);
         } catch (ParseException e) {
-            NoticeUtils.show(this, "Formato inválido. Usa YYYY-MM-DD");
+            NoticeUtils.show(this, getString(R.string.register_birth_date_invalid));
             return false;
         }
         Calendar birth = Calendar.getInstance();
@@ -228,15 +220,15 @@ public class RegisterActivity extends AppCompatActivity {
         finish();
     }
 
-    private String mapAuthErrorToSpanish(Exception e) {
+    private String mapAuthError(Exception e) {
         if (e instanceof FirebaseAuthException authException) {
             String code = authException.getErrorCode();
-            if ("ERROR_INVALID_EMAIL".equals(code)) return "El correo electrónico no es válido.";
-            if ("ERROR_WEAK_PASSWORD".equals(code)) return "La contraseña es demasiado débil. Usa al menos 6 caracteres.";
-            if ("ERROR_EMAIL_ALREADY_IN_USE".equals(code)) return "Ese correo ya tiene una cuenta registrada.";
-            if ("ERROR_NETWORK_REQUEST_FAILED".equals(code)) return "Error de conexión. Revisa internet e inténtalo otra vez.";
-            if ("ERROR_TOO_MANY_REQUESTS".equals(code)) return "Demasiados intentos. Espera un momento y vuelve a intentarlo.";
+            if ("ERROR_INVALID_EMAIL".equals(code)) return getString(R.string.auth_error_invalid_email);
+            if ("ERROR_WEAK_PASSWORD".equals(code)) return getString(R.string.register_error_weak_password);
+            if ("ERROR_EMAIL_ALREADY_IN_USE".equals(code)) return getString(R.string.register_email_already_used);
+            if ("ERROR_NETWORK_REQUEST_FAILED".equals(code)) return getString(R.string.auth_error_network);
+            if ("ERROR_TOO_MANY_REQUESTS".equals(code)) return getString(R.string.auth_error_too_many_requests);
         }
-        return "No se pudo completar el registro. Revisa los datos e inténtalo de nuevo.";
+        return getString(R.string.register_error_generic);
     }
 }

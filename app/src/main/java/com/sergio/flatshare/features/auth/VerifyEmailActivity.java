@@ -1,12 +1,9 @@
 package com.sergio.flatshare.features.auth;
 
-import com.sergio.flatshare.shared.ui.NoticeUtils;
-
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.widget.Button;
-import android.widget.Toast;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -18,6 +15,7 @@ import com.sergio.flatshare.R;
 import com.sergio.flatshare.core.session.SessionStore;
 import com.sergio.flatshare.core.sync.UserSync;
 import com.sergio.flatshare.features.shell.MainActivity;
+import com.sergio.flatshare.shared.ui.NoticeUtils;
 
 import java.util.Locale;
 
@@ -66,7 +64,7 @@ public class VerifyEmailActivity extends AppCompatActivity {
         } else if (user != null && user.getEmail() != null) {
             email = user.getEmail().trim().toLowerCase(Locale.ROOT);
         } else {
-            email = "(correo no disponible)";
+            email = getString(R.string.verify_email_unavailable_email);
         }
 
         if (TextUtils.isEmpty(fullName)) {
@@ -85,21 +83,21 @@ public class VerifyEmailActivity extends AppCompatActivity {
     private void resendVerificationEmail() {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user == null) {
-            NoticeUtils.show(this, "Tu sesión ha caducado. Inicia sesión de nuevo.");
+            NoticeUtils.show(this, getString(R.string.verify_email_session_expired));
             returnToLogin();
             return;
         }
 
         AuthEmailLocale.apply(this);
         user.sendEmailVerification()
-                .addOnSuccessListener(unused -> Toast.makeText(this, "Correo de verificación reenviado", Toast.LENGTH_LONG).show())
+                .addOnSuccessListener(unused -> Toast.makeText(this, getString(R.string.verify_email_resent), Toast.LENGTH_LONG).show())
                 .addOnFailureListener(e -> Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show());
     }
 
     private void checkVerificationAndContinue() {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user == null) {
-            NoticeUtils.show(this, "Tu sesión ha caducado. Inicia sesión de nuevo.");
+            NoticeUtils.show(this, getString(R.string.verify_email_session_expired));
             returnToLogin();
             return;
         }
@@ -108,14 +106,13 @@ public class VerifyEmailActivity extends AppCompatActivity {
                 .addOnSuccessListener(unused -> {
                     FirebaseUser refreshedUser = FirebaseAuth.getInstance().getCurrentUser();
                     if (refreshedUser == null) {
-                        NoticeUtils.show(this, "Tu sesión ha caducado. Inicia sesión de nuevo.");
+                        NoticeUtils.show(this, getString(R.string.verify_email_session_expired));
                         returnToLogin();
                         return;
                     }
 
                     if (!refreshedUser.isEmailVerified()) {
-                        NoticeUtils.show(this, "Aún no está verificado. Revisa tu correo y pulsa " +
-                                "\"Ya he verificado\".");
+                        NoticeUtils.show(this, getString(R.string.verify_email_still_pending));
                         return;
                     }
 
@@ -124,7 +121,7 @@ public class VerifyEmailActivity extends AppCompatActivity {
                                 finalizeProfileIfNeeded();
                                 UserSync.ensureCurrentUserDocument();
                                 SessionStore.clearPendingRegistrationProfile(this);
-                                NoticeUtils.show(this, "Correo verificado. Bienvenido/a");
+                                NoticeUtils.show(this, getString(R.string.verify_email_success));
                                 openMain();
                             })
                             .addOnFailureListener(e -> Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show());
@@ -160,4 +157,3 @@ public class VerifyEmailActivity extends AppCompatActivity {
         return value == null ? "" : value.trim();
     }
 }
-

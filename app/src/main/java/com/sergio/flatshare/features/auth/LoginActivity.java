@@ -1,21 +1,17 @@
 package com.sergio.flatshare.features.auth;
 
-import com.sergio.flatshare.shared.ui.NoticeUtils;
-
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
-import android.graphics.Paint;
 import android.text.InputType;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
-import android.widget.Toast;
 import android.widget.EditText;
-import android.widget.Toast;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -29,6 +25,7 @@ import com.sergio.flatshare.R;
 import com.sergio.flatshare.core.session.SessionStore;
 import com.sergio.flatshare.core.sync.UserSync;
 import com.sergio.flatshare.features.shell.MainActivity;
+import com.sergio.flatshare.shared.ui.NoticeUtils;
 
 import java.util.Locale;
 
@@ -85,7 +82,7 @@ public class LoginActivity extends AppCompatActivity {
             }
             SessionStore.setRememberMeEnabled(this, false);
             FirebaseAuth.getInstance().signOut();
-            NoticeUtils.show(this, "Debes verificar tu correo antes de entrar");
+            NoticeUtils.show(this, getString(R.string.auth_verify_required));
         });
     }
 
@@ -95,11 +92,11 @@ public class LoginActivity extends AppCompatActivity {
         boolean rememberMe = rememberMeSwitch.isChecked();
 
         if (TextUtils.isEmpty(email)) {
-            NoticeUtils.show(this, "Falta el correo electrónico");
+            NoticeUtils.show(this, getString(R.string.auth_email_missing));
             return;
         }
         if (TextUtils.isEmpty(password)) {
-            NoticeUtils.show(this, "Falta la contraseña");
+            NoticeUtils.show(this, getString(R.string.auth_password_missing));
             return;
         }
         signIn(email, password, rememberMe);
@@ -110,20 +107,20 @@ public class LoginActivity extends AppCompatActivity {
                 .addOnSuccessListener(result -> {
                     FirebaseUser user = result.getUser();
                     if (user == null) {
-                        NoticeUtils.show(this, "No se pudo iniciar sesión");
+                        NoticeUtils.show(this, getString(R.string.auth_login_unavailable));
                         return;
                     }
 
                     user.reload().addOnCompleteListener(task -> {
                         FirebaseUser refreshedUser = FirebaseAuth.getInstance().getCurrentUser();
                         if (refreshedUser == null) {
-                            NoticeUtils.show(this, "Sesión no disponible");
+                            NoticeUtils.show(this, getString(R.string.auth_session_unavailable));
                             return;
                         }
 
                         if (!refreshedUser.isEmailVerified()) {
                             SessionStore.setRememberMeEnabled(this, false);
-                            NoticeUtils.show(this, "Tu correo aún no está verificado");
+                            NoticeUtils.show(this, getString(R.string.auth_verify_pending));
                             openVerifyEmailScreen(refreshedUser.getEmail());
                             return;
                         }
@@ -137,7 +134,7 @@ public class LoginActivity extends AppCompatActivity {
                                 .addOnFailureListener(e -> Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show());
                     });
                 })
-                .addOnFailureListener(e -> Toast.makeText(this, mapAuthErrorToSpanish(e), Toast.LENGTH_LONG).show());
+                .addOnFailureListener(e -> Toast.makeText(this, mapAuthError(e), Toast.LENGTH_LONG).show());
     }
 
     private void openVerifyEmailScreen(String email) {
@@ -154,11 +151,11 @@ public class LoginActivity extends AppCompatActivity {
 
     private void showForgotPasswordDialog() {
         showSingleInputDialog(
-                "¿Olvidaste la contraseña?",
-                "Introduce tu correo electrónico y te enviaremos un enlace para restablecerla.",
-                "Correo electrónico",
+                getString(R.string.auth_forgot_title),
+                getString(R.string.auth_forgot_subtitle),
+                getString(R.string.common_email_label),
                 InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
-                "Enviar",
+                getString(R.string.common_send),
                 emailEt.getText().toString().trim(),
                 value -> {
                     requestPasswordReset(value.trim());
@@ -169,12 +166,12 @@ public class LoginActivity extends AppCompatActivity {
 
     private void requestPasswordReset(String email) {
         if (TextUtils.isEmpty(email)) {
-            NoticeUtils.show(this, "Introduce tu correo electrónico");
+            NoticeUtils.show(this, getString(R.string.auth_enter_email));
             return;
         }
 
         if (!email.contains("@")) {
-            NoticeUtils.show(this, "La recuperación solo está disponible con correo electrónico");
+            NoticeUtils.show(this, getString(R.string.auth_forgot_email_only));
             return;
         }
 
@@ -184,23 +181,23 @@ public class LoginActivity extends AppCompatActivity {
     private void sendPasswordReset(String email) {
         AuthEmailLocale.apply(this);
         FirebaseAuth.getInstance().sendPasswordResetEmail(email.trim().toLowerCase(Locale.ROOT))
-                .addOnSuccessListener(result -> Toast.makeText(this, "Te hemos enviado un correo para restablecer tu contraseña", Toast.LENGTH_LONG).show())
-                .addOnFailureListener(e -> Toast.makeText(this, mapAuthErrorToSpanish(e), Toast.LENGTH_LONG).show());
+                .addOnSuccessListener(result -> Toast.makeText(this, getString(R.string.auth_forgot_email_sent), Toast.LENGTH_LONG).show())
+                .addOnFailureListener(e -> Toast.makeText(this, mapAuthError(e), Toast.LENGTH_LONG).show());
     }
 
-    private String mapAuthErrorToSpanish(Exception e) {
+    private String mapAuthError(Exception e) {
         if (e instanceof FirebaseAuthException authException) {
             String code = authException.getErrorCode();
-            if ("ERROR_INVALID_EMAIL".equals(code)) return "El correo electrónico no es válido.";
-            if ("ERROR_USER_NOT_FOUND".equals(code)) return "No existe ninguna cuenta con ese correo.";
+            if ("ERROR_INVALID_EMAIL".equals(code)) return getString(R.string.auth_error_invalid_email);
+            if ("ERROR_USER_NOT_FOUND".equals(code)) return getString(R.string.auth_error_user_not_found);
             if ("ERROR_WRONG_PASSWORD".equals(code) || "ERROR_INVALID_CREDENTIAL".equals(code)) {
-                return "Correo o contraseña incorrectos.";
+                return getString(R.string.auth_error_bad_credentials);
             }
-            if ("ERROR_USER_DISABLED".equals(code)) return "Esta cuenta está deshabilitada.";
-            if ("ERROR_TOO_MANY_REQUESTS".equals(code)) return "Demasiados intentos. Espera un momento y vuelve a intentarlo.";
-            if ("ERROR_NETWORK_REQUEST_FAILED".equals(code)) return "Error de conexión. Revisa internet e inténtalo otra vez.";
+            if ("ERROR_USER_DISABLED".equals(code)) return getString(R.string.auth_error_user_disabled);
+            if ("ERROR_TOO_MANY_REQUESTS".equals(code)) return getString(R.string.auth_error_too_many_requests);
+            if ("ERROR_NETWORK_REQUEST_FAILED".equals(code)) return getString(R.string.auth_error_network);
         }
-        return "No se pudo completar la operación. Revisa los datos e inténtalo de nuevo.";
+        return getString(R.string.auth_error_generic);
     }
 
     private void showSingleInputDialog(
@@ -250,4 +247,3 @@ public class LoginActivity extends AppCompatActivity {
         boolean onConfirm(String value);
     }
 }
-

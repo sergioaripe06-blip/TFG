@@ -621,3 +621,12 @@ En cada tarea nueva:
 - Se corrige una desincronización en `Ajustes > Idioma` donde el spinner podía mostrar un idioma distinto al aplicado en la UI.
 - Ahora el idioma seleccionado se guarda de forma síncrona antes de recrear la actividad.
 - El selector de idioma toma como referencia el locale activo de `AppCompat`, evitando estados mezclados.
+
+### Localización (2026-05-29) - Autenticación y balance
+- Se elimina texto hardcoded en `Login`, `Registro` y `Verificación de correo`, moviendo títulos, labels, hints, diálogos, avisos y errores a `strings.xml`.
+- Se añaden traducciones equivalentes en `values-en/strings.xml` para que el cambio ES/EN afecte también a mensajes dinámicos (no solo a la UI estática).
+- `BalancesFragment` pasa mensajes de estado a recursos traducibles (`Selecciona grupo`, `Te deben`, `Debes`, etc.).
+
+### Localizacion EN (2026-05-29) - Correccion de compilacion de recursos
+- Se corrige el texto de terminos en ingles para evitar un fallo de compilacion en Android (Invalid unicode escape sequence en mergeDebugResources).
+- Sin cambios funcionales para usuario; mejora de estabilidad del build.
