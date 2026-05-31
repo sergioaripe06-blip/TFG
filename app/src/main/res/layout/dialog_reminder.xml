@@ -74,7 +74,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
-        android:text="Fecha de inicio (AAAA-MM-DD):"
+        android:text="Fecha de inicio (DD/MM/AAAA):"
         android:textColor="@color/text_light"
         android:textSize="12sp"
         android:textStyle="bold" />
@@ -99,7 +99,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
-        android:text="Fecha de finalización (AAAA-MM-DD):"
+        android:text="Fecha de finalización (DD/MM/AAAA):"
         android:textColor="@color/text_light"
         android:textSize="12sp"
         android:textStyle="bold"

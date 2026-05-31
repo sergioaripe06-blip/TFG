@@ -33,15 +33,15 @@ import com.google.firebase.firestore.SetOptions;
 import com.sergio.flatshare.R;
 import com.sergio.flatshare.features.settings.SettingsFragment;
 import com.sergio.flatshare.shared.ui.CountryPhoneUtils;
+import com.sergio.flatshare.shared.ui.DateInputUtils;
 import com.sergio.flatshare.shared.ui.DialogUtils;
 import com.sergio.flatshare.shared.ui.NoticeUtils;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -218,7 +218,7 @@ public class ProfileFragment extends Fragment {
                 return;
             }
             if (!isAdult(newBirthDate)) {
-                NoticeUtils.show(requireContext(), "Debes tener al menos 18 años");
+                NoticeUtils.show(requireContext(), "Debes tener al menos 18 a\u00f1os");
                 return;
             }
 
@@ -329,16 +329,19 @@ public class ProfileFragment extends Fragment {
         Calendar calendar = Calendar.getInstance();
         String currentValue = targetField.getText() == null ? "" : targetField.getText().toString().trim();
         if (!currentValue.isEmpty()) {
-            try {
-                SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT);
-                fmt.setLenient(false);
-                calendar.setTime(fmt.parse(currentValue));
-            } catch (Exception ignored) {
+            Date parsed = DateInputUtils.parseDayOrNull(currentValue);
+            if (parsed != null) {
+                calendar.setTime(parsed);
             }
         }
         DatePickerDialog dialog = new DatePickerDialog(
                 requireContext(),
-                (view, year, month, dayOfMonth) -> targetField.setText(String.format(Locale.ROOT, "%04d-%02d-%02d", year, month + 1, dayOfMonth)),
+                (view, year, month, dayOfMonth) -> {
+                    Calendar selected = Calendar.getInstance();
+                    selected.set(year, month, dayOfMonth, 0, 0, 0);
+                    selected.set(Calendar.MILLISECOND, 0);
+                    targetField.setText(DateInputUtils.formatDay(selected.getTime()));
+                },
                 calendar.get(Calendar.YEAR),
                 calendar.get(Calendar.MONTH),
                 calendar.get(Calendar.DAY_OF_MONTH)
@@ -346,21 +349,20 @@ public class ProfileFragment extends Fragment {
         dialog.show();
     }
 
-    private boolean isAdult(String birthDateIso) {
-        SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT);
-        fmt.setLenient(false);
-        try {
-            Calendar birth = Calendar.getInstance();
-            birth.setTime(fmt.parse(birthDateIso));
-            Calendar today = Calendar.getInstance();
-            int ageYears = today.get(Calendar.YEAR) - birth.get(Calendar.YEAR);
-            if (today.get(Calendar.DAY_OF_YEAR) < birth.get(Calendar.DAY_OF_YEAR)) {
-                ageYears--;
-            }
-            return ageYears >= 18;
-        } catch (ParseException e) {
-            NoticeUtils.show(requireContext(), "Formato inválido. Usa YYYY-MM-DD");
+    private boolean isAdult(String birthDateText) {
+        Date birthDateValue = DateInputUtils.parseDayOrNull(birthDateText);
+        if (birthDateValue == null) {
+            NoticeUtils.show(requireContext(), "Formato inv\u00e1lido. Usa DD/MM/AAAA");
             return false;
         }
+        Calendar birth = Calendar.getInstance();
+        birth.setTime(birthDateValue);
+        Calendar today = Calendar.getInstance();
+        int ageYears = today.get(Calendar.YEAR) - birth.get(Calendar.YEAR);
+        if (today.get(Calendar.DAY_OF_YEAR) < birth.get(Calendar.DAY_OF_YEAR)) {
+            ageYears--;
+        }
+        return ageYears >= 18;
     }
 }
+

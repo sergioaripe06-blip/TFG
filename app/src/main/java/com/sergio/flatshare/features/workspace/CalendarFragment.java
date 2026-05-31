@@ -43,11 +43,11 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QuerySnapshot;
 import com.sergio.flatshare.R;
 import com.sergio.flatshare.core.notifications.ReminderScheduler;
+import com.sergio.flatshare.shared.ui.DateInputUtils;
 import com.sergio.flatshare.shared.ui.DialogUtils;
 import com.sergio.flatshare.shared.ui.NoticeUtils;
 
 import java.text.DecimalFormat;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -60,7 +60,6 @@ import java.util.Map;
 import java.util.Set;
 
 public class CalendarFragment extends Fragment {
-    private static final SimpleDateFormat REMINDER_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT);
     private static final SimpleDateFormat SELECTED_DATE_LABEL_FORMAT = new SimpleDateFormat("dd/MM/yyyy", Locale.ROOT);
     private static final String[] REMINDER_INTERVAL_LABELS = {"Único", "Diario", "Semanal", "Mensual", "Personalizado"};
     private static final String[] REMINDER_INTERVAL_KEYS = {"unico", "diario", "semanal", "mensual", "personalizado"};
@@ -445,11 +444,11 @@ public class CalendarFragment extends Fragment {
         customDaysEt.setInputType(InputType.TYPE_CLASS_NUMBER);
         form.addView(customDaysEt);
 
-        EditText startDateEt = buildDialogEditText("Fecha inicio (YYYY-MM-DD)");
+        EditText startDateEt = buildDialogEditText("Fecha inicio (DD/MM/AAAA)");
         setupDatePickerField(startDateEt);
         form.addView(startDateEt);
 
-        EditText endDateEt = buildDialogEditText("Fecha fin (opcional, YYYY-MM-DD)");
+        EditText endDateEt = buildDialogEditText("Fecha fin (opcional, DD/MM/AAAA)");
         setupDatePickerField(endDateEt);
         form.addView(endDateEt);
 
@@ -547,9 +546,9 @@ public class CalendarFragment extends Fragment {
             updates.put("interval", newIntervalKey);
             updates.put("intervalDays", intervalDays);
             updates.put("startAt", startAt);
-            updates.put("startDateText", REMINDER_DATE_FORMAT.format(startAt));
+            updates.put("startDateText", DateInputUtils.formatDay(startAt));
             updates.put("endAt", endAt);
-            updates.put("endDateText", endAt == null ? "" : REMINDER_DATE_FORMAT.format(endAt));
+            updates.put("endDateText", endAt == null ? "" : DateInputUtils.formatDay(endAt));
             updates.put("updatedAt", FieldValue.serverTimestamp());
 
             db.collection("reminders")
@@ -631,10 +630,10 @@ public class CalendarFragment extends Fragment {
 
     private String resolveReminderDateText(@NonNull DocumentSnapshot doc, @NonNull String textField, @NonNull String dateField) {
         String text = doc.getString(textField);
-        if (text != null && !text.trim().isEmpty()) return text.trim();
+        if (text != null && !text.trim().isEmpty()) return DateInputUtils.normalizeToDisplay(text);
         Date date = doc.getDate(dateField);
         if (date == null) return "Sin fecha";
-        return REMINDER_DATE_FORMAT.format(date);
+        return DateInputUtils.formatDay(date);
     }
 
     private String reminderIntervalLabel(@NonNull DocumentSnapshot doc) {
@@ -652,19 +651,15 @@ public class CalendarFragment extends Fragment {
 
     private Date parseReminderDateOrNull(@Nullable String value) {
         if (value == null || value.trim().isEmpty()) return null;
-        try {
-            Date raw = REMINDER_DATE_FORMAT.parse(value.trim());
-            if (raw == null) return null;
-            Calendar c = Calendar.getInstance();
-            c.setTime(raw);
-            c.set(Calendar.HOUR_OF_DAY, 10);
-            c.set(Calendar.MINUTE, 0);
-            c.set(Calendar.SECOND, 0);
-            c.set(Calendar.MILLISECOND, 0);
-            return c.getTime();
-        } catch (ParseException e) {
-            return null;
-        }
+        Date raw = DateInputUtils.parseDayOrNull(value);
+        if (raw == null) return null;
+        Calendar c = Calendar.getInstance();
+        c.setTime(raw);
+        c.set(Calendar.HOUR_OF_DAY, 10);
+        c.set(Calendar.MINUTE, 0);
+        c.set(Calendar.SECOND, 0);
+        c.set(Calendar.MILLISECOND, 0);
+        return c.getTime();
     }
 
     private void setupDatePickerField(@NonNull EditText field) {
@@ -679,7 +674,12 @@ public class CalendarFragment extends Fragment {
             }
             DatePickerDialog dialog = new DatePickerDialog(
                     requireContext(),
-                    (view, year, month, dayOfMonth) -> field.setText(String.format(Locale.ROOT, "%04d-%02d-%02d", year, month + 1, dayOfMonth)),
+                    (view, year, month, dayOfMonth) -> {
+                        Calendar selected = Calendar.getInstance();
+                        selected.set(year, month, dayOfMonth, 0, 0, 0);
+                        selected.set(Calendar.MILLISECOND, 0);
+                        field.setText(DateInputUtils.formatDay(selected.getTime()));
+                    },
                     now.get(Calendar.YEAR),
                     now.get(Calendar.MONTH),
                     now.get(Calendar.DAY_OF_MONTH)

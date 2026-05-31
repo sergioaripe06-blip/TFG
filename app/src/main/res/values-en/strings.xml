@@ -42,9 +42,10 @@
     <string name="settings_delete_account_password_invalid">Incorrect password.</string>
     <string name="settings_delete_account_credentials_invalid">Incorrect email or password.</string>
     <string name="settings_delete_account_password_cta">Validate and continue</string>
+    <string name="payment_category_fixed_hint">In fixed rent, the category is always rent.</string>
     <string name="save">Save</string>
     <string name="calendar_title">Calendar</string>
-    <string name="due_date_hint">Due date (YYYY-MM-DD)</string>
+    <string name="due_date_hint">Due date (DD/MM/YYYY)</string>
     <string name="common_send">Send</string>
     <string name="common_close">Close</string>
     <string name="common_email_label">Email:</string>
@@ -84,7 +85,7 @@
     <string name="register_phone_label">Phone:</string>
     <string name="register_phone_hint">Type your number</string>
     <string name="register_birth_date_label">Birth date:</string>
-    <string name="register_birth_date_hint">YYYY-MM-DD</string>
+    <string name="register_birth_date_hint">DD/MM/YYYY</string>
     <string name="register_terms_switch">I accept the terms and conditions</string>
     <string name="register_view_terms">View terms and conditions</string>
     <string name="register_complete_all_fields">Complete all registration fields</string>
@@ -94,7 +95,7 @@
     <string name="register_verification_sent">We sent you a verification email</string>
     <string name="register_verification_send_failed">Account created, but we could not send the verification email. You can resend it from the next screen.</string>
     <string name="register_email_already_used">That email is already registered</string>
-    <string name="register_birth_date_invalid">Invalid format. Use YYYY-MM-DD</string>
+    <string name="register_birth_date_invalid">Invalid format. Use DD/MM/YYYY</string>
     <string name="register_error_weak_password">Password is too weak. Use at least 6 characters.</string>
     <string name="register_error_generic">Could not complete registration. Check your data and try again.</string>
     <string name="register_terms_title">Terms and conditions</string>

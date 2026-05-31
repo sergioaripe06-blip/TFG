@@ -61,7 +61,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
-        android:text="Fecha de nacimiento (AAAA-MM-DD):"
+        android:text="Fecha de nacimiento (DD/MM/AAAA):"
         android:textColor="@color/text_light"
         android:textSize="12sp"
         android:textStyle="bold" />

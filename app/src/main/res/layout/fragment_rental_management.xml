@@ -15,7 +15,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Gestión del alquiler"
+            android:text="Cobros y soporte del alquiler"
             android:textColor="@color/text_light"
             android:textSize="16sp"
             android:textStyle="bold" />
@@ -25,7 +25,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
-            android:text="Selecciona un módulo para gestionar el piso con menos clics."
+            android:text="Gestiona cobros, incidencias y documentos del piso."
             android:textColor="@color/text_muted"
             android:textSize="12sp" />
 

@@ -95,7 +95,7 @@ public class RentalManagementFragment extends Fragment {
     private RowsAdapter adapter;
 
     private String currentGroupId;
-    private String selectedModuleId = MODULE_CONTRACT;
+    private String selectedModuleId = MODULE_RENT;
 
     @Nullable
     @Override
@@ -141,13 +141,9 @@ public class RentalManagementFragment extends Fragment {
 
     private void buildModules() {
         modules.clear();
-        modules.add(new ModuleDef(MODULE_CONTRACT, "Contrato", "Inicio/fin, fianza, prórrogas, cláusulas y firmantes", "Guardar contrato"));
         modules.add(new ModuleDef(MODULE_RENT, "Cobros", "Estado mensual: pendiente, parcial, pagado o atrasado + recargos", "Nuevo cobro mensual"));
         modules.add(new ModuleDef(MODULE_MAINTENANCE, "Incidencias", "Averías, responsable, coste, estado e historial", "Nueva incidencia"));
         modules.add(new ModuleDef(MODULE_DOCUMENTS, "Documentos", "Contrato, facturas, inventario, fotos y actas", "Nuevo documento"));
-        modules.add(new ModuleDef(MODULE_AUDIT, "Auditoría", "Trazabilidad por usuario, fecha y acción", "Actualizar"));
-        modules.add(new ModuleDef(MODULE_AUTOMATION, "Automatización", "Rentas recurrentes y prorrateos entrada/salida", "Gestionar automatizaciones"));
-        modules.add(new ModuleDef(MODULE_REMINDER_RULES, "Reglas push", "Recordatorios por vencimientos e impagos", "Nueva regla de evento"));
     }
 
     private void setupModuleSpinner() {
@@ -247,18 +243,10 @@ public class RentalManagementFragment extends Fragment {
     private void loadCurrentModuleRows() {
         if (!isAdded() || currentGroupId == null || currentGroupId.trim().isEmpty()) return;
         switch (selectedModuleId) {
-            case MODULE_CONTRACT -> loadContractRows();
             case MODULE_RENT -> loadRentRows();
             case MODULE_MAINTENANCE -> loadMaintenanceRows();
             case MODULE_DOCUMENTS -> loadDocumentRows();
-            case MODULE_AUDIT -> loadAuditRows();
-            case MODULE_AUTOMATION -> loadAutomationRows();
-            case MODULE_REMINDER_RULES -> loadReminderRuleRows();
-            default -> {
-                rows.clear();
-                adapter.notifyDataSetChanged();
-                emptyTv.setVisibility(View.VISIBLE);
-            }
+            default -> loadRentRows();
         }
     }
 
@@ -268,29 +256,20 @@ public class RentalManagementFragment extends Fragment {
             return;
         }
         switch (selectedModuleId) {
-            case MODULE_CONTRACT -> openContractDialog(null);
             case MODULE_RENT -> openRentDialog(null);
             case MODULE_MAINTENANCE -> openMaintenanceDialog(null);
             case MODULE_DOCUMENTS -> openDocumentDialog(null);
-            case MODULE_AUDIT -> loadAuditRows();
-            case MODULE_AUTOMATION -> showAutomationActionsDialog();
-            case MODULE_REMINDER_RULES -> openReminderRuleDialog(null);
+            default -> openRentDialog(null);
         }
     }
 
     private void openRowDetails(ManagementRow row) {
-        if (MODULE_CONTRACT.equals(row.moduleId)) {
-            openContractDialog(row.snapshot);
-        } else if (MODULE_RENT.equals(row.moduleId)) {
+        if (MODULE_RENT.equals(row.moduleId)) {
             openRentDialog(row.snapshot);
         } else if (MODULE_MAINTENANCE.equals(row.moduleId)) {
             openMaintenanceDialog(row.snapshot);
         } else if (MODULE_DOCUMENTS.equals(row.moduleId)) {
             openDocumentDialog(row.snapshot);
-        } else if (MODULE_AUTOMATION.equals(row.moduleId)) {
-            openAutomationDialog(row.snapshot);
-        } else if (MODULE_REMINDER_RULES.equals(row.moduleId)) {
-            openReminderRuleDialog(row.snapshot);
         } else {
             showReadOnlyDetails(row);
         }
@@ -325,14 +304,14 @@ public class RentalManagementFragment extends Fragment {
                         rows.add(new ManagementRow(
                                 MODULE_CONTRACT,
                                 doc.getId(),
-                                "Contrato " + (start.isEmpty() ? "-" : start) + " → " + (end.isEmpty() ? "-" : end),
-                                "Fianza " + moneyFormat.format(deposit) + " EUR · Prórrogas: " + extMonths + " meses",
+                                "Contrato " + (start.isEmpty() ? "-" : start) + " â†’ " + (end.isEmpty() ? "-" : end),
+                                "Fianza " + moneyFormat.format(deposit) + " EUR Â· PrÃ³rrogas: " + extMonths + " meses",
                                 signersSummary,
                                 doc,
                                 "Contrato"
                         ));
                     }
-                    onRowsReady("Aún no has creado contrato para este piso.");
+                    onRowsReady("AÃºn no has creado contrato para este piso.");
                 },
                 error -> onLoadError("No se pudieron cargar contratos")
         );
@@ -355,7 +334,7 @@ public class RentalManagementFragment extends Fragment {
                         double total = amountBase + surcharge;
                         String tenantLabel = tenant.isEmpty() ? "Sin inquilino" : formatMemberTwoLines(tenant);
                         String subtitle = "Mes " + (monthKey.isEmpty() ? "-" : monthKey)
-                                + " - " + (room.isEmpty() ? "Sin habitación" : room)
+                                + " - " + (room.isEmpty() ? "Sin habitaciÃ³n" : room)
                                 + "\nInquilino:\n" + tenantLabel;
                         String amount = moneyFormat.format(amountPaid) + " / " + moneyFormat.format(total) + " EUR";
                         String detail = "Estado: " + (status.isEmpty() ? "pendiente" : status)
@@ -384,10 +363,10 @@ public class RentalManagementFragment extends Fragment {
                         String status = safe(doc.getString("status"));
                         double cost = safeDouble(doc.getDouble("finalCost"));
                         if (cost <= 0) cost = safeDouble(doc.getDouble("estimatedCost"));
-                        String subtitle = (room.isEmpty() ? "Sin habitación" : room)
+                        String subtitle = (room.isEmpty() ? "Sin habitaciÃ³n" : room)
                                 + "\nResponsable:\n" + (responsible.isEmpty() ? "Sin asignar" : formatMemberTwoLines(responsible));
                         String detail = "Estado: " + (status.isEmpty() ? "abierta" : status)
-                                + " · Coste: " + moneyFormat.format(cost) + " EUR";
+                                + " Â· Coste: " + moneyFormat.format(cost) + " EUR";
                         rows.add(new ManagementRow(MODULE_MAINTENANCE, doc.getId(), title.isEmpty() ? "Incidencia" : title, subtitle, detail, doc, "Incidencia"));
                     }
                     onRowsReady("No hay incidencias registradas.");
@@ -409,7 +388,7 @@ public class RentalManagementFragment extends Fragment {
                         String date = safe(doc.getString("documentDate"));
                         String ref = safe(doc.getString("referenceUri"));
                         String notes = safe(doc.getString("notes"));
-                        String subtitle = "Tipo: " + normalizeDocumentType(type) + " · Fecha: " + (date.isEmpty() ? "-" : date);
+                        String subtitle = "Tipo: " + normalizeDocumentType(type) + " Â· Fecha: " + (date.isEmpty() ? "-" : date);
                         String detail = "Referencia: " + (ref.isEmpty() ? "-" : ref);
                         rows.add(new ManagementRow(MODULE_DOCUMENTS, doc.getId(), title.isEmpty() ? "Documento" : title, subtitle, detail, doc, notes));
                     }
@@ -435,16 +414,16 @@ public class RentalManagementFragment extends Fragment {
                         rows.add(new ManagementRow(
                                 MODULE_AUDIT,
                                 doc.getId(),
-                                module + " · " + action,
+                                module + " Â· " + action,
                                 "Usuario: " + (actor.isEmpty() ? "-" : actor),
                                 date,
                                 doc,
                                 details
                         ));
                     }
-                    onRowsReady("No hay eventos de auditoría todavía.");
+                    onRowsReady("No hay eventos de auditorÃ­a todavÃ­a.");
                 })
-                .addOnFailureListener(e -> onLoadError("No se pudo cargar auditoría"));
+                .addOnFailureListener(e -> onLoadError("No se pudo cargar auditorÃ­a"));
     }
 
     private void loadAutomationRows() {
@@ -462,12 +441,12 @@ public class RentalManagementFragment extends Fragment {
                         long day = safeLong(doc.getLong("billingDay"));
                         String start = safe(doc.getString("startDate"));
                         String end = safe(doc.getString("endDate"));
-                        String subtitle = (room.isEmpty() ? "Sin habitación" : room)
+                        String subtitle = (room.isEmpty() ? "Sin habitaciÃ³n" : room)
                                 + "\nInquilino:\n" + (tenant.isEmpty() ? "Sin inquilino" : formatMemberTwoLines(tenant));
-                        String detail = "Cobro día " + day + " · " + moneyFormat.format(amount) + " EUR/mes";
-                        rows.add(new ManagementRow(MODULE_AUTOMATION, doc.getId(), start + " → " + (end.isEmpty() ? "sin fin" : end), subtitle, detail, doc, "Regla de automatización"));
+                        String detail = "Cobro dÃ­a " + day + " Â· " + moneyFormat.format(amount) + " EUR/mes";
+                        rows.add(new ManagementRow(MODULE_AUTOMATION, doc.getId(), start + " â†’ " + (end.isEmpty() ? "sin fin" : end), subtitle, detail, doc, "Regla de automatizaciÃ³n"));
                     }
-                    onRowsReady("No hay reglas de automatización todavía.");
+                    onRowsReady("No hay reglas de automatizaciÃ³n todavÃ­a.");
                 })
                 .addOnFailureListener(e -> onLoadError("No se pudieron cargar automatizaciones"));
     }
@@ -487,19 +466,19 @@ public class RentalManagementFragment extends Fragment {
                         boolean enabled = Boolean.TRUE.equals(doc.getBoolean("enabled"));
                         long offset = safeLong(doc.getLong("offsetDays"));
                         String subtitle = eventTypeLabel(eventType)
-                                + " · " + (enabled ? "Activa" : "Pausada")
-                                + " · offset " + offset + " días";
+                                + " Â· " + (enabled ? "Activa" : "Pausada")
+                                + " Â· offset " + offset + " dÃ­as";
                         rows.add(new ManagementRow(
                                 MODULE_REMINDER_RULES,
                                 doc.getId(),
-                                titleTemplate.isEmpty() ? "Regla sin título" : titleTemplate,
+                                titleTemplate.isEmpty() ? "Regla sin tÃ­tulo" : titleTemplate,
                                 subtitle,
                                 bodyTemplate,
                                 doc,
                                 "Regla de recordatorio"
                         ));
                     }
-                    onRowsReady("No hay reglas de notificación por eventos.");
+                    onRowsReady("No hay reglas de notificaciÃ³n por eventos.");
                 })
                 .addOnFailureListener(e -> onLoadError("No se pudieron cargar reglas de recordatorio"));
     }
@@ -509,13 +488,13 @@ public class RentalManagementFragment extends Fragment {
         EditText startEt = addLabeledEditText(form, "Fecha inicio (YYYY-MM-DD)", "2026-01-01", InputType.TYPE_CLASS_TEXT);
         EditText endEt = addLabeledEditText(form, "Fecha fin (YYYY-MM-DD)", "2026-12-31", InputType.TYPE_CLASS_TEXT);
         EditText depositEt = addLabeledEditText(form, "Fianza (EUR)", "1000", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
-        EditText extensionEt = addLabeledEditText(form, "Prórrogas (meses)", "0", InputType.TYPE_CLASS_NUMBER);
-        EditText clausesEt = addLabeledEditText(form, "Cláusulas", "Normas y condiciones del alquiler", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+        EditText extensionEt = addLabeledEditText(form, "PrÃ³rrogas (meses)", "0", InputType.TYPE_CLASS_NUMBER);
+        EditText clausesEt = addLabeledEditText(form, "ClÃ¡usulas", "Normas y condiciones del alquiler", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
         EditText ownerSignerEt = addLabeledEditText(form, "Firmante propietario (obligatorio)", "propietario@correo.com", InputType.TYPE_CLASS_TEXT);
         EditText tenantSignerEt = addLabeledEditText(form, "Firmante inquilino (obligatorio)", "inquilino@correo.com", InputType.TYPE_CLASS_TEXT);
-        Spinner coSignerEnabledSp = addLabeledSpinner(form, "Añadir cotitular", new String[]{"No", "Sí"});
+        Spinner coSignerEnabledSp = addLabeledSpinner(form, "AÃ±adir cotitular", new String[]{"No", "SÃ­"});
         EditText coSignerEt = addLabeledEditText(form, "Firmante cotitular (opcional)", "cotitular@correo.com", InputType.TYPE_CLASS_TEXT);
-        Spinner guarantorEnabledSp = addLabeledSpinner(form, "Añadir avalista", new String[]{"No", "Sí"});
+        Spinner guarantorEnabledSp = addLabeledSpinner(form, "AÃ±adir avalista", new String[]{"No", "SÃ­"});
         EditText guarantorEt = addLabeledEditText(form, "Firmante avalista (opcional)", "avalista@correo.com", InputType.TYPE_CLASS_TEXT);
         setupDatePicker(startEt);
         setupDatePicker(endEt);
@@ -579,7 +558,7 @@ public class RentalManagementFragment extends Fragment {
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 existingDoc == null ? "Nuevo contrato" : "Editar contrato",
-                "Guarda fechas, fianza, cláusulas y firmantes.",
+                "Guarda fechas, fianza, clÃ¡usulas y firmantes.",
                 form,
                 "Cancelar",
                 "Guardar"
@@ -596,7 +575,7 @@ public class RentalManagementFragment extends Fragment {
             double deposit = parseDouble(depositEt.getText().toString().trim(), -1);
             long extensions = parseLong(extensionEt.getText().toString().trim(), -1);
             if (deposit < 0 || extensions < 0) {
-                NoticeUtils.show(requireContext(), "Fianza o prórrogas inválidas");
+                NoticeUtils.show(requireContext(), "Fianza o prÃ³rrogas invÃ¡lidas");
                 return;
             }
             String ownerSigner = normalizeEmail(ownerSignerEt.getText().toString());
@@ -609,15 +588,15 @@ public class RentalManagementFragment extends Fragment {
                     : "";
 
             if (!isLikelyEmail(ownerSigner) || !isLikelyEmail(tenantSigner)) {
-                NoticeUtils.show(requireContext(), "Propietario e inquilino deben tener email válido");
+                NoticeUtils.show(requireContext(), "Propietario e inquilino deben tener email vÃ¡lido");
                 return;
             }
             if (!coSigner.isEmpty() && !isLikelyEmail(coSigner)) {
-                NoticeUtils.show(requireContext(), "El cotitular no tiene email válido");
+                NoticeUtils.show(requireContext(), "El cotitular no tiene email vÃ¡lido");
                 return;
             }
             if (!guarantor.isEmpty() && !isLikelyEmail(guarantor)) {
-                NoticeUtils.show(requireContext(), "El avalista no tiene email válido");
+                NoticeUtils.show(requireContext(), "El avalista no tiene email vÃ¡lido");
                 return;
             }
 
@@ -655,7 +634,7 @@ public class RentalManagementFragment extends Fragment {
                     : db.collection("rental_contracts").document(existingDoc.getId()).update(data);
 
             writeTask.addOnSuccessListener(done -> {
-                writeAudit("Contrato", existingDoc == null ? "crear" : "editar", "Contrato guardado: " + start + " → " + end, existingDoc == null ? "" : existingDoc.getId());
+                writeAudit("Contrato", existingDoc == null ? "crear" : "editar", "Contrato guardado: " + start + " â†’ " + end, existingDoc == null ? "" : existingDoc.getId());
                 applyEventRules(EVENT_CONTRACT_ENDING, parseDate(end), null, "Fin de contrato cercano");
                 dialog.dismiss();
                 loadContractRows();
@@ -666,7 +645,7 @@ public class RentalManagementFragment extends Fragment {
     private void openRentDialog(@Nullable DocumentSnapshot existingDoc) {
         LinearLayout form = buildVerticalForm();
         EditText monthEt = addLabeledEditText(form, "Mes (YYYY-MM)", "2026-05", InputType.TYPE_CLASS_TEXT);
-        EditText roomEt = addLabeledEditText(form, "Habitación", "Habitación 1", InputType.TYPE_CLASS_TEXT);
+        EditText roomEt = addLabeledEditText(form, "HabitaciÃ³n", "HabitaciÃ³n 1", InputType.TYPE_CLASS_TEXT);
         Spinner tenantSpinner = addLabeledMemberSpinner(form, "Inquilino");
         EditText amountEt = addLabeledEditText(form, "Base mensual (EUR)", "450", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
         EditText paidEt = addLabeledEditText(form, "Pagado hasta ahora (EUR)", "0", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
@@ -699,19 +678,19 @@ public class RentalManagementFragment extends Fragment {
         shell.confirmBtn.setOnClickListener(v -> {
             String monthKey = monthEt.getText().toString().trim();
             if (!isValidMonth(monthKey)) {
-                NoticeUtils.show(requireContext(), "Mes inválido. Usa YYYY-MM");
+                NoticeUtils.show(requireContext(), "Mes invÃ¡lido. Usa YYYY-MM");
                 return;
             }
             String dueDate = dueDateEt.getText().toString().trim();
             if (!isValidDate(dueDate)) {
-                NoticeUtils.show(requireContext(), "Fecha de vencimiento inválida");
+                NoticeUtils.show(requireContext(), "Fecha de vencimiento invÃ¡lida");
                 return;
             }
             double baseAmount = parseDouble(amountEt.getText().toString().trim(), -1);
             double paidAmount = parseDouble(paidEt.getText().toString().trim(), -1);
             double surcharge = parseDouble(surchargeEt.getText().toString().trim(), -1);
             if (baseAmount < 0 || paidAmount < 0 || surcharge < 0) {
-                NoticeUtils.show(requireContext(), "Importes inválidos");
+                NoticeUtils.show(requireContext(), "Importes invÃ¡lidos");
                 return;
             }
             String tenant = selectedMemberEmail(tenantSpinner);
@@ -768,13 +747,13 @@ public class RentalManagementFragment extends Fragment {
 
     private void openMaintenanceDialog(@Nullable DocumentSnapshot existingDoc) {
         LinearLayout form = buildVerticalForm();
-        EditText titleEt = addLabeledEditText(form, "Incidencia", "Ejemplo: Fuga en baño", InputType.TYPE_CLASS_TEXT);
-        EditText roomEt = addLabeledEditText(form, "Habitación/Zona", "Ejemplo: Cocina", InputType.TYPE_CLASS_TEXT);
+        EditText titleEt = addLabeledEditText(form, "Incidencia", "Ejemplo: Fuga en baÃ±o", InputType.TYPE_CLASS_TEXT);
+        EditText roomEt = addLabeledEditText(form, "HabitaciÃ³n/Zona", "Ejemplo: Cocina", InputType.TYPE_CLASS_TEXT);
         Spinner responsibleSpinner = addLabeledMemberSpinner(form, "Responsable");
         Spinner statusSpinner = addLabeledSpinner(form, "Estado", new String[]{"abierta", "en_progreso", "resuelta", "cancelada"});
         EditText estimatedEt = addLabeledEditText(form, "Coste estimado (EUR)", "0", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
         EditText finalEt = addLabeledEditText(form, "Coste final (EUR)", "0", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
-        EditText detailEt = addLabeledEditText(form, "Descripción", "Describe la avería y el trabajo realizado", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+        EditText detailEt = addLabeledEditText(form, "DescripciÃ³n", "Describe la averÃ­a y el trabajo realizado", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
 
         if (existingDoc != null) {
             titleEt.setText(safe(existingDoc.getString("title")));
@@ -799,7 +778,7 @@ public class RentalManagementFragment extends Fragment {
         shell.confirmBtn.setOnClickListener(v -> {
             String title = titleEt.getText().toString().trim();
             if (title.isEmpty()) {
-                NoticeUtils.show(requireContext(), "Indica un título para la incidencia");
+                NoticeUtils.show(requireContext(), "Indica un tÃ­tulo para la incidencia");
                 return;
             }
             String status = selectedSpinnerValue(statusSpinner);
@@ -849,7 +828,7 @@ public class RentalManagementFragment extends Fragment {
                     ? db.collection("maintenance_tickets").add(data)
                     : db.collection("maintenance_tickets").document(existingDoc.getId()).update(data);
             saveTask.addOnSuccessListener(done -> {
-                writeAudit("Incidencias", existingDoc == null ? "crear" : "editar", title + " · " + status, existingDoc == null ? "" : existingDoc.getId());
+                writeAudit("Incidencias", existingDoc == null ? "crear" : "editar", title + " Â· " + status, existingDoc == null ? "" : existingDoc.getId());
                 if ("abierta".equalsIgnoreCase(status)) {
                     applyEventRules(EVENT_INCIDENT_PENDING, new Date(), responsible, "Incidencia abierta: " + title);
                 }
@@ -862,7 +841,7 @@ public class RentalManagementFragment extends Fragment {
     private void openDocumentDialog(@Nullable DocumentSnapshot existingDoc) {
         LinearLayout form = buildVerticalForm();
         Spinner typeSpinner = addLabeledSpinner(form, "Tipo", new String[]{"contrato", "factura", "inventario", "foto", "acta"});
-        EditText titleEt = addLabeledEditText(form, "Título", "Ejemplo: Contrato alquiler 2026", InputType.TYPE_CLASS_TEXT);
+        EditText titleEt = addLabeledEditText(form, "TÃ­tulo", "Ejemplo: Contrato alquiler 2026", InputType.TYPE_CLASS_TEXT);
         EditText dateEt = addLabeledEditText(form, "Fecha (YYYY-MM-DD)", "2026-05-13", InputType.TYPE_CLASS_TEXT);
         EditText refEt = addLabeledEditText(form, "Referencia/URI", "https://... o ruta", InputType.TYPE_CLASS_TEXT);
         EditText notesEt = addLabeledEditText(form, "Notas", "Detalle opcional", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
@@ -889,12 +868,12 @@ public class RentalManagementFragment extends Fragment {
         shell.confirmBtn.setOnClickListener(v -> {
             String date = dateEt.getText().toString().trim();
             if (!date.isEmpty() && !isValidDate(date)) {
-                NoticeUtils.show(requireContext(), "Fecha inválida. Usa YYYY-MM-DD");
+                NoticeUtils.show(requireContext(), "Fecha invÃ¡lida. Usa YYYY-MM-DD");
                 return;
             }
             String title = titleEt.getText().toString().trim();
             if (title.isEmpty()) {
-                NoticeUtils.show(requireContext(), "El título es obligatorio");
+                NoticeUtils.show(requireContext(), "El tÃ­tulo es obligatorio");
                 return;
             }
             Map<String, Object> data = new HashMap<>();
@@ -926,11 +905,11 @@ public class RentalManagementFragment extends Fragment {
 
     private void showAutomationActionsDialog() {
         LinearLayout form = buildVerticalForm();
-        Spinner actionSpinner = addLabeledSpinner(form, "Acción", new String[]{"Crear regla", "Ejecutar reglas ahora"});
+        Spinner actionSpinner = addLabeledSpinner(form, "AcciÃ³n", new String[]{"Crear regla", "Ejecutar reglas ahora"});
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
-                "Automatización",
-                "Elige una acción para rentas recurrentes.",
+                "AutomatizaciÃ³n",
+                "Elige una acciÃ³n para rentas recurrentes.",
                 form,
                 "Cancelar",
                 "Continuar"
@@ -950,12 +929,12 @@ public class RentalManagementFragment extends Fragment {
 
     private void openAutomationDialog(@Nullable DocumentSnapshot existingDoc) {
         LinearLayout form = buildVerticalForm();
-        EditText roomEt = addLabeledEditText(form, "Habitación", "Habitación 1", InputType.TYPE_CLASS_TEXT);
+        EditText roomEt = addLabeledEditText(form, "HabitaciÃ³n", "HabitaciÃ³n 1", InputType.TYPE_CLASS_TEXT);
         Spinner tenantSpinner = addLabeledMemberSpinner(form, "Inquilino");
         EditText rentEt = addLabeledEditText(form, "Renta mensual (EUR)", "450", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
-        EditText billingDayEt = addLabeledEditText(form, "Día de cobro (1-28)", "5", InputType.TYPE_CLASS_NUMBER);
-        EditText startEt = addLabeledEditText(form, "Inicio ocupación (YYYY-MM-DD)", "2026-05-01", InputType.TYPE_CLASS_TEXT);
-        EditText endEt = addLabeledEditText(form, "Fin ocupación (opcional)", "", InputType.TYPE_CLASS_TEXT);
+        EditText billingDayEt = addLabeledEditText(form, "DÃ­a de cobro (1-28)", "5", InputType.TYPE_CLASS_NUMBER);
+        EditText startEt = addLabeledEditText(form, "Inicio ocupaciÃ³n (YYYY-MM-DD)", "2026-05-01", InputType.TYPE_CLASS_TEXT);
+        EditText endEt = addLabeledEditText(form, "Fin ocupaciÃ³n (opcional)", "", InputType.TYPE_CLASS_TEXT);
         setupDatePicker(startEt);
         setupDatePicker(endEt);
 
@@ -970,7 +949,7 @@ public class RentalManagementFragment extends Fragment {
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
-                existingDoc == null ? "Nueva regla automática" : "Editar regla automática",
+                existingDoc == null ? "Nueva regla automÃ¡tica" : "Editar regla automÃ¡tica",
                 "Rentas recurrentes con prorrateo por entrada/salida.",
                 form,
                 "Cancelar",
@@ -982,12 +961,12 @@ public class RentalManagementFragment extends Fragment {
             String startDate = startEt.getText().toString().trim();
             String endDate = endEt.getText().toString().trim();
             if (!isValidDate(startDate) || (!endDate.isEmpty() && !isValidDate(endDate))) {
-                NoticeUtils.show(requireContext(), "Revisa fechas de ocupación");
+                NoticeUtils.show(requireContext(), "Revisa fechas de ocupaciÃ³n");
                 return;
             }
             long billingDay = parseLong(billingDayEt.getText().toString().trim(), -1);
             if (billingDay < 1 || billingDay > 28) {
-                NoticeUtils.show(requireContext(), "El día de cobro debe estar entre 1 y 28");
+                NoticeUtils.show(requireContext(), "El dÃ­a de cobro debe estar entre 1 y 28");
                 return;
             }
             double rent = parseDouble(rentEt.getText().toString().trim(), -1);
@@ -1022,10 +1001,10 @@ public class RentalManagementFragment extends Fragment {
                     : db.collection("rent_automations").document(existingDoc.getId()).update(data);
 
             saveTask.addOnSuccessListener(done -> {
-                writeAudit("Automatización", existingDoc == null ? "crear" : "editar", "Regla para " + data.get("tenantEmail"), existingDoc == null ? "" : existingDoc.getId());
+                writeAudit("AutomatizaciÃ³n", existingDoc == null ? "crear" : "editar", "Regla para " + data.get("tenantEmail"), existingDoc == null ? "" : existingDoc.getId());
                 dialog.dismiss();
                 loadAutomationRows();
-            }).addOnFailureListener(e -> Toast.makeText(requireContext(), "No se pudo guardar automatización", Toast.LENGTH_SHORT).show());
+            }).addOnFailureListener(e -> Toast.makeText(requireContext(), "No se pudo guardar automatizaciÃ³n", Toast.LENGTH_SHORT).show());
         });
     }
 
@@ -1036,7 +1015,7 @@ public class RentalManagementFragment extends Fragment {
                 .addOnSuccessListener(rulesSnapshot -> {
                     List<DocumentSnapshot> rules = rulesSnapshot.getDocuments();
                     if (rules.isEmpty()) {
-                        NoticeUtils.show(requireContext(), "No hay reglas de automatización");
+                        NoticeUtils.show(requireContext(), "No hay reglas de automatizaciÃ³n");
                         return;
                     }
                     db.collection("rent_collections")
@@ -1058,10 +1037,10 @@ public class RentalManagementFragment extends Fragment {
                                 }
                                 int createdFinal = created;
                                 Tasks.whenAllComplete(tasks).addOnSuccessListener(done -> {
-                                    writeAudit("Automatización", "ejecutar", "Cobros generados: " + createdFinal, "");
+                                    writeAudit("AutomatizaciÃ³n", "ejecutar", "Cobros generados: " + createdFinal, "");
                                     NoticeUtils.show(requireContext(), "Cobros generados: " + createdFinal);
                                     loadRentRows();
-                                }).addOnFailureListener(e -> Toast.makeText(requireContext(), "Error generando cobros automáticos", Toast.LENGTH_SHORT).show());
+                                }).addOnFailureListener(e -> Toast.makeText(requireContext(), "Error generando cobros automÃ¡ticos", Toast.LENGTH_SHORT).show());
                             });
                 })
                 .addOnFailureListener(e -> Toast.makeText(requireContext(), "No se pudieron cargar automatizaciones", Toast.LENGTH_SHORT).show());
@@ -1146,8 +1125,8 @@ public class RentalManagementFragment extends Fragment {
                 "Evento",
                 new String[]{"rent_due", "rent_overdue", "contract_ending", "incident_pending"}
         );
-        EditText offsetEt = addLabeledEditText(form, "Offset días (puede ser negativo)", "0", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_SIGNED);
-        EditText titleEt = addLabeledEditText(form, "Título push", "Recordatorio de alquiler", InputType.TYPE_CLASS_TEXT);
+        EditText offsetEt = addLabeledEditText(form, "Offset dÃ­as (puede ser negativo)", "0", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_SIGNED);
+        EditText titleEt = addLabeledEditText(form, "TÃ­tulo push", "Recordatorio de alquiler", InputType.TYPE_CLASS_TEXT);
         EditText bodyEt = addLabeledEditText(form, "Mensaje push", "Revisa el evento del piso", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
         Spinner enabledSpinner = addLabeledSpinner(form, "Activa", new String[]{"si", "no"});
 
@@ -1172,13 +1151,13 @@ public class RentalManagementFragment extends Fragment {
         shell.confirmBtn.setOnClickListener(v -> {
             long offsetDays = parseLong(offsetEt.getText().toString().trim(), Long.MIN_VALUE);
             if (offsetDays == Long.MIN_VALUE) {
-                NoticeUtils.show(requireContext(), "Offset inválido");
+                NoticeUtils.show(requireContext(), "Offset invÃ¡lido");
                 return;
             }
             String title = titleEt.getText().toString().trim();
             String body = bodyEt.getText().toString().trim();
             if (title.isEmpty() || body.isEmpty()) {
-                NoticeUtils.show(requireContext(), "Título y mensaje son obligatorios");
+                NoticeUtils.show(requireContext(), "TÃ­tulo y mensaje son obligatorios");
                 return;
             }
             boolean enabled = "si".equalsIgnoreCase(selectedSpinnerValue(enabledSpinner));
@@ -1618,7 +1597,7 @@ public class RentalManagementFragment extends Fragment {
         parts.add("Inquilino: " + (tenant.isEmpty() ? "-" : tenant));
         if (!coSigner.isEmpty()) parts.add("Cotitular: " + coSigner);
         if (!guarantor.isEmpty()) parts.add("Avalista: " + guarantor);
-        return String.join(" · ", parts);
+        return String.join(" Â· ", parts);
     }
 
     private String joinList(List<String> values, String fallback) {

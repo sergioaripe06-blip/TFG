@@ -23,10 +23,9 @@ import com.google.firebase.auth.UserProfileChangeRequest;
 import com.sergio.flatshare.R;
 import com.sergio.flatshare.core.session.SessionStore;
 import com.sergio.flatshare.shared.ui.CountryPhoneUtils;
+import com.sergio.flatshare.shared.ui.DateInputUtils;
 import com.sergio.flatshare.shared.ui.NoticeUtils;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
@@ -145,13 +144,9 @@ public class RegisterActivity extends AppCompatActivity {
                 .show();
     }
 
-    private boolean isAdult(String birthDateIso) {
-        SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT);
-        fmt.setLenient(false);
-        Date birthDate;
-        try {
-            birthDate = fmt.parse(birthDateIso);
-        } catch (ParseException e) {
+    private boolean isAdult(String birthDateText) {
+        Date birthDate = DateInputUtils.parseDayOrNull(birthDateText);
+        if (birthDate == null) {
             NoticeUtils.show(this, getString(R.string.register_birth_date_invalid));
             return false;
         }
@@ -166,8 +161,7 @@ public class RegisterActivity extends AppCompatActivity {
     }
 
     private void setupBirthDateField(EditText birthDateEt) {
-        String todayIso = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(new Date());
-        birthDateEt.setText(todayIso);
+        birthDateEt.setText(DateInputUtils.formatDay(new Date()));
         birthDateEt.setKeyListener(null);
         birthDateEt.setFocusable(false);
         birthDateEt.setFocusableInTouchMode(false);
@@ -188,11 +182,9 @@ public class RegisterActivity extends AppCompatActivity {
         Calendar calendar = Calendar.getInstance();
         String currentValue = targetField.getText() == null ? "" : targetField.getText().toString().trim();
         if (!currentValue.isEmpty()) {
-            try {
-                SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT);
-                fmt.setLenient(false);
-                calendar.setTime(fmt.parse(currentValue));
-            } catch (Exception ignored) {
+            Date parsed = DateInputUtils.parseDayOrNull(currentValue);
+            if (parsed != null) {
+                calendar.setTime(parsed);
             }
         } else {
             calendar.add(Calendar.YEAR, -18);
@@ -200,7 +192,12 @@ public class RegisterActivity extends AppCompatActivity {
 
         DatePickerDialog dialog = new DatePickerDialog(
                 this,
-                (view, year, month, dayOfMonth) -> targetField.setText(String.format(Locale.ROOT, "%04d-%02d-%02d", year, month + 1, dayOfMonth)),
+                (view, year, month, dayOfMonth) -> {
+                    Calendar selected = Calendar.getInstance();
+                    selected.set(year, month, dayOfMonth, 0, 0, 0);
+                    selected.set(Calendar.MILLISECOND, 0);
+                    targetField.setText(DateInputUtils.formatDay(selected.getTime()));
+                },
                 calendar.get(Calendar.YEAR),
                 calendar.get(Calendar.MONTH),
                 calendar.get(Calendar.DAY_OF_MONTH)

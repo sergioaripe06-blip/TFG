@@ -1095,3 +1095,62 @@ En cada avance relevante anadir:
 - Tipo: Correccion de build Android por recurso i18n EN
 - Se corrige `register_terms_content` en `values-en/strings.xml` para evitar un escape conflictivo durante mergeDebugResources (Invalid unicode escape sequence).
 - Se revisan escapes en el archivo y se deja en UTF-8 sin BOM.
+
+## 2026-05-31
+- Tipo: Corrección técnica (lint + compatibilidad Android)
+- Se corrige `NewApi` en `ExpensesFragment` para exportación PDF:
+  - en API `>= 29` se mantiene `MediaStore.Downloads`,
+  - en API `< 29` se usa fallback a almacenamiento externo de la app (`getExternalFilesDir`) para evitar acceso a APIs no disponibles.
+- Se elimina `firebase-analytics` de `app/build.gradle`:
+  - objetivo: evitar incompatibilidades de metadata Kotlin asociadas a `play-services-measurement` durante `lint`.
+- Verificación realizada:
+  - `clean assembleDebug testDebugUnitTest` en verde.
+  - ya no aparecen errores de `MediaStore.Downloads` ni mensajes de incompatibilidad Kotlin metadata en `lint`.
+- Nota:
+  - `lintDebug` sigue fallando por incidencias previas del proyecto no relacionadas con este ajuste (por ejemplo `UseAppTint` en layouts).
+
+## 2026-05-31
+- Tipo: Cierre de calidad (lint en verde)
+- Se resuelven errores bloqueantes de lint:
+  - `UseAppTint` en layouts de perfil y fila de pisos.
+  - `PermissionImpliesUnsupportedChromeOsHardware` en `AndroidManifest.xml` declarando `android.hardware.camera` como opcional.
+  - `MissingTranslation` en locale `es` sincronizando `values-es/strings.xml` con las claves activas.
+- Verificacion final:
+  - `lintDebug`: OK.
+  - `assembleDebug`: OK.
+
+## 2026-05-31
+- Tipo: Estandarizacion de fechas UI (`DD/MM/AAAA`)
+- Se unifica el formato de fecha visible en la app a `DD/MM/AAAA`:
+  - Registro y edición de perfil (fecha de nacimiento).
+  - Gastos/pagos/recordatorios (workspace y calendario).
+  - Gestión de alquiler (contratos, cobros, documentos y automatizaciones).
+- Compatibilidad retroactiva:
+  - El parseo acepta también fechas antiguas `AAAA-MM-DD` para no romper datos ya guardados.
+  - Al mostrar/guardar de nuevo, se normaliza a `DD/MM/AAAA`.
+- Archivos actualizados:
+  - Nueva utilidad compartida: `DateInputUtils`.
+  - Textos y hints en layouts/strings para reflejar `DD/MM/AAAA`.
+
+## 2026-05-31
+- Tipo: Simplificación funcional de Gestión de alquiler
+- En `RentalManagementFragment`, el selector de módulos de Gestión se simplifica para mostrar solo:
+  - `Cobros`
+  - `Incidencias`
+  - `Documentos`
+- Se elimina del flujo visible de UI:
+  - `Contrato`
+  - `Auditoría`
+  - `Automatización`
+  - `Reglas push`
+- Validación:
+  - `assembleDebug` en verde tras el cambio.
+
+## 2026-05-31
+- Tipo: Claridad de nomenclatura en módulo de alquiler
+- Se renombra el acceso visible `Gestion` a `Cobros y soporte` para describir mejor su contenido.
+- En la pantalla de `RentalManagementFragment`:
+  - Título actualizado a `Cobros y soporte del alquiler`.
+  - Descripción actualizada a `Gestiona cobros, incidencias y documentos del piso.`
+- Objetivo del ajuste:
+  - Reducir ambigüedad y mejorar comprensión del flujo para usuario final.

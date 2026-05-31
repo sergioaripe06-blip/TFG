@@ -45,7 +45,7 @@
     <string name="payment_category_fixed_hint">En alquiler fijo la categoría es siempre alquiler.</string>
     <string name="save">Guardar</string>
     <string name="calendar_title">Calendario</string>
-    <string name="due_date_hint">Fecha (AAAA-MM-DD):</string>
+    <string name="due_date_hint">Fecha (DD/MM/AAAA):</string>
     <string name="common_send">Enviar</string>
     <string name="common_close">Cerrar</string>
     <string name="common_email_label">Correo electrónico:</string>
@@ -85,7 +85,7 @@
     <string name="register_phone_label">Teléfono:</string>
     <string name="register_phone_hint">Escribe tu número</string>
     <string name="register_birth_date_label">Fecha de nacimiento:</string>
-    <string name="register_birth_date_hint">AAAA-MM-DD</string>
+    <string name="register_birth_date_hint">DD/MM/AAAA</string>
     <string name="register_terms_switch">Acepto los términos y condiciones de uso</string>
     <string name="register_view_terms">Ver términos y condiciones</string>
     <string name="register_complete_all_fields">Completa todos los campos del registro</string>
@@ -95,7 +95,7 @@
     <string name="register_verification_sent">Te hemos enviado un correo de verificación</string>
     <string name="register_verification_send_failed">Cuenta creada, pero no pudimos enviar el correo de verificación. Puedes reenviarlo desde la siguiente pantalla.</string>
     <string name="register_email_already_used">Ese correo ya tiene una cuenta registrada</string>
-    <string name="register_birth_date_invalid">Formato inválido. Usa YYYY-MM-DD</string>
+    <string name="register_birth_date_invalid">Formato inválido. Usa DD/MM/AAAA</string>
     <string name="register_error_weak_password">La contraseña es demasiado débil. Usa al menos 6 caracteres.</string>
     <string name="register_error_generic">No se pudo completar el registro. Revisa los datos e inténtalo de nuevo.</string>
     <string name="register_terms_title">Términos y condiciones</string>

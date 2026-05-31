@@ -88,7 +88,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Fecha (AAAA-MM-DD)"
+            android:text="Fecha (DD/MM/AAAA)"
             android:textColor="@color/text_light"
             android:textSize="12sp"
             android:textStyle="bold" />
@@ -100,7 +100,7 @@
             android:layout_marginTop="4dp"
             android:background="@drawable/bg_input_dark_round"
             android:focusable="false"
-            android:hint="Ejemplo: 2026-05-13"
+            android:hint="Ejemplo: 13/05/2026"
             android:inputType="date"
             android:paddingHorizontal="16dp"
             android:paddingVertical="12dp"

@@ -120,16 +120,16 @@ public class PaymentService {
             @Nullable Date dueDate
     ) {
         if (amountStr.trim().isEmpty() || dueDateText.trim().isEmpty()) {
-            return ValidationResult.error("Debes indicar importe y fecha límite");
+            return ValidationResult.error("Debes indicar importe y fecha l\u00edmite");
         }
         if (dueDate == null) {
-            return ValidationResult.error("Fecha inválida. Usa YYYY-MM-DD");
+            return ValidationResult.error("Fecha inv\u00e1lida. Usa DD/MM/AAAA");
         }
         double amount;
         try {
             amount = Double.parseDouble(amountStr.trim());
         } catch (NumberFormatException e) {
-            return ValidationResult.error("Importe no válido");
+            return ValidationResult.error("Importe no v\u00e1lido");
         }
         if (amount <= 0.0) {
             return ValidationResult.error("El importe debe ser mayor que 0");

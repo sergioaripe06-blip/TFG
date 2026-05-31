@@ -34,7 +34,6 @@
 - Firebase BoM `34.12.0`
 - Firebase Auth
 - Firebase Firestore
-- Firebase Analytics
 - ML Kit Text Recognition `16.0.0`
 - ZXing Android Embedded `4.3.0`
 - ZXing Core `3.5.3`
@@ -206,6 +205,9 @@ Operaciones:
 - Registro de actividad (`activity_logs`).
 - OCR de ticket para importe.
 - Exportacion PDF resumen mensual.
+- Exportacion PDF compatible:
+  - Android 10+ (`API 29+`): guarda en Descargas del dispositivo.
+  - Android 7-9 (`API 24-28`): guarda en almacenamiento externo privado de la app.
 - `Nuevo gasto` solo aparece en pisos de `alquiler variable`.
 
 Campos de gasto:
@@ -630,3 +632,30 @@ En cada tarea nueva:
 ### Localizacion EN (2026-05-29) - Correccion de compilacion de recursos
 - Se corrige el texto de terminos en ingles para evitar un fallo de compilacion en Android (Invalid unicode escape sequence en mergeDebugResources).
 - Sin cambios funcionales para usuario; mejora de estabilidad del build.
+
+### Formato de fechas (2026-05-31)
+- Todas las fechas visibles y editables pasan a formato `DD/MM/AAAA` (día/mes/año).
+- Aplica en:
+  - Registro y perfil (fecha de nacimiento).
+  - Gastos, pagos y recordatorios.
+  - Calendario.
+  - Gestión de alquiler (contratos, cobros, documentos, automatizaciones).
+- Compatibilidad con datos antiguos:
+  - Si existían fechas guardadas en `AAAA-MM-DD`, la app las sigue aceptando y las muestra normalizadas en `DD/MM/AAAA`.
+
+### Gestión de alquiler (2026-05-31) - Vista simplificada
+- El apartado `Gestión` se centra en tres módulos prácticos:
+  - `Cobros`
+  - `Incidencias`
+  - `Documentos`
+- Se retiran del selector visible para reducir complejidad:
+  - `Contrato`
+  - `Auditoría`
+  - `Automatización`
+  - `Reglas push`
+
+### Cobros y soporte (2026-05-31) - Nomenclatura más clara
+- El acceso principal antes mostrado como `Gestion` pasa a llamarse `Cobros y soporte`.
+- En la cabecera del apartado se muestra `Cobros y soporte del alquiler`.
+- El texto guía ahora explica de forma directa su uso: `Gestiona cobros, incidencias y documentos del piso`.
+- Objetivo: que el usuario entienda en un vistazo para qué sirve este apartado.

@@ -39,7 +39,7 @@
                 android:padding="7dp"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_settings_24"
-                android:tint="@color/text_light" />
+                app:tint="@color/text_light" />
         </FrameLayout>
 
         <FrameLayout
@@ -80,7 +80,7 @@
                 android:contentDescription="Cambiar foto"
                 android:padding="8dp"
                 android:src="@android:drawable/ic_menu_edit"
-                android:tint="@color/on_primary_green" />
+                app:tint="@color/on_primary_green" />
         </FrameLayout>
 
         <LinearLayout
