@@ -1,4 +1,4 @@
-﻿rules_version = '2';
+rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() {
@@ -71,17 +71,41 @@ service cloud.firestore {
         && resource.data.memberEmails.size() == 0;
     }
 
-    function isPaymentStatusToggleByOwner() {
+    function isSelfRoomJoinUpdate() {
       return signedInAndVerified()
-        && isGroupOwner(resource.data.groupId)
-        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['status', 'updatedAt'])
-        && request.resource.data.status in ['requested', 'pending', 'confirmed']
-        && resource.data.status in ['requested', 'pending', 'confirmed'];
+        && isGroupMember(resource.data.groupId)
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['memberEmails', 'memberCount', 'updatedAt', 'updatedByUid'])
+        && request.resource.data.memberEmails.size() == resource.data.memberEmails.size() + 1
+        && request.resource.data.memberEmails.hasAll(resource.data.memberEmails)
+        && request.resource.data.memberEmails.hasAny([authEmail()])
+        && request.resource.data.memberCount == request.resource.data.memberEmails.size()
+        && request.resource.data.memberCount <= resource.data.capacity
+        && request.resource.data.updatedByUid == authUid();
     }
 
-    function canGroupOwnerDeletePayment() {
+    function canManagePayment() {
       return signedInAndVerified()
-        && isGroupOwner(resource.data.groupId);
+        && (
+          isGroupOwner(resource.data.groupId)
+          || resource.data.fromEmail == authEmail()
+        );
+    }
+
+    function isPaymentStatusToggleByApprover() {
+      return signedInAndVerified()
+        && (
+          isGroupOwner(resource.data.groupId)
+          || resource.data.fromEmail == authEmail()
+        )
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['status', 'updatedAt'])
+        && resource.data.status == 'pending'
+        && request.resource.data.status == 'confirmed';
+    }
+
+    function isPaymentEditableByManager() {
+      return canManagePayment()
+        && request.resource.data.groupId == resource.data.groupId
+        && request.resource.data.fromEmail == resource.data.fromEmail;
     }
 
     match /users/{userId} {
@@ -126,7 +150,10 @@ service cloud.firestore {
         && isGroupMember(resource.data.groupId);
 
       allow update: if signedInAndVerified()
-        && isGroupOwner(resource.data.groupId);
+        && (
+          isGroupOwner(resource.data.groupId)
+          || isSelfRoomJoinUpdate()
+        );
 
       allow delete: if signedInAndVerified()
         && isGroupOwner(resource.data.groupId)
@@ -158,9 +185,10 @@ service cloud.firestore {
       allow read: if signedInAndVerified()
         && isGroupMember(resource.data.groupId);
 
-      allow update: if isPaymentStatusToggleByOwner();
+      allow update: if isPaymentStatusToggleByApprover()
+        || isPaymentEditableByManager();
 
-      allow delete: if canGroupOwnerDeletePayment();
+      allow delete: if canManagePayment();
     }
 
     match /payment_deadlines/{deadlineId} {

@@ -2,6 +2,7 @@ package com.sergio.flatshare.features.groups.services;
 
 import androidx.annotation.NonNull;
 
+import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -101,7 +102,7 @@ public class GroupService {
             doc.update("shareCode", shareCode);
             db.collection("group_codes").document(shareCode).set(codeData)
                     .addOnSuccessListener(v -> onSuccess.onCreated(doc.getId()))
-                    .addOnFailureListener(e -> onError.onError(e == null ? "No se pudo guardar el código del piso" : e.getMessage()));
+                    .addOnFailureListener(e -> onError.onError(e == null ? "No se pudo guardar el codigo del piso" : e.getMessage()));
         }).addOnFailureListener(e -> onError.onError(e == null ? "No se pudo crear el piso" : e.getMessage()));
     }
 
@@ -112,22 +113,67 @@ public class GroupService {
             @NonNull JoinCallback onSuccess,
             @NonNull ErrorCallback onError
     ) {
+        String uidLc = uid.trim().toLowerCase(Locale.ROOT);
+        String emailLc = email.trim().toLowerCase(Locale.ROOT);
+
         db.collection("group_codes")
                 .document(code)
                 .get()
                 .addOnSuccessListener(result -> {
                     if (!result.exists()) {
-                        onError.onError("Código no válido");
+                        onError.onError("Codigo no valido");
                         return;
                     }
                     String groupId = result.getString("groupId");
                     if (groupId == null || groupId.trim().isEmpty()) {
-                        onError.onError("Código no válido");
+                        onError.onError("Codigo no valido");
                         return;
                     }
-                    addUserToGroup(groupId, uid, email, onSuccess, onError);
+
+                    db.collection("groups").document(groupId).get()
+                            .addOnSuccessListener(groupDoc -> {
+                                if (!groupDoc.exists()) {
+                                    onError.onError("El piso ya no existe");
+                                    return;
+                                }
+                                List<String> members = castStringList(groupDoc.get("members"));
+                                List<String> memberEmails = castStringList(groupDoc.get("memberEmails"));
+                                boolean alreadyMember = members.contains(uidLc) || memberEmails.contains(emailLc);
+                                if (alreadyMember) {
+                                    onError.onError("Acceso denegado: ya estas en este piso");
+                                    return;
+                                }
+
+                                addUserToGroup(groupId, uid, emailLc, onSuccess, onError);
+                            })
+                            .addOnFailureListener(e -> {
+                                // Un no-miembro puede no tener permiso de lectura del grupo.
+                                // En ese caso intentamos directamente el alta con arrayUnion.
+                                if (isPermissionDenied(e)) {
+                                    addUserToGroup(groupId, uid, emailLc, onSuccess, onError);
+                                    return;
+                                }
+                                onError.onError(e == null ? "No se pudo verificar el piso" : e.getMessage());
+                            });
                 })
-                .addOnFailureListener(e -> onError.onError(e == null ? "No se pudo verificar el código" : e.getMessage()));
+                .addOnFailureListener(e -> onError.onError(e == null ? "No se pudo verificar el codigo" : e.getMessage()));
+    }
+
+    private boolean isPermissionDenied(Throwable error) {
+        if (!(error instanceof FirebaseFirestoreException ex)) return false;
+        return ex.getCode() == FirebaseFirestoreException.Code.PERMISSION_DENIED;
+    }
+
+    @NonNull
+    private List<String> castStringList(Object raw) {
+        List<String> out = new ArrayList<>();
+        if (!(raw instanceof List<?>)) return out;
+        for (Object value : (List<?>) raw) {
+            if (value == null) continue;
+            String item = value.toString().trim().toLowerCase(Locale.ROOT);
+            if (!item.isEmpty()) out.add(item);
+        }
+        return out;
     }
 
     private void addUserToGroup(
@@ -145,4 +191,3 @@ public class GroupService {
                 .addOnFailureListener(e -> onError.onError(e == null ? "No se pudo unir al piso" : e.getMessage()));
     }
 }
-

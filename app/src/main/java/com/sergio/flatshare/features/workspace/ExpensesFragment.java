@@ -26,35 +26,25 @@ import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewParent;
 import android.view.inputmethod.EditorInfo;
 import android.widget.ArrayAdapter;
 import android.widget.Toast;
 import android.widget.AdapterView;
-import android.widget.Toast;
 import android.widget.AutoCompleteTextView;
-import android.widget.Toast;
 import android.widget.BaseAdapter;
-import android.widget.Toast;
 import android.widget.Button;
-import android.widget.Toast;
 import android.widget.CheckBox;
-import android.widget.Toast;
 import android.widget.EditText;
-import android.widget.Toast;
 import android.widget.LinearLayout;
-import android.widget.Toast;
 import android.widget.ListView;
-import android.widget.Toast;
 import android.widget.ScrollView;
-import android.widget.Toast;
 import android.widget.Spinner;
-import android.widget.Toast;
 import android.widget.TextView;
-import android.widget.Toast;
 import android.widget.ImageView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -89,6 +79,8 @@ import com.sergio.flatshare.core.sound.AppSoundFx;
 import com.sergio.flatshare.features.workspace.services.CategorySuggestionsRepository;
 import com.sergio.flatshare.features.workspace.services.ExpenseDialogs;
 import com.sergio.flatshare.features.workspace.services.ExpenseService;
+import com.sergio.flatshare.features.workspace.services.MemberLabelFormatter;
+import com.sergio.flatshare.features.workspace.services.PaymentAccessPolicy;
 import com.sergio.flatshare.features.workspace.services.PaymentService;
 import com.sergio.flatshare.features.workspace.services.ReminderService;
 
@@ -144,8 +136,8 @@ public class ExpensesFragment extends Fragment {
             Color.parseColor("#C3C3C3")
     };
     private static final String[] PRIORITY_TYPES = {"baja", "media", "alta"};
-    private static final String[] PAYMENT_TARGET_TYPES = {"HabitaciÃ³n", "Miembro", "Todos"};
-    private static final String[] REMINDER_INTERVAL_TYPES = {"Una sola vez", "Cada dÃ­a", "Cada semana", "Cada mes", "Personalizado"};
+    private static final String[] PAYMENT_TARGET_TYPES = {"Habitación", "Miembro", "Todos"};
+    private static final String[] REMINDER_INTERVAL_TYPES = {"Una sola vez", "Cada día", "Cada semana", "Cada mes", "Personalizado"};
     private static final String[] REMINDER_TARGET_TYPES = {"Inquilinos seleccionados", "Habitaciones seleccionadas", "Todos los inquilinos"};
     private static final SimpleDateFormat DUE_DATE_FORMAT = new SimpleDateFormat("dd/MM/yyyy", Locale.ROOT);
 
@@ -181,7 +173,6 @@ public class ExpensesFragment extends Fragment {
     private Button remindersTabBtn;
     private Button managementTabBtn;
     private Spinner roomFilterSpinner;
-    private Button addRoomQuickBtn;
     private View expensesToolsRow;
     private EditText expensesSearchEt;
     private Button openFiltersBtn;
@@ -210,6 +201,7 @@ public class ExpensesFragment extends Fragment {
     @Nullable private PendingDebtRequest activePendingDebtRequest;
     private boolean isRebindingRoomSelectors = false;
     private boolean isUpdatingRoomFilterSpinner = false;
+    private boolean isRebindingPaymentSelectors = false;
     private final Map<String, String> memberDisplayNamesByEmail = new HashMap<>();
     private String workspaceMetaCache = "";
     private String workspaceDescriptionCache = "";
@@ -222,6 +214,7 @@ public class ExpensesFragment extends Fragment {
     private long lastMainActionAtMs = 0L;
     private boolean expenseActionDialogVisible = false;
     private boolean tabsUnderTitle = false;
+    private int expensesLoadVersion = 0;
 
     private final ActivityResultLauncher<String> ticketPickerLauncher =
             registerForActivityResult(new ActivityResultContracts.GetContent(), this::handleTicketSelected);
@@ -248,7 +241,6 @@ public class ExpensesFragment extends Fragment {
         remindersTabBtn = view.findViewById(R.id.remindersTabBtn);
         managementTabBtn = view.findViewById(R.id.tenantsTabBtn);
         roomFilterSpinner = view.findViewById(R.id.roomFilterSpinner);
-        addRoomQuickBtn = view.findViewById(R.id.addRoomQuickBtn);
         expensesToolsRow = view.findViewById(R.id.expensesToolsRow);
         expensesSearchEt = view.findViewById(R.id.expensesSearchEt);
         openFiltersBtn = view.findViewById(R.id.openFiltersBtn);
@@ -275,7 +267,6 @@ public class ExpensesFragment extends Fragment {
             public void onNothingSelected(AdapterView<?> parent) {
             }
         });
-        addRoomQuickBtn.setOnClickListener(v -> showRoomQuickActionsDialog());
         openFiltersBtn.setOnClickListener(v -> showFiltersDialog());
         workspaceTitleTv.setOnLongClickListener(v -> {
             if (currentGroupId == null || workspaceMetaCache == null || workspaceMetaCache.trim().isEmpty()) {
@@ -364,7 +355,7 @@ public class ExpensesFragment extends Fragment {
             currentVariableSplitMode = VARIABLE_SPLIT_EQUAL;
             workspaceTitleTv.setText(currentGroupName);
             updateTitleTabsPlacement();
-            workspaceMetaCache = "Entra desde la pestaÃ±a de pisos para ver gastos, pagos, recordatorios y gestiÃ³n del alquiler.";
+            workspaceMetaCache = "Entra desde la pestaña de pisos para ver gastos, pagos, recordatorios y gestión del alquiler.";
             workspaceMetaTv.setText(workspaceMetaCache);
             workspaceDescriptionCache = "";
             workspaceOwnerCache = "";
@@ -387,7 +378,6 @@ public class ExpensesFragment extends Fragment {
             roomFilterSpinner.setAdapter(buildLightSpinnerAdapter(new String[]{ROOM_ALL_LABEL}));
             roomFilterSpinner.setSelection(0);
             isUpdatingRoomFilterSpinner = false;
-            addRoomQuickBtn.setVisibility(View.GONE);
             workspaceCtaLayout.setVisibility(View.GONE);
             switchTab(currentTab);
             updateQuickBalancesVisibility();
@@ -405,7 +395,7 @@ public class ExpensesFragment extends Fragment {
 
             String rawDescription = doc.getString("description");
             final String description = (rawDescription == null || rawDescription.trim().isEmpty())
-                    ? "Sin descripciÃ³n"
+                    ? "Sin descripción"
                     : rawDescription;
             workspaceLocationQueryCache = buildWorkspaceLocationQuery(doc, description);
             List<String> memberEmails = castEmails(doc.get("memberEmails"));
@@ -418,7 +408,7 @@ public class ExpensesFragment extends Fragment {
                 String membersLabel = formatMembersDetailed(memberEmails);
                 String billingLabel = BILLING_FIXED.equals(currentBillingModel)
                         ? "Alquiler fijo"
-                        : "Alquiler variable (por habitaciÃ³n)";
+                        : "Alquiler variable (por habitación)";
                 String safeOwner = ownerLabel.isEmpty() ? "Sin datos" : ownerLabel;
                 String meta = "Piso: " + description
                         + "\nPropietario: " + safeOwner
@@ -467,7 +457,7 @@ public class ExpensesFragment extends Fragment {
         updateTabStyle(managementTabBtn, showManagement);
 
         if (showExpenses) {
-            addMainLabelTv.setText("Nueva acciÃ³n");
+            addMainLabelTv.setText("Nueva acción");
         } else if (showReminders) {
             addMainLabelTv.setText("Nuevo recordatorio");
         } else {
@@ -593,7 +583,7 @@ public class ExpensesFragment extends Fragment {
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 "Datos del piso",
-                "InformaciÃ³n del piso",
+                "Información del piso",
                 content,
                 "Cerrar",
                 null
@@ -616,7 +606,7 @@ private View buildWorkspaceInfoDialogContent(@NonNull List<RoomOption> rooms) {
     ));
 
     String heroTitle = currentGroupName == null || currentGroupName.trim().isEmpty() ? "Piso" : currentGroupName.trim();
-    String heroSubtitle = workspaceDescriptionCache.isEmpty() ? "Sin descripciÃ³n" : workspaceDescriptionCache;
+    String heroSubtitle = workspaceDescriptionCache.isEmpty() ? "Sin descripción" : workspaceDescriptionCache;
     addHeroInfoCard(root, heroTitle, heroSubtitle);
 
     addInfoCard(root, "Propietario", workspaceOwnerCache.isEmpty() ? "Sin datos" : workspaceOwnerCache);
@@ -638,7 +628,7 @@ private View buildWorkspaceInfoDialogContent(@NonNull List<RoomOption> rooms) {
         addInfoCard(root, "Habitaciones", "Sin habitaciones creadas");
     } else {
         for (RoomOption room : rooms) {
-            String roomName = room.name == null || room.name.trim().isEmpty() ? "HabitaciÃ³n" : room.name.trim();
+            String roomName = room.name == null || room.name.trim().isEmpty() ? "Habitación" : room.name.trim();
             String splitModeLabel = ROOM_SPLIT_PERCENTAGE.equals(normalizeRoomSplitMode(room.rentSplitMode))
                     ? "Porcentual"
                     : "Equitativo";
@@ -670,8 +660,8 @@ private View buildWorkspaceInfoDialogContent(@NonNull List<RoomOption> rooms) {
             roomDetails.setPadding(0, dp(4), 0, 0);
             roomDetails.setText(
                     "Capacidad: " + room.capacity
-                            + " Â· Residentes: " + room.memberEmails.size()
-                            + " Â· Reparto: " + splitModeLabel
+                            + " · Residentes: " + room.memberEmails.size()
+                            + " · Reparto: " + splitModeLabel
             );
             roomCard.addView(roomDetails);
 
@@ -686,8 +676,8 @@ private View buildWorkspaceInfoDialogContent(@NonNull List<RoomOption> rooms) {
         }
     }
 
-    Button addRoomBtn = DialogUtils.createActionButton(requireContext(), "AÃ±adir habitaciÃ³n", false);
-    Button openLocationBtn = DialogUtils.createActionButton(requireContext(), "Ver ubicaciÃ³n", true);
+    Button addRoomBtn = DialogUtils.createActionButton(requireContext(), "Añadir habitación", false);
+    Button openLocationBtn = DialogUtils.createActionButton(requireContext(), "Ver ubicación", true);
     LinearLayout.LayoutParams addParams = (LinearLayout.LayoutParams) addRoomBtn.getLayoutParams();
     addParams.topMargin = dp(14);
     addRoomBtn.setLayoutParams(addParams);
@@ -704,9 +694,9 @@ private void showRoomActionsFromWorkspaceInfo(@NonNull RoomOption room) {
     loadRoomRowById(room.id, row -> {
         if (row == null) return;
         LinearLayout content = DialogUtils.createVerticalActions(requireContext());
-        Button infoBtn = DialogUtils.createActionButton(requireContext(), "Ver informaciÃ³n", true);
-        Button editBtn = DialogUtils.createActionButton(requireContext(), "Editar habitaciÃ³n", false);
-        Button deleteBtn = DialogUtils.createActionButton(requireContext(), "Eliminar habitaciÃ³n", false);
+        Button infoBtn = DialogUtils.createActionButton(requireContext(), "Ver información", true);
+        Button editBtn = DialogUtils.createActionButton(requireContext(), "Editar habitación", false);
+        Button deleteBtn = DialogUtils.createActionButton(requireContext(), "Eliminar habitación", false);
         content.addView(infoBtn);
         if (canManageRooms()) {
             content.addView(editBtn);
@@ -716,7 +706,7 @@ private void showRoomActionsFromWorkspaceInfo(@NonNull RoomOption room) {
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 row.title,
-                "Selecciona la acciÃ³n para esta habitaciÃ³n.",
+                "Selecciona la acción para esta habitación.",
                 content,
                 "Cerrar",
                 null
@@ -748,8 +738,8 @@ private void showRoomInfoFromRow(@NonNull WorkspaceRow row) {
     View content = buildRoomInfoDialogContent(name, roomNumber, capacity, monthlyCost, residents);
     DialogUtils.Shell shell = DialogUtils.buildShell(
             requireContext(),
-            "InformaciÃ³n habitaciÃ³n",
-            "Datos de la habitaciÃ³n seleccionada.",
+            "Información habitación",
+            "Datos de la habitación seleccionada.",
             content,
             null,
             "Cerrar"
@@ -766,7 +756,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     db.collection("rooms_groups").document(roomId).get()
             .addOnSuccessListener(doc -> {
                 if (!doc.exists()) {
-                    NoticeUtils.show(requireContext(), "La habitaciÃ³n ya no existe");
+                    NoticeUtils.show(requireContext(), "La habitación ya no existe");
                     callback.onLoaded(null);
                     return;
                 }
@@ -775,8 +765,8 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 Long capacity = doc.getLong("capacity");
                 List<String> residents = castEmails(doc.get("memberEmails"));
                 String title = (roomNumber == null || roomNumber <= 0)
-                        ? (roomName == null || roomName.trim().isEmpty() ? "HabitaciÃ³n" : roomName)
-                        : "Hab. " + roomNumber + " - " + (roomName == null || roomName.trim().isEmpty() ? "HabitaciÃ³n" : roomName);
+                        ? (roomName == null || roomName.trim().isEmpty() ? "Habitación" : roomName)
+                        : "Hab. " + roomNumber + " - " + (roomName == null || roomName.trim().isEmpty() ? "Habitación" : roomName);
                 String subtitle = "Capacidad: " + (capacity == null ? 0 : capacity)
                         + " | Residentes: " + residents.size();
                 Double monthlyCost = doc.getDouble("monthlyCost");
@@ -791,7 +781,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 callback.onLoaded(row);
             })
             .addOnFailureListener(e -> {
-                NoticeUtils.show(requireContext(), "No se pudo cargar la habitaciÃ³n");
+                NoticeUtils.show(requireContext(), "No se pudo cargar la habitación");
                 callback.onLoaded(null);
             });
 }
@@ -811,7 +801,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         TextView titleTv = new TextView(requireContext());
         titleTv.setTextColor(requireContext().getColor(R.color.text_light));
         titleTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 19);
-        titleTv.setText(title.trim().isEmpty() ? "Sin tÃ­tulo" : title.trim());
+        titleTv.setText(title.trim().isEmpty() ? "Sin título" : title.trim());
         card.addView(titleTv);
 
         TextView subtitleTv = new TextView(requireContext());
@@ -979,11 +969,11 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             EditText roomNameEt = form.findViewById(R.id.roomNameEt);
             EditText roomCapacityEt = form.findViewById(R.id.roomCapacityEt);
             EditText roomCostEt = form.findViewById(R.id.roomCostEt);
-            roomNameEt.setHint("Ejemplo: HabitaciÃ³n " + nextRoomNumber);
+            roomNameEt.setHint("Ejemplo: Habitación " + nextRoomNumber);
 
             DialogUtils.Shell shell = DialogUtils.buildShell(
                     requireContext(),
-                    "Nueva habitaciÃ³n",
+                    "Nueva habitación",
                     "Indica nombre, capacidad y coste mensual.",
                     form,
                     "Cancelar",
@@ -998,7 +988,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 String costValue = roomCostEt.getText().toString().trim();
 
                 if (nameValue.isEmpty() || capacityValue.isEmpty() || costValue.isEmpty()) {
-                    NoticeUtils.show(requireContext(), "Completa todos los datos de la habitaciÃ³n");
+                    NoticeUtils.show(requireContext(), "Completa todos los datos de la habitación");
                     return;
                 }
 
@@ -1008,7 +998,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                     parsedCapacity = Integer.parseInt(capacityValue);
                     parsedCost = Double.parseDouble(costValue);
                 } catch (NumberFormatException e) {
-                    NoticeUtils.show(requireContext(), "Capacidad o coste no vÃ¡lidos");
+                    NoticeUtils.show(requireContext(), "Capacidad o coste no válidos");
                     return;
                 }
                 if (parsedCapacity <= 0) {
@@ -1040,11 +1030,11 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 db.collection("rooms_groups")
                         .add(roomData)
                         .addOnSuccessListener(done -> {
-                            NoticeUtils.show(requireContext(), "HabitaciÃ³n creada");
+                            NoticeUtils.show(requireContext(), "Habitación creada");
                             refreshWorkspace();
                             dialog.dismiss();
                         })
-                        .addOnFailureListener(e -> Toast.makeText(requireContext(), "No se pudo crear la habitaciÃ³n", Toast.LENGTH_SHORT).show());
+                        .addOnFailureListener(e -> Toast.makeText(requireContext(), "No se pudo crear la habitación", Toast.LENGTH_SHORT).show());
             });
         });
     }
@@ -1056,10 +1046,10 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         }
 
         LinearLayout content = DialogUtils.createVerticalActions(requireContext());
-        Button infoBtn = DialogUtils.createActionButton(requireContext(), "Ver informaciÃ³n", true);
-        Button editBtn = DialogUtils.createActionButton(requireContext(), "Editar habitaciÃ³n", false);
-        Button deleteBtn = DialogUtils.createActionButton(requireContext(), "Eliminar habitaciÃ³n", false);
-        Button addBtn = DialogUtils.createActionButton(requireContext(), "AÃ±adir habitaciÃ³n", false);
+        Button infoBtn = DialogUtils.createActionButton(requireContext(), "Ver información", true);
+        Button editBtn = DialogUtils.createActionButton(requireContext(), "Editar habitación", false);
+        Button deleteBtn = DialogUtils.createActionButton(requireContext(), "Eliminar habitación", false);
+        Button addBtn = DialogUtils.createActionButton(requireContext(), "Añadir habitación", false);
         content.addView(infoBtn);
         content.addView(editBtn);
         content.addView(deleteBtn);
@@ -1067,8 +1057,8 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
-                "GestiÃ³n de habitaciones",
-                "Elige una acciÃ³n.",
+                "Gestión de habitaciones",
+                "Elige una acción.",
                 content,
                 "Cerrar",
                 null
@@ -1095,7 +1085,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
     private void showSelectedRoomInfoDialog() {
         if (!hasRoomContext()) {
-            NoticeUtils.show(requireContext(), "Selecciona una habitaciÃ³n en el desplegable");
+            NoticeUtils.show(requireContext(), "Selecciona una habitación en el desplegable");
             return;
         }
         loadRoomRowForCurrentSelection(row -> {
@@ -1109,8 +1099,8 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             View content = buildRoomInfoDialogContent(name, roomNumber, capacity, monthlyCost, residents);
             DialogUtils.Shell shell = DialogUtils.buildShell(
                     requireContext(),
-                    "InformaciÃ³n habitaciÃ³n",
-                    "Datos de la habitaciÃ³n seleccionada.",
+                    "Información habitación",
+                    "Datos de la habitación seleccionada.",
                     content,
                     null,
                     "Cerrar"
@@ -1138,13 +1128,13 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 ScrollView.LayoutParams.WRAP_CONTENT
         ));
 
-        String safeRoomName = roomName == null || roomName.trim().isEmpty() ? "HabitaciÃ³n" : roomName.trim();
+        String safeRoomName = roomName == null || roomName.trim().isEmpty() ? "Habitación" : roomName.trim();
         String monthly = monthlyCost == null ? "0.00" : new DecimalFormat("0.00").format(monthlyCost);
         List<String> safeResidents = residents == null ? Collections.emptyList() : residents;
         String roomNumberLabel = roomNumber == null ? "-" : String.valueOf(roomNumber);
 
-        addHeroInfoCard(root, safeRoomName, "Hab. " + roomNumberLabel + "  â€¢  " + monthly + " EUR/mes");
-        addInfoCard(root, "Capacidad mÃ¡xima", capacity == null ? "0" : String.valueOf(capacity));
+        addHeroInfoCard(root, safeRoomName, "Hab. " + roomNumberLabel + "  ·  " + monthly + " EUR/mes");
+        addInfoCard(root, "Capacidad máxima", capacity == null ? "0" : String.valueOf(capacity));
         addInfoCard(root, "Residentes actuales", String.valueOf(safeResidents.size()));
 
         TextView membersTitle = new TextView(requireContext());
@@ -1216,7 +1206,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             return;
         }
         if (!hasRoomContext()) {
-            NoticeUtils.show(requireContext(), "Selecciona una habitaciÃ³n en el desplegable");
+            NoticeUtils.show(requireContext(), "Selecciona una habitación en el desplegable");
             return;
         }
         loadRoomRowForCurrentSelection(row -> {
@@ -1231,7 +1221,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             return;
         }
         if (!hasRoomContext()) {
-            NoticeUtils.show(requireContext(), "Selecciona una habitaciÃ³n en el desplegable");
+            NoticeUtils.show(requireContext(), "Selecciona una habitación en el desplegable");
             return;
         }
         loadRoomRowForCurrentSelection(row -> {
@@ -1248,7 +1238,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         db.collection("rooms_groups").document(currentRoomId).get()
                 .addOnSuccessListener(doc -> {
                     if (!doc.exists()) {
-                        NoticeUtils.show(requireContext(), "La habitaciÃ³n ya no existe");
+                        NoticeUtils.show(requireContext(), "La habitación ya no existe");
                         callback.onLoaded(null);
                         return;
                     }
@@ -1257,8 +1247,8 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                     Long capacity = doc.getLong("capacity");
                     List<String> residents = castEmails(doc.get("memberEmails"));
                     String title = (roomNumber == null || roomNumber <= 0)
-                            ? (roomName == null || roomName.trim().isEmpty() ? "HabitaciÃ³n" : roomName)
-                            : "Hab. " + roomNumber + " - " + (roomName == null || roomName.trim().isEmpty() ? "HabitaciÃ³n" : roomName);
+                            ? (roomName == null || roomName.trim().isEmpty() ? "Habitación" : roomName)
+                            : "Hab. " + roomNumber + " - " + (roomName == null || roomName.trim().isEmpty() ? "Habitación" : roomName);
                     String subtitle = "Capacidad: " + (capacity == null ? 0 : capacity)
                             + " | Residentes: " + residents.size();
                     Double monthlyCost = doc.getDouble("monthlyCost");
@@ -1273,7 +1263,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                     callback.onLoaded(row);
                 })
                 .addOnFailureListener(e -> {
-                    NoticeUtils.show(requireContext(), "No se pudo cargar la habitaciÃ³n");
+                    NoticeUtils.show(requireContext(), "No se pudo cargar la habitación");
                     callback.onLoaded(null);
                 });
     }
@@ -1303,8 +1293,6 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             roomFilterSpinner.setAdapter(buildLightSpinnerAdapter(labels));
             roomFilterSpinner.setSelection(0);
             isUpdatingRoomFilterSpinner = false;
-            addRoomQuickBtn.setVisibility(canManageRooms() ? View.VISIBLE : View.GONE);
-
             if (hadRoomContext) {
                 loadRoomContext(() -> {
                     loadExpenses();
@@ -1346,9 +1334,9 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         }
 
         LinearLayout content = DialogUtils.createVerticalActions(requireContext());
-        Button editRoomBtn = DialogUtils.createActionButton(requireContext(), "Editar habitaciÃ³n", true);
+        Button editRoomBtn = DialogUtils.createActionButton(requireContext(), "Editar habitación", true);
         Button editTenantsBtn = DialogUtils.createActionButton(requireContext(), "Editar inquilinos", false);
-        Button deleteRoomBtn = DialogUtils.createActionButton(requireContext(), "Eliminar habitaciÃ³n", false);
+        Button deleteRoomBtn = DialogUtils.createActionButton(requireContext(), "Eliminar habitación", false);
         content.addView(editRoomBtn);
         content.addView(editTenantsBtn);
         content.addView(deleteRoomBtn);
@@ -1356,7 +1344,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 row.title,
-                "Selecciona la acciÃ³n para esta habitaciÃ³n.",
+                "Selecciona la acción para esta habitación.",
                 content,
                 "Cerrar",
                 null
@@ -1393,7 +1381,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
-                "Editar habitaciÃ³n",
+                "Editar habitación",
                 "Actualiza nombre, capacidad y coste.",
                 form,
                 "Cancelar",
@@ -1406,7 +1394,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             String capacityValue = roomCapacityEt.getText().toString().trim();
             String costValue = roomCostEt.getText().toString().trim();
             if (nameValue.isEmpty() || capacityValue.isEmpty() || costValue.isEmpty()) {
-                NoticeUtils.show(requireContext(), "Completa todos los datos de la habitaciÃ³n");
+                NoticeUtils.show(requireContext(), "Completa todos los datos de la habitación");
                 return;
             }
 
@@ -1416,7 +1404,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 parsedCapacity = Integer.parseInt(capacityValue);
                 parsedCost = Double.parseDouble(costValue);
             } catch (NumberFormatException e) {
-                NoticeUtils.show(requireContext(), "Capacidad o coste no vÃ¡lidos");
+                NoticeUtils.show(requireContext(), "Capacidad o coste no válidos");
                 return;
             }
             if (parsedCapacity <= 0) {
@@ -1437,11 +1425,11 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             db.collection("rooms_groups").document(row.id)
                     .update(updates)
                     .addOnSuccessListener(v2 -> {
-                    NoticeUtils.show(requireContext(), "HabitaciÃ³n actualizada");
+                    NoticeUtils.show(requireContext(), "Habitación actualizada");
                         refreshWorkspace();
                         dialog.dismiss();
                     })
-                    .addOnFailureListener(e -> Toast.makeText(requireContext(), "No se pudo actualizar la habitaciÃ³n", Toast.LENGTH_SHORT).show());
+                    .addOnFailureListener(e -> Toast.makeText(requireContext(), "No se pudo actualizar la habitación", Toast.LENGTH_SHORT).show());
         });
     }
 
@@ -1473,7 +1461,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             }
 
             TextView splitModeLabel = new TextView(requireContext());
-            splitModeLabel.setText("Reparto de alquiler en esta habitaciÃ³n");
+            splitModeLabel.setText("Reparto de alquiler en esta habitación");
             splitModeLabel.setTextColor(requireContext().getColor(R.color.text_light));
             splitModeLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
             splitModeLabel.setPadding(0, dp(12), 0, dp(4));
@@ -1497,7 +1485,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             content.addView(splitHintTv);
 
             TextView autoResidentLabelTv = new TextView(requireContext());
-            autoResidentLabelTv.setText("Inquilino automÃ¡tico (porcentaje restante):");
+            autoResidentLabelTv.setText("Inquilino automático (porcentaje restante):");
             autoResidentLabelTv.setTextColor(requireContext().getColor(R.color.text_light));
             autoResidentLabelTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
             autoResidentLabelTv.setPadding(0, dp(6), 0, dp(4));
@@ -1548,7 +1536,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 splitModeSpinner.setAlpha(canUsePercentage ? 1f : 0.55f);
 
                 if (!canUsePercentage) {
-                    splitHintTv.setText("Con menos de 2 inquilinos se asigna el 100% al Ãºnico residente.");
+                    splitHintTv.setText("Con menos de 2 inquilinos se asigna el 100% al único residente.");
                     autoResidentLabelTv.setVisibility(View.GONE);
                     autoResidentSpinner.setVisibility(View.GONE);
                     percentageRowsContainer.setVisibility(View.GONE);
@@ -1558,7 +1546,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 }
 
                 splitHintTv.setText(percentageMode
-                        ? "Define porcentajes manuales y un inquilino automÃ¡tico para cerrar el 100%."
+                        ? "Define porcentajes manuales y un inquilino automático para cerrar el 100%."
                         : "Se divide a partes iguales entre los residentes.");
 
                 if (!percentageMode) {
@@ -1646,7 +1634,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                             displayNameForEmail(autoResidentEmailRef[0])
                                     + ": "
                                     + formatPercent(Math.max(0.0, remaining))
-                                    + "% (automÃ¡tico)"
+                                    + "% (automático)"
                     );
                     autoPercentPreviewTv.setTextColor(requireContext().getColor(
                             remaining < 0.0 ? R.color.status_danger : R.color.text_muted
@@ -1707,7 +1695,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             DialogUtils.Shell shell = DialogUtils.buildShell(
                     requireContext(),
                     "Editar inquilinos",
-                    "Marca quiÃ©n vive en esta habitaciÃ³n y ajusta el reparto del alquiler.",
+                    "Marca quién vive en esta habitación y ajusta el reparto del alquiler.",
                     scroll,
                     "Cancelar",
                     "Guardar"
@@ -1757,7 +1745,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                     }
                     double autoValue = round2(100.0 - editableSum);
                     if (autoValue < 0.0) {
-                        NoticeUtils.show(requireContext(), "El porcentaje automÃ¡tico no es vÃ¡lido");
+                        NoticeUtils.show(requireContext(), "El porcentaje automático no es válido");
                         return;
                     }
                     splitPercentagesToSave.put(autoResident, autoValue);
@@ -1786,8 +1774,8 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     }
     private void requestRoomDeletion(WorkspaceRow row) {
         showDeleteConfirmation(
-                "Eliminar habitaciÃ³n",
-                "Se eliminarÃ¡ la habitaciÃ³n y su asignaciÃ³n de inquilinos.",
+                "Eliminar habitación",
+                "Se eliminará la habitación y su asignación de inquilinos.",
                 () -> {
                     db.collection("rooms_groups").document(row.id)
                             .delete()
@@ -1797,10 +1785,10 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                                     currentRoomId = null;
                                     currentRoomName = null;
                                 }
-                                NoticeUtils.show(requireContext(), "HabitaciÃ³n eliminada");
+                                NoticeUtils.show(requireContext(), "Habitación eliminada");
                                 refreshWorkspace();
                             })
-                            .addOnFailureListener(e -> Toast.makeText(requireContext(), "No se pudo eliminar la habitaciÃ³n", Toast.LENGTH_SHORT).show());
+                            .addOnFailureListener(e -> Toast.makeText(requireContext(), "No se pudo eliminar la habitación", Toast.LENGTH_SHORT).show());
                 }
         );
     }
@@ -1828,27 +1816,22 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             content.addView(expenseBtn);
         }
 
-        String paymentLabel = variableTenant ? "Pagar pendiente" : "Registrar pago";
+        String paymentLabel = "Registrar pago";
         Button paymentBtn = DialogUtils.createActionButton(requireContext(), paymentLabel, fixedBilling);
-        if (variableTenant && !hasPendingDebts) {
-            paymentBtn.setEnabled(false);
-            paymentBtn.setAlpha(0.45f);
-            TextView emptyTv = new TextView(requireContext());
-            emptyTv.setText("No tienes pagos pendientes.");
-            emptyTv.setTextColor(requireContext().getColor(R.color.text_muted));
-            emptyTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-            emptyTv.setPadding(0, dp(8), 0, dp(2));
-            content.addView(emptyTv);
+        Button pendingPaymentBtn = null;
+        if (variableTenant && hasPendingDebts) {
+            pendingPaymentBtn = DialogUtils.createActionButton(requireContext(), "Pagar pendiente", false);
         }
         Button exportPdfBtn = DialogUtils.createActionButton(requireContext(), "Exportar PDF", false);
         content.addView(paymentBtn);
+        if (pendingPaymentBtn != null) content.addView(pendingPaymentBtn);
         content.addView(exportPdfBtn);
 
         String subtitle;
         if (variableTenant) {
             subtitle = hasPendingDebts
-                    ? "Selecciona un pago pendiente para registrar el justificante."
-                    : "No tienes deuda pendiente para registrar pago.";
+                    ? "Puedes registrar un pago libre o pagar una deuda pendiente con justificante."
+                    : "Puedes registrar un pago libre.";
         } else if (fixedBilling) {
             subtitle = "Registra un pago o exporta PDF.";
         } else {
@@ -1857,7 +1840,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
-                "Nueva acciÃ³n",
+                "Nueva acción",
                 subtitle,
                 content,
                 "Cerrar",
@@ -1874,16 +1857,14 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         }
         paymentBtn.setOnClickListener(v -> {
             dialog.dismiss();
-            if (variableTenant) {
-                if (safePendingDebts.isEmpty()) {
-                    NoticeUtils.show(requireContext(), "No tienes pagos pendientes.");
-                    return;
-                }
-                showPendingDebtPickerDialog(safePendingDebts);
-                return;
-            }
             createPaymentDialog();
         });
+        if (pendingPaymentBtn != null) {
+            pendingPaymentBtn.setOnClickListener(v -> {
+                dialog.dismiss();
+                showPendingDebtPickerDialog(safePendingDebts);
+            });
+        }
         exportPdfBtn.setOnClickListener(v -> {
             dialog.dismiss();
             exportMonthlySummaryPdf();
@@ -1930,7 +1911,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         qrImage.setImageBitmap(generateQrBitmap(payload, 900));
         layout.addView(qrImage);
 
-        TextView codeTv = DialogUtils.createMessageView(requireContext(), "CÃ³digo: " + code);
+        TextView codeTv = DialogUtils.createMessageView(requireContext(), "Código: " + code);
         codeTv.setPadding(0, dp(10), 0, 0);
         layout.addView(codeTv);
         return layout;
@@ -1971,7 +1952,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             }
             loadCurrentGroupRooms(rooms -> {
                 if (rooms.isEmpty()) {
-                    NoticeUtils.show(requireContext(), "Primero crea al menos una habitaciÃ³n en la pestaÃ±a Habitaciones para poder aÃ±adir gastos.");
+                    NoticeUtils.show(requireContext(), "Primero crea al menos una habitación en la pestaña Habitaciones para poder añadir gastos.");
                     return;
                 }
                 View form = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_expense, null, false);
@@ -1996,7 +1977,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 DialogUtils.Shell shell = DialogUtils.buildShell(
                         requireContext(),
                         "Nuevo gasto",
-                        "AÃ±ade un gasto al piso actual.",
+                        "Añade un gasto al piso actual.",
                         scrollableForm,
                         "Cancelar",
                         "Guardar"
@@ -2026,7 +2007,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         String dueDateText = ((EditText) form.findViewById(R.id.dueDateEt)).getText().toString().trim();
         if (concept.isEmpty() || amountStr.isEmpty() || currentGroupId == null) return false;
         if (dueDateText.isEmpty()) {
-            NoticeUtils.show(requireContext(), "Debes indicar fecha lÃ­mite");
+            NoticeUtils.show(requireContext(), "Debes indicar fecha límite");
             return false;
         }
 
@@ -2034,7 +2015,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         try {
             amount = Double.parseDouble(amountStr);
         } catch (NumberFormatException e) {
-            NoticeUtils.show(requireContext(), "Importe no vÃ¡lido");
+            NoticeUtils.show(requireContext(), "Importe no válido");
             return false;
         }
         if (amount <= 0) {
@@ -2059,7 +2040,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             selectedRooms = new ArrayList<>(rooms);
         }
         if (selectedRooms.isEmpty()) {
-            NoticeUtils.show(requireContext(), "Selecciona al menos una habitaciÃ³n");
+            NoticeUtils.show(requireContext(), "Selecciona al menos una habitación");
             return false;
         }
 
@@ -2177,7 +2158,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
                 String dialogTitle = pendingDebtRequest == null ? "Registrar pago" : "Registrar pago pendiente";
                 String dialogSubtitle = pendingDebtRequest == null
-                        ? "Elige si el pago es para una habitaciÃ³n, un miembro o para todos."
+                        ? "Elige si el pago es para una habitación, un miembro o para todos."
                         : "Revisa los datos, adjunta justificante y env?a el pago.";
 
                 View scrollableForm = ExpenseDialogs.wrapFormForDialogScroll(requireContext(), form);
@@ -2336,7 +2317,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         targetTypeSpinner.setClickable(false);
         targetTypeSpinner.setAlpha(0.65f);
         if (memberLabelTv != null) {
-            memberLabelTv.setText("A quiÃ©n pagas:");
+            memberLabelTv.setText("A quién pagas:");
         }
 
         int priorityIndex = indexOfPriorityType(debt.priority);
@@ -2609,6 +2590,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         }
         selectedKeys = deduplicateStringKeys(selectedKeys);
         container.removeAllViews();
+        isRebindingPaymentSelectors = true;
 
         for (int i = 0; i < selectedKeys.size(); i++) {
             String selectedKey = selectedKeys.get(i);
@@ -2620,21 +2602,9 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                     selectedKey,
                     existingAmounts.getOrDefault(selectedKey, "")
             );
-            Spinner spinner = row.findViewById(R.id.memberSpinner);
-            spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                    rebindPaymentMemberLines(form, members, roomsCount, null);
-                    Spinner targetTypeSpinner = form.findViewById(R.id.paymentTargetTypeSpinner);
-                    updatePaymentTargetSection(form, targetTypeSpinner.getSelectedItemPosition(), members.size(), roomsCount);
-                }
-
-                @Override
-                public void onNothingSelected(AdapterView<?> parent) {
-                }
-            });
             container.addView(row);
         }
+        isRebindingPaymentSelectors = false;
     }
 
     private View buildPaymentLineRow(
@@ -2702,6 +2672,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         }
         selectedKeys = deduplicateRoomKeys(selectedKeys);
         container.removeAllViews();
+        isRebindingPaymentSelectors = true;
         List<String> roomKeys = new ArrayList<>();
         List<String> roomLabels = new ArrayList<>();
         for (RoomOption room : rooms) {
@@ -2719,21 +2690,9 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                     selectedKey,
                     existingAmounts.getOrDefault(selectedKey, "")
             );
-            Spinner spinner = row.findViewById(R.id.memberSpinner);
-            spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                    rebindPaymentRoomLines(form, rooms, membersCount, null);
-                    Spinner targetTypeSpinner = form.findViewById(R.id.paymentTargetTypeSpinner);
-                    updatePaymentTargetSection(form, targetTypeSpinner.getSelectedItemPosition(), membersCount, rooms.size());
-                }
-
-                @Override
-                public void onNothingSelected(AdapterView<?> parent) {
-                }
-            });
             container.addView(row);
         }
+        isRebindingPaymentSelectors = false;
     }
 
     private List<String> collectPaymentRoomLineKeys(LinearLayout container) {
@@ -2935,7 +2894,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             );
         } else if ("miembro".equals(normalizedTargetType)) {
             targets = resolvePaymentTargetsByMemberLines(selectedMemberEmails, memberLineAmounts, fromEmail);
-        } else if ("habitacion".equals(normalizedTargetType) || "habitaciÃ³n".equals(normalizedTargetType)) {
+        } else if ("habitacion".equals(normalizedTargetType) || "habitación".equals(normalizedTargetType)) {
             targets = resolvePaymentTargetsByRoomLines(selectedRoomIds, roomLineAmounts, rooms, fromEmail);
         } else {
             targets = paymentService.resolveTargets(
@@ -2949,7 +2908,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             );
         }
         if (targets.isEmpty()) {
-            NoticeUtils.show(requireContext(), "No hay destinatarios vÃ¡lidos para este pago");
+            NoticeUtils.show(requireContext(), "No hay destinatarios válidos para este pago");
             return false;
         }
         if (!"todos".equals(normalizedTargetType) && selectedPendingDebt == null) {
@@ -2958,7 +2917,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 linesTotal += Math.max(0.0, target.shareWeight);
             }
             if (Math.abs(round2(linesTotal) - round2(amount)) > 0.01) {
-                NoticeUtils.show(requireContext(), "La suma de lÃ­neas debe coincidir con el importe total");
+                NoticeUtils.show(requireContext(), "La suma de líneas debe coincidir con el importe total");
                 return false;
             }
         }
@@ -2976,7 +2935,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         }
         String safeConcept = paymentService.resolveConcept(concept, suggestedConcept);
         String safeTargetType = targetType;
-        if (("HabitaciÃ³n".equals(targetType) || "HabitaciÃ³n".equals(targetType)) && selectedRoomIds.size() > 1) {
+        if (("Habitación".equals(targetType) || "Habitacion".equals(targetType)) && selectedRoomIds.size() > 1) {
             safeTargetType = "x_habitacion";
         }
         List<PaymentService.PaymentWrite> writes = paymentService.buildWrites(
@@ -2992,12 +2951,12 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 targets
         );
         if (writes.isEmpty()) {
-            NoticeUtils.show(requireContext(), "No se han podido generar pagos vÃ¡lidos");
+            NoticeUtils.show(requireContext(), "No se han podido generar pagos válidos");
             return false;
         }
         if (selectedPendingDebt != null) {
             if (writes.size() != 1) {
-                NoticeUtils.show(requireContext(), "El pago pendiente debe enviarse en una sola lÃ­nea");
+                NoticeUtils.show(requireContext(), "El pago pendiente debe enviarse en una sola línea");
                 return false;
             }
             PaymentService.PaymentWrite write = writes.get(0);
@@ -3298,18 +3257,6 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
         for (int i = 0; i < selectedKeys.size(); i++) {
             Spinner spinner = buildReminderRoomLineSpinner(rooms, selectedKeys, i, selectedKeys.get(i));
-            spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                    rebindReminderRoomLines(form, rooms, null);
-                    Spinner targetTypeSpinner = form.findViewById(R.id.reminderTargetTypeSpinner);
-                    updateReminderTargetSection(form, targetTypeSpinner.getSelectedItemPosition());
-                }
-
-                @Override
-                public void onNothingSelected(AdapterView<?> parent) {
-                }
-            });
             container.addView(spinner);
         }
     }
@@ -3383,18 +3330,6 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
         for (int i = 0; i < selectedKeys.size(); i++) {
             Spinner spinner = buildReminderMemberLineSpinner(members, selectedKeys, i, selectedKeys.get(i));
-            spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                    rebindReminderMemberLines(form, members, null);
-                    Spinner targetTypeSpinner = form.findViewById(R.id.reminderTargetTypeSpinner);
-                    updateReminderTargetSection(form, targetTypeSpinner.getSelectedItemPosition());
-                }
-
-                @Override
-                public void onNothingSelected(AdapterView<?> parent) {
-                }
-            });
             container.addView(spinner);
         }
     }
@@ -3637,22 +3572,29 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         if ("personalizado".equals(intervalLabel) && intervalDays != null && intervalDays > 0) {
             intervalLabel = "cada " + intervalDays + " d\u00edas";
         }
-        String prefix = "Para: " + targetLabel + " Â· Frecuencia: " + capitalizeTypeLabel(intervalLabel);
+        String prefix = "Para: " + targetLabel + " · Frecuencia: " + capitalizeTypeLabel(intervalLabel);
         if (startDateText == null || startDateText.trim().isEmpty()) return prefix;
-        if ("unico".equals(intervalKey)) return prefix + " Â· Fecha: " + startDateText;
+        if ("unico".equals(intervalKey)) return prefix + " · Fecha: " + startDateText;
         if (endDateText != null && !endDateText.trim().isEmpty()) {
-            return prefix + " Â· Desde: " + startDateText + " Â· Hasta: " + endDateText;
+            return prefix + " · Desde: " + startDateText + " · Hasta: " + endDateText;
         }
-        return prefix + " Â· Desde: " + startDateText;
+        return prefix + " · Desde: " + startDateText;
     }
     private void loadExpenses() {
         if (currentGroupId == null) return;
+        final int loadVersion = ++expensesLoadVersion;
         DecimalFormat df = new DecimalFormat("0.00");
         expenseRows.clear();
+        String myEmail = FirebaseAuth.getInstance().getCurrentUser() == null
+                || FirebaseAuth.getInstance().getCurrentUser().getEmail() == null
+                ? ""
+                : FirebaseAuth.getInstance().getCurrentUser().getEmail().trim().toLowerCase(Locale.ROOT);
+        boolean ownerView = isOwnerUser();
 
         var expenseQuery = db.collection("expenses").whereEqualTo("groupId", currentGroupId);
 
         expenseQuery.get().addOnSuccessListener(result -> {
+            if (loadVersion != expensesLoadVersion) return;
             for (DocumentSnapshot doc : result.getDocuments()) {
                 if (hasRoomContext() && !matchesExpenseWithCurrentRoom(doc)) continue;
                 Double amountValue = doc.getDouble("amount");
@@ -3681,10 +3623,17 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             }
 
             db.collection("payments").whereEqualTo("groupId", currentGroupId).get().addOnSuccessListener(payments -> {
+                if (loadVersion != expensesLoadVersion) return;
                 for (DocumentSnapshot doc : payments.getDocuments()) {
                     String fromEmail = doc.getString("fromEmail");
                     String toEmail = doc.getString("toEmail");
                     String toLabel = memberReferenceInline(toEmail);
+                    // Para inquilino, mostrar solo pagos que el mismo ha enviado.
+                    // El resto de "deudas por pagar" se muestran en ROW_TYPE_PENDING_DEBT.
+                    if (!ownerView) {
+                        String fromLc = fromEmail == null ? "" : fromEmail.trim().toLowerCase(Locale.ROOT);
+                        if (!fromLc.equals(myEmail)) continue;
+                    }
                     if (hasRoomContext() && !isRoomPayment(doc, fromEmail, toEmail)) continue;
 
                     Double amountValue = doc.getDouble("amount");
@@ -3720,16 +3669,18 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                     ));
                 }
                 if (!isVariableTenantUser()) {
+                    if (loadVersion != expensesLoadVersion) return;
                     expensesAdapter.notifyDataSetChanged();
                     return;
                 }
                 loadMyPendingDebtRequests(pendingDebts -> {
+                    if (loadVersion != expensesLoadVersion) return;
                     if (pendingDebts.isEmpty()) {
                         expenseRows.add(new WorkspaceRow(
                                 "pending_debt_empty",
                                 ROW_TYPE_PENDING_DEBT,
                                 "No tienes pagos pendientes",
-                                "Cuando tengas una deuda asignada aparecerÃ¡ aquÃ­Â¿",
+                                "Cuando tengas una deuda asignada aparecerá aquí.",
                                 "-",
                                 null
                         ));
@@ -4299,22 +4250,6 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             single.put(residents.get(0), 100.0);
             return single;
         }
-
-        String splitMode = normalizeRoomSplitMode(room.rentSplitMode);
-        if (ROOM_SPLIT_PERCENTAGE.equals(splitMode)) {
-            double providedSum = 0.0;
-            for (String resident : residents) {
-                double value = room.rentSplitPercentages.getOrDefault(resident, 0.0);
-                if (value > 0.0) providedSum += value;
-            }
-            if (providedSum <= 0.0) {
-                NoticeUtils.show(
-                        requireContext(),
-                        "La habitaciÃ³n " + room.name + " estÃ¡ en reparto personalizado. Configura sus porcentajes antes de continuar."
-                );
-                return null;
-            }
-        }
         return resolveRoomResidentPercentages(room);
     }
 
@@ -4368,7 +4303,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
     private String displayNameForEmail(@Nullable String email) {
         if (email == null || email.trim().isEmpty()) return "";
-        String normalized = email.toLowerCase(Locale.ROOT);
+        String normalized = MemberLabelFormatter.normalizeEmail(email);
         String name = memberDisplayNamesByEmail.get(normalized);
         return name == null || name.trim().isEmpty() ? normalized : name;
     }
@@ -4377,12 +4312,9 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         if (email == null || email.trim().isEmpty()) {
             return "Sin datos";
         }
-        String normalized = email.trim().toLowerCase(Locale.ROOT);
+        String normalized = MemberLabelFormatter.normalizeEmail(email);
         String name = displayNameForEmail(normalized);
-        if (name == null || name.trim().isEmpty()) {
-            return normalized;
-        }
-        if (name.equalsIgnoreCase(normalized)) {
+        if (name == null || name.trim().isEmpty() || name.equalsIgnoreCase(normalized)) {
             return normalized;
         }
         return name + " (" + normalized + ")";
@@ -4396,7 +4328,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         int index = 1;
         for (String email : memberEmails) {
             if (email == null) continue;
-            String normalized = email.trim().toLowerCase(Locale.ROOT);
+            String normalized = MemberLabelFormatter.normalizeEmail(email);
             if (normalized.isEmpty()) continue;
             String name = displayNameForEmail(normalized);
             if (name == null || name.trim().isEmpty()) {
@@ -4435,14 +4367,14 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         boolean canDelete = canDeleteReminder(row.snapshot);
 
         ViewGroup content = DialogUtils.createVerticalActions(requireContext());
-        Button infoBtn = DialogUtils.createActionButton(requireContext(), "Ver informaciÃ³n", true);
+        Button infoBtn = DialogUtils.createActionButton(requireContext(), "Ver información", true);
         content.addView(infoBtn);
 
         Button deleteOneBtn = null;
         Button deleteAllBtn = null;
         if (canDelete) {
             deleteOneBtn = DialogUtils.createActionButton(requireContext(), "Eliminar solo hoy", false);
-            deleteAllBtn = DialogUtils.createActionButton(requireContext(), "Eliminar todos los dÃ­as", false);
+            deleteAllBtn = DialogUtils.createActionButton(requireContext(), "Eliminar todos los días", false);
             content.addView(deleteOneBtn);
             content.addView(deleteAllBtn);
         }
@@ -4520,24 +4452,24 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
     private void requestReminderDeleteToday(@NonNull WorkspaceRow row) {
         if (row.snapshot == null || !canDeleteReminder(row.snapshot)) {
-            NoticeUtils.show(requireContext(), "Solo quien lo creÃ³ o el propietario puede eliminarlo");
+            NoticeUtils.show(requireContext(), "Solo quien lo creó o el propietario puede eliminarlo");
             return;
         }
         showDeleteConfirmation(
                 "Eliminar solo hoy",
-                "Solo se eliminarÃ¡ la ocurrencia de hoy. Las siguientes se mantienen.",
+                "Solo se eliminará la ocurrencia de hoy. Las siguientes se mantienen.",
                 () -> deleteReminderOnlyToday(row)
         );
     }
 
     private void requestReminderDeletionAllDays(@NonNull WorkspaceRow row) {
         if (row.snapshot == null || !canDeleteReminder(row.snapshot)) {
-            NoticeUtils.show(requireContext(), "Solo quien lo creÃ³ o el propietario puede eliminarlo");
+            NoticeUtils.show(requireContext(), "Solo quien lo creó o el propietario puede eliminarlo");
             return;
         }
         showDeleteConfirmation(
-                "Eliminar todos los dÃ­as",
-                "Se eliminarÃ¡ el recordatorio completo y todas sus repeticiones.",
+                "Eliminar todos los días",
+                "Se eliminará el recordatorio completo y todas sus repeticiones.",
                 () -> deleteReminder(row)
         );
     }
@@ -4546,7 +4478,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         if (row.snapshot == null) return;
         DocumentSnapshot doc = row.snapshot;
         if (!canDeleteReminder(doc)) {
-            NoticeUtils.show(requireContext(), "Solo quien lo creÃ³ o el propietario puede eliminarlo");
+            NoticeUtils.show(requireContext(), "Solo quien lo creó o el propietario puede eliminarlo");
             return;
         }
 
@@ -4555,7 +4487,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         Date endAt = doc.getDate("endAt");
         Long reminderCode = doc.getLong("reminderCode");
 
-        // Si no es periÃ³dico o faltan datos base, lo tratamos como eliminaciÃ³n completa.
+        // Si no es periódico o faltan datos base, lo tratamos como eliminación completa.
         if (intervalMs <= 0L || startAt == null) {
             deleteReminder(row);
             return;
@@ -4565,12 +4497,12 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         long todayEnd = endOfTodayMs();
         Long todayOccurrence = findFirstOccurrenceOnOrAfter(startAt.getTime(), intervalMs, todayStart);
         if (todayOccurrence == null || todayOccurrence > todayEnd) {
-            NoticeUtils.show(requireContext(), "Este recordatorio no tiene ejecuciÃ³n hoy");
+            NoticeUtils.show(requireContext(), "Este recordatorio no tiene ejecución hoy");
             return;
         }
 
         if (endAt != null && todayOccurrence > endAt.getTime()) {
-            NoticeUtils.show(requireContext(), "El recordatorio ya terminÃ³");
+            NoticeUtils.show(requireContext(), "El recordatorio ya terminó");
             return;
         }
 
@@ -4678,12 +4610,12 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     private String buildReminderIntervalLabel(@NonNull DocumentSnapshot doc) {
         String interval = safeLowerText(doc.getString("interval"));
         Long intervalDays = doc.getLong("intervalDays");
-        if ("unico".equals(interval)) return "Ãºnico";
+        if ("unico".equals(interval)) return "único";
         if ("diario".equals(interval)) return "Diario";
         if ("semanal".equals(interval)) return "Semanal";
         if ("mensual".equals(interval)) return "Mensual";
         if ("personalizado".equals(interval) && intervalDays != null && intervalDays > 0) {
-            return "Cada " + intervalDays + " dÃ­as";
+            return "Cada " + intervalDays + " días";
         }
         return interval.isEmpty() ? "Sin definir" : capitalizeTypeLabel(interval);
     }
@@ -4702,7 +4634,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         }
         if ("habitacion".equals(targetType)) {
             String roomName = doc.getString("roomName");
-            return "Por habitaciÃ³n: " + (roomName == null || roomName.trim().isEmpty() ? "Sin nombre" : roomName.trim());
+            return "Por habitación: " + (roomName == null || roomName.trim().isEmpty() ? "Sin nombre" : roomName.trim());
         }
         if ("x_habitacion".equals(targetType)) {
             List<String> roomNames = castStrings(doc.get("roomNames"));
@@ -4900,8 +4832,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             @NonNull String targetStatus
     ) {
         View content = DialogUtils.createInfoRowsView(requireContext(), buildPaymentInfoRows(row));
-        boolean editableStatus = STATUS_REQUESTED.equals(status) || STATUS_PENDING.equals(status);
-        boolean showActions = editableStatus && (canToggle || canDelete);
+        boolean showActions = canToggle || canDelete;
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
@@ -4909,7 +4840,9 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 "Detalle del pago",
                 content,
                 showActions && canDelete ? "Borrar" : null,
-                showActions && canToggle ? "Cambiar estado" : "Cerrar"
+                showActions && canToggle
+                        ? (STATUS_PENDING.equals(status) ? "Aceptar pago" : "Cambiar estado")
+                        : "Cerrar"
         );
         AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
         if (showActions && canDelete && shell.cancelBtn != null) {
@@ -4951,7 +4884,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         rows.put("Concepto", concept == null || concept.trim().isEmpty() ? "Pago" : concept.trim());
         rows.put("De", fromEmail == null || fromEmail.trim().isEmpty() ? "Sin datos" : memberReferenceInline(fromEmail));
         rows.put("Para", toEmail == null || toEmail.trim().isEmpty() ? "Sin datos" : memberReferenceInline(toEmail));
-        rows.put("HabitaciÃ³n", roomName == null || roomName.trim().isEmpty() ? "Varias habitaciones" : roomName.trim());
+        rows.put("Habitación", roomName == null || roomName.trim().isEmpty() ? "Varias habitaciones" : roomName.trim());
         rows.put("Estado", statusLabel(status));
         rows.put("Vence", dueDateText == null || dueDateText.trim().isEmpty() ? "Sin fecha" : dueDateText.trim());
         rows.put("Importe", row.amount == null || row.amount.trim().isEmpty() ? "0.00 EUR" : row.amount.trim());
@@ -4976,8 +4909,8 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
         rows.put("Pagado por", payerEmail == null || payerEmail.trim().isEmpty() ? "Sin datos" : memberReferenceInline(payerEmail));
         rows.put("Para", buildExpenseTargetsLabel(customSplit, payerEmail));
-        rows.put("HabitaciÃ³n", roomName == null || roomName.trim().isEmpty() ? "Varias habitaciones" : roomName);
-        rows.put("CategorÃ­a", category == null || category.trim().isEmpty() ? "Sin categorÃ­a" : capitalizeTypeLabel(category));
+        rows.put("Habitación", roomName == null || roomName.trim().isEmpty() ? "Varias habitaciones" : roomName);
+        rows.put("Categoría", category == null || category.trim().isEmpty() ? "Sin categoría" : capitalizeTypeLabel(category));
         rows.put("Estado", statusLabel(status));
         rows.put("Vence", dueDateText == null || dueDateText.trim().isEmpty() ? "Sin fecha" : dueDateText);
         rows.put("Importe", row.amount == null || row.amount.trim().isEmpty() ? "0.00 EUR" : row.amount);
@@ -5096,7 +5029,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                         String rentSplitMode = normalizeRoomSplitMode(doc.getString("rentSplitMode"));
                         Map<String, Double> rentSplitPercentages = castPercentages(doc.get("rentSplitPercentages"));
                         List<String> rentSplitOrder = castEmails(doc.get("rentSplitOrder"));
-                        String normalizedName = roomName == null || roomName.trim().isEmpty() ? "HabitaciÃ³n" : roomName;
+                        String normalizedName = roomName == null || roomName.trim().isEmpty() ? "Habitación" : roomName;
                         String label = (roomNumber == null || roomNumber <= 0)
                                 ? normalizedName
                                 : "Hab. " + roomNumber + " - " + normalizedName;
@@ -5127,7 +5060,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             @Nullable String selectedRoomName,
             @Nullable String currentCustomSplit
     ) {
-        // UX simplificada: la selecciÃ³n de reparto se hace solo en el bloque inferior.
+        // UX simplificada: la selección de reparto se hace solo en el bloque inferior.
         View roomSectionLabel = form.findViewById(R.id.roomSectionLabelTv);
         LinearLayout roomSelectorsContainer = form.findViewById(R.id.roomSelectorsContainer);
         Button addRoomSelectionBtn = form.findViewById(R.id.addRoomSelectionBtn);
@@ -5212,7 +5145,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         if (selectedRooms.size() == rooms.size()) {
             roomMembersHintTv.setText("Todas las habitaciones seleccionadas.");
         } else if (mergedMembers.isEmpty()) {
-            roomMembersHintTv.setText("HabitaciÃ³n sin residentes asignados.");
+            roomMembersHintTv.setText("Habitación sin residentes asignados.");
         } else {
             roomMembersHintTv.setText("Residentes:\n" + formatMembersDetailed(mergedMembers));
         }
@@ -5473,6 +5406,8 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         splitModeSpinner.setAdapter(modeAdapter);
         splitTargetScopeSpinner.setAdapter(buildLightSpinnerAdapter(new String[]{"Personas", "Habitaciones"}));
         splitTargetScopeSpinner.setSelection(0);
+        prepareDialogSpinnerTouch(splitModeSpinner);
+        prepareDialogSpinnerTouch(splitTargetScopeSpinner);
 
         setSplitCandidateMembers(form, members);
         addSplitRow(splitRowsContainer, members, null, null);
@@ -5800,7 +5735,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             total = totalText.isEmpty() ? 0.0 : Double.parseDouble(totalText);
         } catch (NumberFormatException e) {
             remainingTv.setVisibility(View.VISIBLE);
-            remainingTv.setText("Importe total no vÃ¡lido.");
+            remainingTv.setText("Importe total no válido.");
             remainingTv.setTextColor(requireContext().getColor(R.color.status_danger));
             return;
         }
@@ -5855,7 +5790,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         boolean singleResidentMode = isSingleResidentSplitMode(splitRowsContainer);
 
         if (singleResidentMode) {
-            remainingTv.setText(assignedVsTotal + " Reparto automÃ¡tico correcto.");
+            remainingTv.setText(assignedVsTotal + " Reparto automático correcto.");
             remainingTv.setTextColor(requireContext().getColor(R.color.status_success));
             return;
         }
@@ -5863,7 +5798,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             remainingTv.setText(assignedVsTotal + " Reparto perfecto, listo para guardar.");
             remainingTv.setTextColor(requireContext().getColor(R.color.status_success));
         } else if (remaining > 0.0) {
-            remainingTv.setText(assignedVsTotal + " Te faltan por aÃ±adir " + amountFormat.format(remaining) + " EUR.");
+            remainingTv.setText(assignedVsTotal + " Te faltan por añadir " + amountFormat.format(remaining) + " EUR.");
             remainingTv.setTextColor(requireContext().getColor(R.color.status_danger));
         } else {
             remainingTv.setText(assignedVsTotal + " Te has pasado " + amountFormat.format(Math.abs(remaining)) + " EUR.");
@@ -5878,6 +5813,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
         ArrayAdapter<String> memberAdapter = buildLightSpinnerAdapter(members.toArray(new String[0]));
         memberSpinner.setAdapter(memberAdapter);
+        prepareDialogSpinnerTouch(memberSpinner);
 
         if (selectedMember != null) {
             int idx = members.indexOf(selectedMember);
@@ -5887,6 +5823,23 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             memberAmountEt.setText(percentText);
         }
         container.addView(row);
+    }
+
+    private void prepareDialogSpinnerTouch(@Nullable Spinner spinner) {
+        if (spinner == null) return;
+        spinner.setOnTouchListener((v, event) -> {
+            if (event == null) return false;
+            if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                ViewParent parent = v.getParent();
+                while (parent != null) {
+                    parent.requestDisallowInterceptTouchEvent(true);
+                    parent = parent.getParent();
+                }
+            } else if (event.getAction() == MotionEvent.ACTION_UP) {
+                v.performClick();
+            }
+            return false;
+        });
     }
 
     @Nullable
@@ -5916,7 +5869,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 try {
                     partAmount = Double.parseDouble(amountText);
                 } catch (NumberFormatException e) {
-                    NoticeUtils.show(requireContext(), "Hay importes de reparto no vÃ¡lidos");
+                    NoticeUtils.show(requireContext(), "Hay importes de reparto no válidos");
                     return null;
                 }
                 if (partAmount < 0) {
@@ -5932,7 +5885,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                         }
                     }
                     if (room == null) {
-                        NoticeUtils.show(requireContext(), "Hay una habitaciÃ³n de reparto no vÃ¡lida");
+                        NoticeUtils.show(requireContext(), "Hay una habitación de reparto no válida");
                         return null;
                     }
                     Map<String, Double> residentsSplit = resolveRoomResidentPercentagesForAllocation(room);
@@ -5940,7 +5893,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                         return null;
                     }
                     if (residentsSplit.isEmpty()) {
-                        NoticeUtils.show(requireContext(), "Una habitaciÃ³n seleccionada no tiene inquilinos");
+                        NoticeUtils.show(requireContext(), "Una habitación seleccionada no tiene inquilinos");
                         return null;
                     }
                     for (Map.Entry<String, Double> splitEntry : residentsSplit.entrySet()) {
@@ -5972,7 +5925,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         }
 
         if (splitsByEmail.isEmpty()) {
-            NoticeUtils.show(requireContext(), "AÃ±ade al menos una lÃ­nea de reparto");
+            NoticeUtils.show(requireContext(), "Añade al menos una línea de reparto");
             return null;
         }
 
@@ -6004,19 +5957,19 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         }
         showDeleteConfirmation(
                 "Eliminar gasto",
-                "Se eliminarÃ¡ el gasto y sus vencimientos asociados.",
+                "Se eliminará el gasto y sus vencimientos asociados.",
                 () -> deleteExpense(row)
         );
     }
 
     private void requestPaymentDeletion(WorkspaceRow row) {
         if (row.snapshot == null || !canDeletePayment(row.snapshot)) {
-            NoticeUtils.show(requireContext(), "Solo se puede eliminar un pago en estado Solicitado");
+            NoticeUtils.show(requireContext(), "Solo el creador del pago o el propietario pueden eliminarlo");
             return;
         }
         showDeleteConfirmation(
                 "Eliminar pago",
-                "Se eliminarÃ¡ el pago y sus recordatorios asociados.",
+                "Se eliminará el pago y sus recordatorios asociados.",
                 () -> deletePayment(row)
         );
     }
@@ -6047,7 +6000,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
     private void deletePayment(WorkspaceRow row) {
         if (row.snapshot == null || !canDeletePayment(row.snapshot)) {
-            NoticeUtils.show(requireContext(), "Solo se puede eliminar un pago en estado Solicitado");
+            NoticeUtils.show(requireContext(), "Solo el creador del pago o el propietario pueden eliminarlo");
             return;
         }
         db.collection("payments").document(row.id).delete().addOnSuccessListener(v -> {
@@ -6062,7 +6015,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     private void deleteReminder(WorkspaceRow row) {
         if (row.snapshot == null) return;
         if (!canDeleteReminder(row.snapshot)) {
-            NoticeUtils.show(requireContext(), "Solo quien lo creÃ³ o el propietario puede eliminarlo");
+            NoticeUtils.show(requireContext(), "Solo quien lo creó o el propietario puede eliminarlo");
             return;
         }
         Long reminderCode = row.snapshot.getLong("reminderCode");
@@ -6087,13 +6040,13 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         View dateRow = form.findViewById(R.id.filterDateRow);
         EditText dateEt = form.findViewById(R.id.filterDateEt);
 
-        String[] modeLabels = new String[]{"CategorÃ­a", "Persona", "Fecha"};
+        String[] modeLabels = new String[]{"Categoría", "Persona", "Fecha"};
         modeSpinner.setAdapter(buildLightSpinnerAdapter(modeLabels));
 
         List<String> categoryValues = new ArrayList<>();
         List<String> categoryLabels = new ArrayList<>();
         categoryValues.add("");
-        categoryLabels.add("Selecciona categorÃ­a");
+        categoryLabels.add("Selecciona categoría");
         if (BILLING_FIXED.equals(currentBillingModel)) {
             categoryValues.add(CATEGORY_RENT);
             categoryLabels.add(capitalizeTypeLabel(CATEGORY_RENT));
@@ -6103,7 +6056,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 categoryValues.clear();
                 categoryLabels.clear();
                 categoryValues.add("");
-                categoryLabels.add("Selecciona categorÃ­a");
+                categoryLabels.add("Selecciona categoría");
                 for (String category : categories) {
                     if (category == null || category.trim().isEmpty()) continue;
                     categoryValues.add(category);
@@ -6157,7 +6110,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 "Filtros",
-                "Aplica un solo filtro: categorÃ­a, persona o fecha.",
+                "Aplica un solo filtro: categoría, persona o fecha.",
                 form,
                 "Limpiar",
                 "Aplicar"
@@ -6186,7 +6139,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                         ? categoryValues.get(selectedIndex)
                         : "";
                 if (selectedCategory == null || selectedCategory.trim().isEmpty()) {
-                    NoticeUtils.show(requireContext(), "Selecciona una categorÃ­a");
+                    NoticeUtils.show(requireContext(), "Selecciona una categoría");
                     return;
                 }
                 filterCategory = selectedCategory.trim().toLowerCase(Locale.ROOT);
@@ -6362,7 +6315,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     private String statusLabel(@Nullable String rawStatus) {
         String normalized = normalizeFlowStatus(rawStatus);
         if (STATUS_CONFIRMED.equals(normalized)) return "Pagado";
-        if (STATUS_SUBMITTED.equals(normalized)) return "En revisiÃ³n";
+        if (STATUS_SUBMITTED.equals(normalized)) return "En revisión";
         if (STATUS_PENDING.equals(normalized)) return "Pendiente";
         return "Solicitado";
     }
@@ -6419,36 +6372,47 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     }
 
     private boolean canTogglePaymentStatus(@NonNull DocumentSnapshot paymentDoc) {
-        if (!isOwnerUser()) return false;
         String status = normalizeFlowStatus(paymentDoc.getString("status"));
-        return STATUS_REQUESTED.equals(status);
+        return PaymentAccessPolicy.canAcceptPendingPayment(
+                status,
+                isOwnerUser(),
+                currentUserEmail(),
+                paymentDoc.getString("fromEmail")
+        );
     }
 
     private boolean canDeletePayment(@NonNull DocumentSnapshot paymentDoc) {
-        if (!isOwnerUser()) return false;
-        String status = normalizeFlowStatus(paymentDoc.getString("status"));
-        return STATUS_REQUESTED.equals(status);
+        return PaymentAccessPolicy.canDeletePayment(
+                isOwnerUser(),
+                currentUserEmail(),
+                paymentDoc.getString("fromEmail")
+        );
+    }
+
+    @NonNull
+    private String currentUserEmail() {
+        if (FirebaseAuth.getInstance().getCurrentUser() == null
+                || FirebaseAuth.getInstance().getCurrentUser().getEmail() == null) {
+            return "";
+        }
+        return PaymentAccessPolicy.normalizeEmail(FirebaseAuth.getInstance().getCurrentUser().getEmail());
     }
 
     private void requestPaymentStatusChange(@NonNull WorkspaceRow row, @NonNull String targetStatus) {
         if (row.snapshot == null) return;
-        if (!isOwnerUser()) {
-            NoticeUtils.show(requireContext(), "Solo el propietario puede cambiar el estado del pago");
-            return;
-        }
         if (!canTogglePaymentStatus(row.snapshot)) {
-            NoticeUtils.show(requireContext(), "Solo puedes cambiar estado en pagos Solicitados");
+            NoticeUtils.show(requireContext(), "Solo se puede aceptar un pago cuando esta en Pendiente");
             return;
         }
-        String action = "confirmed".equalsIgnoreCase(targetStatus) ? "marcar como pagado" : "marcar como pendiente";
+        String action = "confirmed".equalsIgnoreCase(targetStatus) ? "aceptar este pago" : "cambiar el estado";
         View content = DialogUtils.createMessageView(
                 requireContext(),
-                "Vas a " + action + " este pago.\n\\nÂ¿Deseas continuar?"
+                "Vas a " + action + " este pago.\n\\n¿Deseas continuar?"
         );
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 "Confirmar cambio de estado",
-                "Esta acciÃ³n actualizarÃ¡ el estado del pago.",
+                "Esta acción actualizará el estado del pago.",
                 content,
                 "Cancelar",
                 "Aceptar"
@@ -6483,7 +6447,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 title,
-                "Confirmar eliminaciÃ³n",
+                "Confirmar eliminación",
                 content,
                 "Cancelar",
                 "Eliminar"
@@ -6694,7 +6658,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         int reminderB = Math.abs(("due_b_" + suffix).hashCode());
         String title = concept == null || concept.isEmpty() ? "Pago pendiente" : concept;
         if (oneDayBefore > now) {
-            ReminderScheduler.scheduleOneTime(requireContext(), reminderA, "Pago vence maÃ±ana", title + " - " + amountLabel, oneDayBefore);
+            ReminderScheduler.scheduleOneTime(requireContext(), reminderA, "Pago vence mañana", title + " - " + amountLabel, oneDayBefore);
         }
         if (dueAtMs > now) {
             ReminderScheduler.scheduleOneTime(requireContext(), reminderB, "Pago vence hoy", title + " - " + amountLabel, dueAtMs);
@@ -6741,12 +6705,12 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                         String actor = doc.getString("actorEmail");
                         String concept = doc.getString("concept");
                         Double amount = doc.getDouble("amount");
-                        message.append("- ").append(action == null ? "acciÃ³n" : action)
+                        message.append("- ").append(action == null ? "acción" : action)
                                 .append(" | ").append(actor == null ? "usuario" : actor)
                                 .append(" | ").append(concept == null ? "" : concept)
                                 .append(" | ").append(amount == null ? "0.00" : amount).append(" EUR\n");
                     }
-                    if (message.length() == 0) message.append("Sin actividad todavÃ­a.");
+                    if (message.length() == 0) message.append("Sin actividad todavía.");
                     View content = DialogUtils.createMessageView(requireContext(), message.toString());
                     DialogUtils.Shell shell = DialogUtils.buildShell(
                             requireContext(),
@@ -6785,19 +6749,19 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                         if (detected != null && pendingTicketAmountEt != null) {
                             if (activePendingDebtRequest != null) {
                                 if (pendingTicketStatusTv != null) {
-                                    pendingTicketStatusTv.setText("OCR detectÃ³ " + detected + ", pero se mantiene tu importe pendiente bloqueado.");
+                                    pendingTicketStatusTv.setText("OCR detectó " + detected + ", pero se mantiene tu importe pendiente bloqueado.");
                                 }
                             } else {
                                 pendingTicketAmountEt.setText(detected);
-                                if (pendingTicketStatusTv != null) pendingTicketStatusTv.setText("OCR detectÃ³ importe: " + detected);
+                                if (pendingTicketStatusTv != null) pendingTicketStatusTv.setText("OCR detectó importe: " + detected);
                             }
                         } else if (pendingTicketStatusTv != null) {
-                            pendingTicketStatusTv.setText("OCR listo, no se encontrÃ³ importe claro.");
+                            pendingTicketStatusTv.setText("OCR listo, no se encontró importe claro.");
                         }
                         updatePaymentConfirmButtonState();
                     })
                     .addOnFailureListener(e -> {
-                        if (pendingTicketStatusTv != null) pendingTicketStatusTv.setText("OCR fallÃ³.");
+                        if (pendingTicketStatusTv != null) pendingTicketStatusTv.setText("OCR falló.");
                         updatePaymentConfirmButtonState();
                     });
         } catch (Exception e) {
@@ -7264,6 +7228,8 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         }
     }
 }
+
+
 
 
 

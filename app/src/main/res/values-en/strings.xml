@@ -115,8 +115,8 @@
 
     <string name="balance_select_group">Select a group to see balances.</string>
     <string name="balance_invalid_group_members">Group has no valid members.</string>
-    <string name="balance_they_owe_you">You are owed %1$s â‚¬</string>
-    <string name="balance_you_owe">You owe %1$s â‚¬</string>
+    <string name="balance_they_owe_you">You are owed %1$s €</string>
+    <string name="balance_you_owe">You owe %1$s €</string>
     <string name="balance_group_title">Group balance:</string>
 </resources>
 

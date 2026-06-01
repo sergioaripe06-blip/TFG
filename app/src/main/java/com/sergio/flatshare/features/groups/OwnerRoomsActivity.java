@@ -15,25 +15,15 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.Toast;
 import android.widget.ArrayAdapter;
-import android.widget.Toast;
 import android.widget.BaseAdapter;
-import android.widget.Toast;
 import android.widget.Button;
-import android.widget.Toast;
 import android.widget.EditText;
-import android.widget.Toast;
 import android.widget.ImageView;
-import android.widget.Toast;
 import android.widget.LinearLayout;
-import android.widget.Toast;
 import android.widget.ListView;
-import android.widget.Toast;
 import android.widget.ScrollView;
-import android.widget.Toast;
 import android.widget.Spinner;
-import android.widget.Toast;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -87,7 +77,6 @@ public class OwnerRoomsActivity extends AppCompatActivity {
     private TextView emptyRoomsTv;
     private Button createRoomBtn;
     private Button inviteCodeBtn;
-    private Button inviteEmailBtn;
 
     private String groupId;
     private String groupName = "Piso";
@@ -112,7 +101,6 @@ public class OwnerRoomsActivity extends AppCompatActivity {
         emptyRoomsTv = findViewById(R.id.emptyRoomsTv);
         createRoomBtn = findViewById(R.id.createRoomBtn);
         inviteCodeBtn = findViewById(R.id.inviteCodeBtn);
-        inviteEmailBtn = findViewById(R.id.inviteEmailBtn);
         Button finishSetupBtn = findViewById(R.id.finishSetupBtn);
 
         ListView roomsLv = findViewById(R.id.roomsLv);
@@ -132,7 +120,6 @@ public class OwnerRoomsActivity extends AppCompatActivity {
 
         createRoomBtn.setOnClickListener(v -> createRoomDialog());
         inviteCodeBtn.setOnClickListener(v -> showShareOptionsDialog());
-        inviteEmailBtn.setOnClickListener(v -> inviteByEmailDialog());
         finishSetupBtn.setOnClickListener(v -> {
             SessionStore.setCurrentGroup(this, groupId);
             SessionStore.clearCurrentRoom(this);
@@ -187,7 +174,6 @@ public class OwnerRoomsActivity extends AppCompatActivity {
     private void updateOwnerActions() {
         createRoomBtn.setVisibility(isOwner ? View.VISIBLE : View.GONE);
         inviteCodeBtn.setEnabled(isOwner);
-        inviteEmailBtn.setEnabled(isOwner);
     }
 
     private void loadRooms() {
@@ -542,43 +528,6 @@ public class OwnerRoomsActivity extends AppCompatActivity {
         shell.confirmBtn.setOnClickListener(v -> dialog.dismiss());
     }
 
-    private void inviteByEmailDialog() {
-        if (!isOwner) return;
-        showSingleInputDialog(
-                "Añadir por email",
-                "Envía una solicitud directa por correo.",
-                "Email del invitado:",
-                InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
-                "Enviar",
-                value -> {
-                    String invitedEmail = value.trim().toLowerCase(Locale.ROOT);
-                    if (invitedEmail.isEmpty() || !invitedEmail.contains("@")) {
-                        NoticeUtils.show(this, "Debes indicar un email valido");
-                        return false;
-                    }
-                    String currentShareCode = (shareCode == null || shareCode.trim().isEmpty())
-                            ? groupId.toUpperCase(Locale.ROOT)
-                            : shareCode;
-                    String inviterEmail = FirebaseAuth.getInstance().getCurrentUser().getEmail() == null
-                            ? ""
-                            : FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
-
-                    Map<String, Object> invitation = new HashMap<>();
-                    invitation.put("groupId", groupId);
-                    invitation.put("groupName", groupName == null || groupName.trim().isEmpty() ? "Piso" : groupName);
-                    invitation.put("shareCode", currentShareCode);
-                    invitation.put("invitedEmail", invitedEmail);
-                    invitation.put("inviterUid", FirebaseAuth.getInstance().getCurrentUser().getUid());
-                    invitation.put("inviterEmail", inviterEmail);
-                    invitation.put("status", "pending");
-                    invitation.put("createdAt", FieldValue.serverTimestamp());
-                    db.collection("invitations").add(invitation)
-                            .addOnSuccessListener(v -> Toast.makeText(this, "Invitacion creada", Toast.LENGTH_SHORT).show())
-                            .addOnFailureListener(e -> Toast.makeText(this, "No se pudo crear la invitacion", Toast.LENGTH_SHORT).show());
-                    return true;
-                }
-        );
-    }
     private void openWorkspace() {
         Intent intent = new Intent(this, MainActivity.class);
         intent.putExtra(EXTRA_OPEN_WORKSPACE, true);

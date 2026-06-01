@@ -55,22 +55,10 @@
 
                 <Button
                     android:id="@+id/inviteCodeBtn"
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="40dp"
-                    android:layout_weight="1"
                     android:background="@drawable/bg_tab_default"
                     android:text="Añadir por código"
-                    android:textAllCaps="false"
-                    android:textColor="@color/text_light" />
-
-                <Button
-                    android:id="@+id/inviteEmailBtn"
-                    android:layout_width="0dp"
-                    android:layout_height="40dp"
-                    android:layout_marginStart="8dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/bg_tab_default"
-                    android:text="Añadir por email"
                     android:textAllCaps="false"
                     android:textColor="@color/text_light" />
             </LinearLayout>
@@ -133,4 +121,3 @@
     </LinearLayout>
 
 </FrameLayout>
-

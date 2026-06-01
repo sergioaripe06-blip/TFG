@@ -10,25 +10,15 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.Toast;
 import android.widget.ArrayAdapter;
-import android.widget.Toast;
 import android.widget.BaseAdapter;
-import android.widget.Toast;
 import android.widget.Button;
-import android.widget.Toast;
 import android.widget.CalendarView;
-import android.widget.Toast;
 import android.widget.EditText;
-import android.widget.Toast;
 import android.widget.LinearLayout;
-import android.widget.Toast;
 import android.widget.ListView;
-import android.widget.Toast;
 import android.widget.ScrollView;
-import android.widget.Toast;
 import android.widget.Spinner;
-import android.widget.Toast;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -61,7 +51,7 @@ import java.util.Set;
 
 public class CalendarFragment extends Fragment {
     private static final SimpleDateFormat SELECTED_DATE_LABEL_FORMAT = new SimpleDateFormat("dd/MM/yyyy", Locale.ROOT);
-    private static final String[] REMINDER_INTERVAL_LABELS = {"Único", "Diario", "Semanal", "Mensual", "Personalizado"};
+    private static final String[] REMINDER_INTERVAL_LABELS = {"Unico", "Diario", "Semanal", "Mensual", "Personalizado"};
     private static final String[] REMINDER_INTERVAL_KEYS = {"unico", "diario", "semanal", "mensual", "personalizado"};
 
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
@@ -639,7 +629,7 @@ public class CalendarFragment extends Fragment {
     private String reminderIntervalLabel(@NonNull DocumentSnapshot doc) {
         String interval = safeLower(doc.getString("interval"));
         Long intervalDays = doc.getLong("intervalDays");
-        if ("unico".equals(interval)) return "Único";
+        if ("unico".equals(interval)) return "Unico";
         if ("diario".equals(interval)) return "Diario";
         if ("semanal".equals(interval)) return "Semanal";
         if ("mensual".equals(interval)) return "Mensual";

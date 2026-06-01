@@ -72,7 +72,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
         android:background="@drawable/bg_input_dark_round"
-        android:hint="Ejemplo: 1999-05-14"
+        android:hint="Ejemplo: 14/05/1999"
         android:inputType="none"
         android:paddingHorizontal="16dp"
         android:paddingVertical="12dp"

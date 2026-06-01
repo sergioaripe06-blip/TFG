@@ -16,25 +16,15 @@ import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.Toast;
 import android.widget.AutoCompleteTextView;
-import android.widget.Toast;
 import android.widget.ArrayAdapter;
-import android.widget.Toast;
 import android.widget.BaseAdapter;
-import android.widget.Toast;
 import android.widget.Button;
-import android.widget.Toast;
 import android.widget.EditText;
-import android.widget.Toast;
 import android.widget.ImageView;
-import android.widget.Toast;
 import android.widget.LinearLayout;
-import android.widget.Toast;
 import android.widget.ListView;
-import android.widget.Toast;
 import android.widget.Spinner;
-import android.widget.Toast;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.annotation.NonNull;
@@ -60,6 +50,7 @@ import com.journeyapps.barcodescanner.ScanOptions;
 import com.sergio.flatshare.features.groups.services.GroupService;
 import com.sergio.flatshare.features.groups.services.InitialRoomsSetupFlow;
 import com.sergio.flatshare.features.groups.services.InvitationService;
+import com.sergio.flatshare.features.groups.services.ProvinceCityCatalog;
 import com.sergio.flatshare.R;
 import com.sergio.flatshare.core.sound.AppSoundFx;
 import com.sergio.flatshare.features.shell.MainActivity;
@@ -72,7 +63,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Hashtable;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -87,7 +77,6 @@ public class GroupsFragment extends Fragment {
     private final List<GroupItem> groups = new ArrayList<>();
     private final List<GroupItem> allGroups = new ArrayList<>();
     private final SparseBooleanArray animatedPositions = new SparseBooleanArray();
-    private static final LinkedHashMap<String, List<String>> PROVINCE_CITIES = buildProvinceCityMap();
     private static final String RENT_MODE_FIXED = "fixed";
     private static final String RENT_MODE_VARIABLE = "variable";
     private static final String VARIABLE_SPLIT_EQUAL = "equal";
@@ -148,7 +137,7 @@ public class GroupsFragment extends Fragment {
             GroupItem selected = groups.get(position);
             selectedGroupId = selected.id;
             SessionStore.setCurrentGroup(requireContext(), selectedGroupId);
-            openCurrentGroupWorkspace();
+            openGroupWorkspaceWithRoomGuard(selectedGroupId, selected.isOwner);
         });
 
         listView.setOnItemLongClickListener((parent, v, position, id) -> {
@@ -470,10 +459,46 @@ public class GroupsFragment extends Fragment {
     }
 
     private void openCurrentGroupWorkspace() {
-        SessionStore.clearCurrentRoom(requireContext());
         if (requireActivity() instanceof MainActivity) {
             ((MainActivity) requireActivity()).openCurrentGroupWorkspace();
         }
+    }
+
+    private void openGroupWorkspaceWithRoomGuard(@NonNull String groupId, boolean isOwner) {
+        if (!isAdded()) return;
+        if (isOwner) {
+            SessionStore.clearCurrentRoom(requireContext());
+            openCurrentGroupWorkspace();
+            return;
+        }
+        if (FirebaseAuth.getInstance().getCurrentUser() == null
+                || FirebaseAuth.getInstance().getCurrentUser().getEmail() == null) {
+            NoticeUtils.show(requireContext(), "No se pudo validar tu usuario.");
+            return;
+        }
+
+        String emailLc = FirebaseAuth.getInstance().getCurrentUser().getEmail().trim().toLowerCase(Locale.ROOT);
+        db.collection("rooms_groups")
+                .whereEqualTo("groupId", groupId)
+                .get()
+                .addOnSuccessListener(snapshot -> {
+                    if (!isAdded()) return;
+                    for (DocumentSnapshot doc : snapshot.getDocuments()) {
+                        List<String> members = normalizedEmailList(doc.get("memberEmails"));
+                        if (!members.contains(emailLc)) continue;
+                        String roomName = stringValue(doc.getString("name"));
+                        SessionStore.setCurrentRoom(requireContext(), doc.getId(), roomName);
+                        openCurrentGroupWorkspace();
+                        return;
+                    }
+
+                    SessionStore.clearCurrentRoom(requireContext());
+                    promptRoomSelectionAfterJoin(groupId, emailLc, this::openCurrentGroupWorkspace);
+                })
+                .addOnFailureListener(e -> {
+                    if (!isAdded()) return;
+                    NoticeUtils.show(requireContext(), "No se pudo comprobar tu habitación.");
+                });
     }
 
     private void joinGroupDialog() {
@@ -569,11 +594,14 @@ public class GroupsFragment extends Fragment {
                     selectedGroupId = groupId;
                     SessionStore.setCurrentGroup(requireContext(), groupId);
                     SessionStore.clearCurrentRoom(requireContext());
+                    invitationService.resolvePendingInvitationsForGroup(groupId, email, "accepted", null);
                     loadGroups();
-                    NoticeUtils.show(requireContext(), "Te uniste al piso. Quedas sin habitación hasta que el propietario te asigne una.");
-                    if (requireActivity() instanceof MainActivity) {
-                        ((MainActivity) requireActivity()).openCurrentGroupWorkspace();
-                    }
+                    promptRoomSelectionAfterJoin(groupId, email, () -> {
+                        if (!isAdded()) return;
+                        if (requireActivity() instanceof MainActivity) {
+                            ((MainActivity) requireActivity()).openCurrentGroupWorkspace();
+                        }
+                    });
                 },
                 error -> Toast.makeText(requireContext(), error, Toast.LENGTH_SHORT).show()
         );
@@ -587,10 +615,8 @@ public class GroupsFragment extends Fragment {
         View content = DialogUtils.createVerticalActions(requireContext());
         Button codeBtn = DialogUtils.createActionButton(requireContext(), "Añadir inquilinos por código", true);
         Button qrBtn = DialogUtils.createActionButton(requireContext(), "Añadir inquilinos por QR", false);
-        Button emailBtn = DialogUtils.createActionButton(requireContext(), "Añadir inquilinos por email", false);
         ((LinearLayout) content).addView(codeBtn);
         ((LinearLayout) content).addView(qrBtn);
-        ((LinearLayout) content).addView(emailBtn);
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
@@ -610,43 +636,8 @@ public class GroupsFragment extends Fragment {
             dialog.dismiss();
             showShareQrOnlyDialog(groupId);
         });
-        emailBtn.setOnClickListener(v -> {
-            dialog.dismiss();
-            inviteByEmail(groupId);
-        });
     }
 
-    private void inviteByEmail(String groupId) {
-        showSingleInputDialog(
-                "Añadir inquilinos por email",
-                "Comparte el piso por correo con otra persona.",
-                "Email del invitado:",
-                InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
-                "Enviar",
-                value -> {
-                    String invitedEmail = value.trim().toLowerCase(Locale.ROOT);
-                    if (invitedEmail.isEmpty() || !invitedEmail.contains("@")) {
-                        NoticeUtils.show(requireContext(), "Email invalido");
-                        return false;
-                    }
-
-                    String inviterUid = FirebaseAuth.getInstance().getCurrentUser().getUid();
-                    String inviterEmail = FirebaseAuth.getInstance().getCurrentUser().getEmail() == null
-                            ? ""
-                            : FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
-
-                    invitationService.createEmailInvitation(
-                            groupId,
-                            invitedEmail,
-                            inviterUid,
-                            inviterEmail,
-                            () -> Toast.makeText(requireContext(), "Invitacion creada", Toast.LENGTH_SHORT).show(),
-                            error -> Toast.makeText(requireContext(), error, Toast.LENGTH_SHORT).show()
-                    );
-                    return true;
-                }
-        );
-    }
 
     private void showShareCodeOnlyDialog(String groupId) {
         if (groupId == null) return;
@@ -786,6 +777,15 @@ public class GroupsFragment extends Fragment {
 
         db.collection("groups").document(groupId).get().addOnSuccessListener(groupDoc -> {
             if (!isAdded()) return;
+            String myEmail = FirebaseAuth.getInstance().getCurrentUser().getEmail() == null
+                    ? ""
+                    : FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
+
+            if (!groupDoc.exists()) {
+                db.collection("invitations").document(invitationId).update("status", "rejected")
+                        .addOnCompleteListener(t -> showInvitationDecision(pendingInvitations, index + 1));
+                return;
+            }
 
             String groupName = invitationGroupName.isEmpty() ? "Piso" : invitationGroupName;
             String shareCode = invitationShareCode;
@@ -794,24 +794,25 @@ public class GroupsFragment extends Fragment {
             List<String> memberIds = new ArrayList<>();
             List<String> memberEmails = new ArrayList<>();
 
-            if (groupDoc.exists()) {
-                String liveName = stringValue(groupDoc.getString("name"));
-                if (!liveName.isEmpty()) groupName = liveName;
+            String liveName = stringValue(groupDoc.getString("name"));
+            if (!liveName.isEmpty()) groupName = liveName;
 
-                String liveCode = stringValue(groupDoc.getString("shareCode")).toUpperCase(Locale.ROOT);
-                if (!liveCode.isEmpty()) {
-                    shareCode = liveCode;
-                } else if (shareCode.isEmpty()) {
-                    shareCode = groupId.toUpperCase(Locale.ROOT);
-                }
-
-                memberIds = castStrings(groupDoc.get("members"));
-                memberEmails = castStrings(groupDoc.get("memberEmails"));
-                String resolvedOwner = resolveOwnerEmail(groupDoc, memberIds, memberEmails);
-                if (!resolvedOwner.isEmpty()) ownerLabel = resolvedOwner;
-                locationLabel = buildLocationLabel(groupDoc);
+            String liveCode = stringValue(groupDoc.getString("shareCode")).toUpperCase(Locale.ROOT);
+            if (!liveCode.isEmpty()) {
+                shareCode = liveCode;
             } else if (shareCode.isEmpty()) {
                 shareCode = groupId.toUpperCase(Locale.ROOT);
+            }
+            memberIds = castStrings(groupDoc.get("members"));
+            memberEmails = castStrings(groupDoc.get("memberEmails"));
+            String resolvedOwner = resolveOwnerEmail(groupDoc, memberIds, memberEmails);
+            if (!resolvedOwner.isEmpty()) ownerLabel = resolvedOwner;
+            locationLabel = buildLocationLabel(groupDoc);
+
+            if (!myEmail.isEmpty() && containsIgnoreCase(memberEmails, myEmail)) {
+                db.collection("invitations").document(invitationId).update("status", "accepted")
+                        .addOnCompleteListener(t -> showInvitationDecision(pendingInvitations, index + 1));
+                return;
             }
 
             String invitedByLabel = inviterEmail.isEmpty() ? "Sin datos" : inviterEmail;
@@ -922,16 +923,183 @@ public class GroupsFragment extends Fragment {
                     SessionStore.setCurrentGroup(requireContext(), groupId);
                     SessionStore.clearCurrentRoom(requireContext());
                     loadGroups();
-                    NoticeUtils.show(requireContext(), "Te uniste al piso. Quedas sin habitación hasta que el propietario te asigne una.");
-                    if (requireActivity() instanceof MainActivity) {
-                        ((MainActivity) requireActivity()).openCurrentGroupWorkspace();
-                    }
+                    promptRoomSelectionAfterJoin(groupId, email, () -> {
+                        if (!isAdded()) return;
+                        if (requireActivity() instanceof MainActivity) {
+                            ((MainActivity) requireActivity()).openCurrentGroupWorkspace();
+                        }
+                    });
                 },
                 error -> {
                     if (!isAdded()) return;
                     NoticeUtils.show(requireContext(), "No se pudo aceptar la invitacion");
                 }
         );
+    }
+
+    private void promptRoomSelectionAfterJoin(@NonNull String groupId, @NonNull String memberEmail, @NonNull Runnable onComplete) {
+        String emailLc = memberEmail.trim().toLowerCase(Locale.ROOT);
+        db.collection("rooms_groups")
+                .whereEqualTo("groupId", groupId)
+                .get()
+                .addOnSuccessListener(snapshot -> {
+                    if (!isAdded()) return;
+                    if (snapshot.isEmpty()) {
+                        NoticeUtils.show(requireContext(), "Te uniste al piso, pero no hay habitaciones creadas todavia. El propietario debe crearlas y asignarte.");
+                        return;
+                    }
+
+                    List<RoomCandidate> available = new ArrayList<>();
+                    boolean alreadyAssigned = false;
+                    for (DocumentSnapshot doc : snapshot.getDocuments()) {
+                        List<String> members = normalizedEmailList(doc.get("memberEmails"));
+                        int capacity = intValue(doc.get("capacity"), 0);
+                        boolean containsSelf = members.contains(emailLc);
+                        if (containsSelf) alreadyAssigned = true;
+                        boolean hasSpace = containsSelf || capacity <= 0 || members.size() < capacity;
+                        if (!hasSpace) continue;
+                        String roomName = stringValue(doc.getString("name"));
+                        if (roomName.isEmpty()) roomName = "Habitación";
+                        available.add(new RoomCandidate(doc.getId(), roomName, capacity, members.size()));
+                    }
+
+                    if (alreadyAssigned) {
+                        NoticeUtils.show(requireContext(), "Ya tienes una habitación asignada en este piso.");
+                        onComplete.run();
+                        return;
+                    }
+                    if (available.isEmpty()) {
+                        NoticeUtils.show(requireContext(), "Te uniste al piso, pero ahora mismo no hay habitaciones libres.");
+                        return;
+                    }
+
+                    View content = DialogUtils.createVerticalActions(requireContext());
+                    LinearLayout actions = (LinearLayout) content;
+                    for (int i = 0; i < available.size(); i++) {
+                        RoomCandidate candidate = available.get(i);
+                        String occupancy = candidate.capacity > 0
+                                ? " (" + candidate.members + "/" + candidate.capacity + ")"
+                                : "";
+                        Button roomBtn = DialogUtils.createActionButton(
+                                requireContext(),
+                                candidate.name + occupancy,
+                                i == 0
+                        );
+                        actions.addView(roomBtn);
+                    }
+
+                    DialogUtils.Shell shell = DialogUtils.buildShell(
+                            requireContext(),
+                            "Elige habitación",
+                            "Selecciona dónde vas a convivir para terminar la unión al piso.",
+                            content,
+                            "Cancelar",
+                            null
+                    );
+                    AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+                    dialog.setCancelable(false);
+                    dialog.setCanceledOnTouchOutside(false);
+                    shell.cancelBtn.setOnClickListener(v -> {
+                        dialog.dismiss();
+                        NoticeUtils.show(requireContext(), "Si cierras ahora, el propietario podrá asignarte una habitación después.");
+                    });
+
+                    for (int i = 0; i < actions.getChildCount(); i++) {
+                        View child = actions.getChildAt(i);
+                        if (!(child instanceof Button)) continue;
+                        Button b = (Button) child;
+                        b.setOnClickListener(v -> {
+                            dialog.dismiss();
+                            int selectedIndex = actions.indexOfChild(v);
+                            if (selectedIndex < 0 || selectedIndex >= available.size()) {
+                                NoticeUtils.show(requireContext(), "No se pudo seleccionar la habitacion.");
+                                return;
+                            }
+                            RoomCandidate selected = available.get(selectedIndex);
+                            assignMemberToRoom(groupId, emailLc, selected, onComplete);
+                        });
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    if (!isAdded()) return;
+                    NoticeUtils.show(requireContext(), "No se pudo cargar la lista de habitaciones.");
+                });
+    }
+
+    private void assignMemberToRoom(@NonNull String groupId, @NonNull String memberEmailLc, @NonNull RoomCandidate selected, @NonNull Runnable onComplete) {
+        String currentUid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        db.collection("rooms_groups")
+                .whereEqualTo("groupId", groupId)
+                .get()
+                .addOnSuccessListener(snapshot -> {
+                    if (!isAdded()) return;
+                    DocumentSnapshot selectedDoc = null;
+                    for (DocumentSnapshot doc : snapshot.getDocuments()) {
+                        if (doc.getId().equals(selected.roomId)) {
+                            selectedDoc = doc;
+                            break;
+                        }
+                    }
+                    if (selectedDoc == null) {
+                        NoticeUtils.show(requireContext(), "La habitación seleccionada ya no existe.");
+                        promptRoomSelectionAfterJoin(groupId, memberEmailLc, onComplete);
+                        return;
+                    }
+
+                    List<String> selectedMembers = normalizedEmailList(selectedDoc.get("memberEmails"));
+                    int capacity = intValue(selectedDoc.get("capacity"), 0);
+                    boolean alreadyInside = selectedMembers.contains(memberEmailLc);
+                    if (!alreadyInside && capacity > 0 && selectedMembers.size() >= capacity) {
+                        NoticeUtils.show(requireContext(), "La habitación ya está completa. Elige otra.");
+                        promptRoomSelectionAfterJoin(groupId, memberEmailLc, onComplete);
+                        return;
+                    }
+
+                    WriteBatch batch = db.batch();
+                    int changes = 0;
+                    for (DocumentSnapshot doc : snapshot.getDocuments()) {
+                        List<String> currentMembers = normalizedEmailList(doc.get("memberEmails"));
+                        List<String> nextMembers = new ArrayList<>(currentMembers);
+
+                        if (doc.getId().equals(selected.roomId)) {
+                            if (!nextMembers.contains(memberEmailLc)) nextMembers.add(memberEmailLc);
+                        } else {
+                            nextMembers.removeIf(value -> memberEmailLc.equals(value.toLowerCase(Locale.ROOT)));
+                        }
+
+                        if (nextMembers.equals(currentMembers)) continue;
+                        Map<String, Object> updates = new HashMap<>();
+                        updates.put("memberEmails", nextMembers);
+                        updates.put("memberCount", nextMembers.size());
+                        updates.put("updatedAt", FieldValue.serverTimestamp());
+                        updates.put("updatedByUid", currentUid);
+                        batch.update(doc.getReference(), updates);
+                        changes++;
+                    }
+
+                    if (changes == 0) {
+                        SessionStore.setCurrentRoom(requireContext(), selected.roomId, selected.name);
+                        NoticeUtils.show(requireContext(), "Habitación mantenida: " + selected.name);
+                        onComplete.run();
+                        return;
+                    }
+
+                    batch.commit()
+                            .addOnSuccessListener(v -> {
+                                SessionStore.setCurrentRoom(requireContext(), selected.roomId, selected.name);
+                                NoticeUtils.show(requireContext(), "Te has asignado a: " + selected.name);
+                                onComplete.run();
+                            })
+                            .addOnFailureListener(e -> {
+                                NoticeUtils.show(requireContext(), "No se pudo guardar la habitación elegida.");
+                                promptRoomSelectionAfterJoin(groupId, memberEmailLc, onComplete);
+                            });
+                })
+                .addOnFailureListener(e -> {
+                    if (!isAdded()) return;
+                    NoticeUtils.show(requireContext(), "No se pudo asignar la habitación.");
+                    promptRoomSelectionAfterJoin(groupId, memberEmailLc, onComplete);
+                });
     }
 
     private String buildDetailedMembersLabel(List<String> displayNames, List<String> memberEmails) {
@@ -1334,7 +1502,7 @@ public class GroupsFragment extends Fragment {
                     String email = emails.get(i) == null ? "" : emails.get(i).trim().toLowerCase(Locale.ROOT);
                     if (label.isEmpty()) label = email.isEmpty() ? "Sin datos" : email;
 
-                    membersText.append("\n\n• ").append(label);
+                    membersText.append("\n\n- ").append(label);
                     membersText.append("\n  ").append(email.isEmpty() ? "sin correo" : email);
                 }
                 detailMembersTv.setText(membersText.toString());
@@ -1516,6 +1684,39 @@ public class GroupsFragment extends Fragment {
         return values;
     }
 
+    private List<String> normalizedEmailList(Object raw) {
+        List<String> values = new ArrayList<>();
+        if (!(raw instanceof List<?>)) return values;
+        for (Object item : (List<?>) raw) {
+            if (item == null) continue;
+            String value = item.toString().trim().toLowerCase(Locale.ROOT);
+            if (!value.isEmpty()) values.add(value);
+        }
+        return values;
+    }
+
+    private boolean containsIgnoreCase(List<String> values, String target) {
+        if (values == null || target == null) return false;
+        String normalizedTarget = target.trim().toLowerCase(Locale.ROOT);
+        for (String value : values) {
+            if (value == null) continue;
+            if (normalizedTarget.equals(value.trim().toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private int intValue(Object raw, int fallback) {
+        if (raw instanceof Number) return ((Number) raw).intValue();
+        if (raw == null) return fallback;
+        try {
+            return Integer.parseInt(raw.toString().trim());
+        } catch (Exception ignored) {
+            return fallback;
+        }
+    }
+
     private void editSelectedGroup() {
         if (selectedGroupId == null) {
             NoticeUtils.show(requireContext(), "Selecciona un grupo primero");
@@ -1655,7 +1856,7 @@ public class GroupsFragment extends Fragment {
                                 details.append("Primero quitalos o cambialos de habitación en:\nPiso > Habitaciones.\n\n");
                                 details.append("Habitaciones ocupadas:\n");
                                 for (String roomName : occupiedRoomNames) {
-                                    details.append("• ").append(roomName).append("\n");
+                                    details.append("- ").append(roomName).append("\n");
                                 }
                                 NoticeUtils.show(requireContext(), details.toString().trim());
                                 return;
@@ -1773,7 +1974,7 @@ public class GroupsFragment extends Fragment {
     }
 
     private void setupProvinceAutocomplete(AutoCompleteTextView provinceInput) {
-        List<String> provinces = new ArrayList<>(PROVINCE_CITIES.keySet());
+        List<String> provinces = ProvinceCityCatalog.provinces();
         provinceInput.setAdapter(buildDialogAutocompleteAdapter(provinces));
         provinceInput.setThreshold(1);
 
@@ -1825,13 +2026,7 @@ public class GroupsFragment extends Fragment {
 
     private String getSelectedProvinceValue(AutoCompleteTextView provinceInput) {
         String typedProvince = getInputValue(provinceInput);
-        if (typedProvince.isEmpty()) return "";
-        for (String province : PROVINCE_CITIES.keySet()) {
-            if (province.equalsIgnoreCase(typedProvince)) {
-                return province;
-            }
-        }
-        return typedProvince;
+        return ProvinceCityCatalog.canonicalProvince(typedProvince);
     }
 
     private String getInputValue(TextView input) {
@@ -1886,61 +2081,6 @@ public class GroupsFragment extends Fragment {
         return adapter;
     }
 
-    private static LinkedHashMap<String, List<String>> buildProvinceCityMap() {
-        LinkedHashMap<String, List<String>> data = new LinkedHashMap<>();
-        data.put("A Coruña", Arrays.asList("A Coruña", "Santiago de Compostela", "Ferrol"));
-        data.put("Álava", Arrays.asList("Vitoria-Gasteiz", "Llodio", "Amurrio"));
-        data.put("Albacete", Arrays.asList("Albacete", "Hellín", "Villarrobledo"));
-        data.put("Alicante", Arrays.asList("Alicante", "Elche", "Benidorm"));
-        data.put("Almería", Arrays.asList("Almería", "Roquetas de Mar", "El Ejido"));
-        data.put("Asturias", Arrays.asList("Oviedo", "Gijón", "Avilés"));
-        data.put("Ávila", Arrays.asList("Ávila", "Arévalo", "Cebreros"));
-        data.put("Badajoz", Arrays.asList("Badajoz", "Mérida", "Don Benito"));
-        data.put("Barcelona", Arrays.asList("Barcelona", "L'Hospitalet de Llobregat", "Badalona"));
-        data.put("Burgos", Arrays.asList("Burgos", "Miranda de Ebro", "Aranda de Duero"));
-        data.put("Cáceres", Arrays.asList("Cáceres", "Plasencia", "Navalmoral de la Mata"));
-        data.put("Cádiz", Arrays.asList("Cádiz", "Jerez de la Frontera", "Algeciras"));
-        data.put("Cantabria", Arrays.asList("Santander", "Torrelavega", "Castro-Urdiales"));
-        data.put("Castellón", Arrays.asList("Castellón de la Plana", "Vila-real", "Burriana"));
-        data.put("Ciudad Real", Arrays.asList("Ciudad Real", "Puertollano", "Tomelloso"));
-        data.put("Córdoba", Arrays.asList("Córdoba", "Lucena", "Puente Genil"));
-        data.put("Cuenca", Arrays.asList("Cuenca", "Tarancón", "San Clemente"));
-        data.put("Girona", Arrays.asList("Girona", "Figueres", "Blanes"));
-        data.put("Granada", Arrays.asList("Granada", "Motril", "Armilla"));
-        data.put("Guadalajara", Arrays.asList("Guadalajara", "Azuqueca de Henares", "Molina de Aragón"));
-        data.put("Guipúzcoa", Arrays.asList("San Sebastián", "Irún", "Eibar"));
-        data.put("Huelva", Arrays.asList("Huelva", "Lepe", "Almonte"));
-        data.put("Huesca", Arrays.asList("Huesca", "Barbastro", "Jaca"));
-        data.put("Illes Balears", Arrays.asList("Palma", "Calvià", "Eivissa"));
-        data.put("Jaén", Arrays.asList("Jaén", "Linares", "Andújar"));
-        data.put("La Rioja", Arrays.asList("Logroño", "Calahorra", "Arnedo"));
-        data.put("Las Palmas", Arrays.asList("Las Palmas de Gran Canaria", "Telde", "Arrecife"));
-        data.put("León", Arrays.asList("León", "Ponferrada", "San Andrés del Rabanedo"));
-        data.put("Lleida", Arrays.asList("Lleida", "Balaguer", "La Seu d'Urgell"));
-        data.put("Lugo", Arrays.asList("Lugo", "Monforte de Lemos", "Viveiro"));
-        data.put("Madrid", Arrays.asList("Madrid", "Móstoles", "Alcalá de Henares"));
-        data.put("Málaga", Arrays.asList("Málaga", "Marbella", "Fuengirola"));
-        data.put("Murcia", Arrays.asList("Murcia", "Cartagena", "Lorca"));
-        data.put("Navarra", Arrays.asList("Pamplona", "Tudela", "Estella"));
-        data.put("Ourense", Arrays.asList("Ourense", "Verín", "O Barco de Valdeorras"));
-        data.put("Palencia", Arrays.asList("Palencia", "Aguilar de Campoo", "Guardo"));
-        data.put("Pontevedra", Arrays.asList("Pontevedra", "Vigo", "Vilagarcía de Arousa"));
-        data.put("Salamanca", Arrays.asList("Salamanca", "Béjar", "Ciudad Rodrigo"));
-        data.put("Santa Cruz de Tenerife", Arrays.asList("Santa Cruz de Tenerife", "San Cristóbal de La Laguna", "Arona"));
-        data.put("Segovia", Arrays.asList("Segovia", "Cuéllar", "El Espinar"));
-        data.put("Sevilla", Arrays.asList("Sevilla", "Dos Hermanas", "Alcalá de Guadaíra"));
-        data.put("Soria", Arrays.asList("Soria", "Almazán", "El Burgo de Osma"));
-        data.put("Tarragona", Arrays.asList("Tarragona", "Reus", "Tortosa"));
-        data.put("Teruel", Arrays.asList("Teruel", "Alcañiz", "Andorra"));
-        data.put("Toledo", Arrays.asList("Toledo", "Talavera de la Reina", "Illescas"));
-        data.put("Valencia", Arrays.asList("València", "Torrent", "Gandia"));
-        data.put("Valladolid", Arrays.asList("Valladolid", "Medina del Campo", "Laguna de Duero"));
-        data.put("Vizcaya", Arrays.asList("Bilbao", "Barakaldo", "Getxo"));
-        data.put("Zamora", Arrays.asList("Zamora", "Benavente", "Toro"));
-        data.put("Zaragoza", Arrays.asList("Zaragoza", "Calatayud", "Utebo"));
-        return data;
-    }
-
     private interface SingleInputAction {
         boolean onConfirm(String value);
     }
@@ -1988,6 +2128,20 @@ public class GroupsFragment extends Fragment {
             this.name = name;
             this.capacity = capacity;
             this.monthlyCost = monthlyCost;
+        }
+    }
+
+    private static class RoomCandidate {
+        final String roomId;
+        final String name;
+        final int capacity;
+        final int members;
+
+        RoomCandidate(String roomId, String name, int capacity, int members) {
+            this.roomId = roomId;
+            this.name = name;
+            this.capacity = capacity;
+            this.members = members;
         }
     }
 
@@ -2040,4 +2194,7 @@ public class GroupsFragment extends Fragment {
         }
     }
 }
+
+
+
 

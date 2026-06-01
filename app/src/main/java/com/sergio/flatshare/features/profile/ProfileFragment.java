@@ -128,7 +128,7 @@ public class ProfileFragment extends Fragment {
                     email = safe(doc.getString("email"), user.getEmail());
                     fullName = safe(doc.getString("fullName"), "");
                     phone = safe(doc.getString("phone"), "");
-                    birthDate = safe(doc.getString("birthDate"), "");
+                    birthDate = DateInputUtils.normalizeToDisplay(safe(doc.getString("birthDate"), ""));
                     photoUri = safe(doc.getString("photoUri"), "");
                     renderProfileInfo();
                 })
@@ -146,7 +146,7 @@ public class ProfileFragment extends Fragment {
         profileFullNameTv.setText(fullName.isEmpty() ? "-" : fullName);
         profilePhoneTv.setText(phone.isEmpty() ? "-" : phone);
         profileEmailTv.setText(email.isEmpty() ? "-" : email);
-        profileBirthDateTv.setText(birthDate.isEmpty() ? "-" : birthDate);
+        profileBirthDateTv.setText(birthDate.isEmpty() ? "-" : DateInputUtils.normalizeToDisplay(birthDate));
         if (!photoUri.isEmpty()) {
             try {
                 profilePhotoIv.setImageURI(Uri.parse(photoUri));
@@ -196,7 +196,7 @@ public class ProfileFragment extends Fragment {
 
         fullNameEt.setText(fullName);
         phoneEt.setText(parsedPhone.localNumber);
-        birthDateEt.setText(birthDate);
+        birthDateEt.setText(DateInputUtils.normalizeToDisplay(birthDate));
         setupBirthDateField(birthDateEt);
 
         DialogUtils.Shell shell = DialogUtils.buildShell(

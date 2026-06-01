@@ -360,7 +360,7 @@ Resumen:
 
 - Acceso de aplicación restringido a usuarios autenticados con correo verificado (`request.auth.token.email_verified == true`).
 - `groups`: solo miembros leen, propietario gestiona.
-- `rooms_groups`: miembros leen, propietario crea/edita; eliminar solo si la habitación está vacía (`memberCount=0` y `memberEmails=[]`).
+- `rooms_groups`: miembros leen. El propietario crea/edita/elimina (si está vacía). El inquilino solo puede hacer autoasignación inicial al unirse (sin flujo de cambio posterior); la reasignación/cambio queda para el propietario.
 - `expenses`, `payments`, `payment_deadlines`, `activity_logs`: solo miembros del grupo.
 - `reminders`: solo miembros leen; actualizar/eliminar solo creador (`ownerUid`) o propietario del piso.
 - `payments`: para seed demo, el propietario puede crear pagos con `seed=true` y `fromEmail` tipo `seeduserNNN@seed.flatshare.local` dirigidos a su propio correo.
@@ -457,11 +457,59 @@ Uso rápido:
 
 ### Join flow and room assignment
 - Un usuario que entra por codigo o invitacion se agrega a `groups.members/memberEmails`.
-- No se asigna automaticamente a `rooms_groups.memberEmails`.
-- El propietario debe asignarlo manualmente a una habitacion desde la gestion de habitaciones.
+- Al unirse, la app muestra selector de habitación (si hay plazas) para autoasignación del propio usuario.
+- Si no hay habitaciones libres o no existen habitaciones, el usuario queda sin asignación hasta nueva gestión.
+- Las invitaciones pendientes del mismo piso/correo se marcan como resueltas al unirse para evitar bucles.
 
 ### Initial room setup
 - En creacion inicial de habitaciones se guardan tambien:
 - `rentSplitMode`
 - `rentSplitPercentages` (map vacio)
 - `rentSplitOrder` (array vacio)
+
+## Actualización funcional (2026-06-01)
+
+### Documentos de alquiler con archivo adjunto (Storage)
+- El módulo group_documents ahora permite subir archivo real desde el móvil (no solo URL manual).
+- Implementación en app:
+  - Selección local con OpenDocument.
+  - Subida a Firebase Storage en ruta group_documents/{groupId}/{timestamp}_{filename}.
+  - Persistencia en Firestore de la URL final en group_documents.referenceUri.
+
+### Qué activar adicionalmente
+- En Firebase Console, verifica que Storage esté habilitado en el proyecto.
+- Recomendación: definir reglas de Storage que limiten lectura/escritura a miembros autenticados del piso según vuestra política de seguridad.
+
+
+## Actualizacion funcional (2026-06-01) - Entrada condicionada a habitacion
+- Flujo de app reforzado: para inquilinos, el acceso al workspace de un piso requiere tener habitacion asignada en rooms_groups.
+- Si no existe asignacion o no hay plazas, el usuario no entra directamente al piso.
+- Reasignaciones posteriores se mantienen restringidas al propietario segun firestore.rules.
+
+
+## Actualizacion funcional (2026-06-01) - Aceptacion de pagos pendientes
+- payments.update ahora permite confirmar un pago pendiente (pending -> confirmed) al propietario del grupo o al acreedor del pago (toEmail).
+- Solo se permite actualizar campos status y updatedAt en esa transicion.
+
+
+## Actualizacion funcional (2026-06-01) - Permisos compartidos en pagos
+- En payments, creador del pago y propietario del piso pueden gestionar pagos.
+- update permitido para gestion por creador/propietario, preservando groupId y fromEmail.
+- delete permitido para creador/propietario.
+- Aceptacion de pago restringida a transicion pending -> confirmed.
+
+
+## Despliegue CLI (2026-06-01)
+- El repositorio ya incluye firebase.json y firestore.indexes.json.
+- Desde la raiz del proyecto puedes ejecutar: firebase deploy --only firestore:rules
+
+
+## Validacion previa a defensa (2026-06-01)
+- Revisar TEST_CHECKLIST_TFG.md y ejecutar pruebas de reglas sobre union por codigo y permisos de pagos.
+
+
+
+## Nota tecnica (2026-06-01) - Refactor UI sin cambio de esquema
+- Esta iteracion solo mueve logica de presentacion a clases de servicio/utilidad en Android.
+- No se introducen nuevas colecciones, campos ni cambios de reglas Firestore.
+

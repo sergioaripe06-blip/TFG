@@ -103,7 +103,7 @@ public class BalancesFragment extends Fragment {
                 all.append(e.getKey())
                         .append(": ")
                         .append(df.format(e.getValue()))
-                        .append(" €\n");
+                        .append(" EUR\n");
             }
             tv.setText(all.toString());
         });

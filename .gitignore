@@ -1,4 +1,4 @@
-# Android / Gradle
+﻿# Android / Gradle
 .gradle/
 .gradle-home/
 build/
@@ -43,7 +43,7 @@ google-services.json
 keystore.properties
 
 # Firebase local emulator / export artifacts
-firebase-debug.loge
+firebase-debug.log
 firestore-debug.log
 ui-debug.log
 *.overall_export_metadata
@@ -53,3 +53,7 @@ ui-debug.log
 *.temp
 *.swp
 *.swo
+
+# Local Android home cache
+.android-home/
+

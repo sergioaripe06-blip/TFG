@@ -659,3 +659,133 @@ En cada tarea nueva:
 - En la cabecera del apartado se muestra `Cobros y soporte del alquiler`.
 - El texto guía ahora explica de forma directa su uso: `Gestiona cobros, incidencias y documentos del piso`.
 - Objetivo: que el usuario entienda en un vistazo para qué sirve este apartado.
+
+### Perfil (2026-06-01) - Fecha de nacimiento en Editar perfil
+- En `Editar perfil`, la `Fecha de nacimiento` se visualiza en formato `DD/MM/AAAA`.
+- Si el dato venía en formato antiguo `AAAA-MM-DD`, se normaliza al abrir el perfil/diálogo.
+- El ejemplo del campo se actualiza a `Ejemplo: 14/05/1999`.
+
+### Textos de Workspace (2026-06-01) - Corrección de codificación
+- Se corrigen textos con caracteres corruptos en los módulos de `Movimientos` y `Cobros y soporte`.
+- La app vuelve a mostrar correctamente acentos y `ñ` en:
+  - avisos,
+  - títulos de diálogo,
+  - etiquetas de formularios y estados.
+
+### Workspace (2026-06-01) - Selector de habitación sin botón duplicado
+- Se retira el botón `Gestionar` que estaba junto al selector `Habitación`.
+- El selector de habitación queda a ancho completo y sin acción lateral duplicada.
+- Para ver detalles/acciones del piso se mantiene el acceso existente de información contextual.
+
+### Invitaciones y habitación (2026-06-01)
+- Al unirte a un piso por invitación, código o QR, la app te permite elegir habitación en ese momento si hay plazas.
+- Si ya estabas en el piso, la invitación pendiente se cierra automáticamente para evitar que reaparezca en bucle.
+- Si no hay habitaciones libres, entras al piso sin asignación y podrás asignarte cuando haya hueco.
+
+### Reparto por habitación según ocupación (2026-06-01)
+- Si una habitación tiene un único residente, ese residente asume el 100% del coste mensual de la habitación.
+- Cuando entra un segundo residente en una habitación con reparto equitativo, el coste se divide automáticamente entre ambos.
+- En `Información habitación` se listan los inquilinos asignados (nombre y correo) además de capacidad y coste.
+
+### Cobros en Gestión (2026-06-01) - Selector de habitación e inquilino
+- En `Cobros y soporte > Cobros > Nuevo/Editar cobro`:
+  - `Habitación` se elige desde un desplegable (ya no es texto libre).
+  - El desplegable de `Inquilino` muestra cada opción con formato `Nombre - email`.
+- Si no hay habitaciones configuradas, no se puede guardar el cobro hasta elegir una habitación válida.
+
+### Documentos (2026-06-01) - Subir archivo desde el móvil
+- En Cobros y soporte > Documentos > Nuevo documento ya no dependes solo de URL.
+- Ahora puedes pulsar Adjuntar archivo del móvil para elegir PDF, imagen u otro documento del teléfono.
+- Al guardar:
+  - El archivo se sube automáticamente a Firebase Storage.
+  - El documento queda registrado en el piso con su enlace de descarga.
+- Si prefieres, puedes seguir usando Referencia/URL (opcional) sin adjuntar archivo.
+
+### Textos (2026-06-01) - Correccion de mojibake
+- Se corrigen textos corruptos en Cobros y soporte para que vuelvan a mostrarse con acentos y simbolos correctos.
+- Ejemplos corregidos: Habitacion, Automatizacion, Titulo, valido y separadores visuales.
+
+### Mantenimiento tecnico (2026-06-01) - Limpieza de residuos locales
+- Se retiran archivos de log/crash antiguos y caches locales del proyecto para mantener el repositorio limpio.
+- No cambia ningun flujo funcional de la app para el usuario final.
+
+### Invitaciones (2026-06-01) - Solo codigo o QR
+- Se elimina la invitacion por correo en la gestion de piso/habitaciones.
+- Para anadir personas al piso, ahora solo se permite compartir codigo o QR.
+
+### Union por codigo/QR (2026-06-01) - Seleccion de habitacion robusta
+- Al unirte por codigo o QR, si hay habitaciones con plaza, la app mantiene el selector de habitacion de forma estable para evitar cierres accidentales.
+- Si la habitacion elegida deja de estar disponible, se reabre la seleccion para escoger otra, en vez de entrar al piso sin asignacion.
+- La reasignacion normal de habitaciones se realiza desde la gestion del propietario.
+
+### Habitaciones (2026-06-01) - Permisos de cambio
+- El inquilino puede autoasignarse en el alta por codigo/QR cuando hay plazas.
+- El cambio o reasignacion posterior de habitacion queda reservado al propietario desde la gestion del piso.
+
+### Pagos y gastos (2026-06-01) - Estabilidad de seleccion
+- Se corrige un comportamiento que podia impedir seleccionar bien destinatarios en los desplegables de miembro/habitacion.
+- La seleccion vuelve a mantenerse estable al editar lineas en Nuevo gasto y Registrar pago.
+
+### Union a piso (2026-06-01) - Habitacion obligatoria para inquilino
+- Cuando un inquilino se une por codigo o QR, debe quedar asignado a una habitacion antes de entrar al piso.
+- Si el inquilino ya tenia habitacion, entra normalmente.
+- Si no hay habitaciones creadas o no quedan plazas, la app informa la situacion y no deja avanzar al workspace hasta que el propietario lo gestione.
+- El propietario sigue siendo quien puede reasignar habitaciones mas adelante.
+
+
+### Union por QR/codigo (2026-06-01) - Duplicados bloqueados
+- Si intentas escanear o usar el codigo de un piso al que ya perteneces, la app no vuelve a unirte.
+- Se muestra un aviso de acceso denegado indicando que ya estas en ese piso.
+
+
+### Pagos y recordatorios (2026-06-01) - Desplegables estables
+- En Registrar pago y en Nuevo recordatorio, los desplegables de miembros/habitaciones vuelven a abrir y seleccionar con normalidad.
+- Se evita el cierre automatico del selector mientras eliges destino.
+
+
+### Pagos (2026-06-01) - Flujo de validacion y aceptacion
+- El inquilino paga desde su deuda pendiente, adjuntando obligatoriamente justificante (imagen/archivo).
+- Al enviar, el pago queda en estado Pendiente.
+- El propietario o el acreedor del pago pueden aceptar el pago para pasarlo a Confirmado.
+- Para evitar duplicados visuales, la vista de inquilino muestra solo sus pagos enviados y sus deudas pendientes.
+
+
+### Pagos (2026-06-01) - Gestion compartida
+- Cualquier miembro del piso puede crear un nuevo pago.
+- El creador del pago y el propietario del piso pueden aceptar pagos pendientes y eliminarlos.
+- El flujo de envio con justificante obligatorio se mantiene para el deudor cuando paga una deuda pendiente.
+
+
+### Pagos (2026-06-01) - Nuevo pago para todos
+- Todos los miembros del piso pueden usar Registrar pago, tanto en alquiler fijo como variable.
+- Si hay deudas pendientes, tambien se ofrece Pagar pendiente como acceso guiado con justificante obligatorio.
+- En pagos en estado Pendiente, la accion principal se muestra como Aceptar pago.
+
+
+### Nuevo gasto (2026-06-01) - Desplegables de reparto
+- Los selectores de miembros y habitaciones en Nuevo gasto vuelven a abrir correctamente al tocar, incluso dentro del formulario desplazable.
+
+
+### Union por codigo (2026-06-01) - Compatibilidad con reglas estrictas
+- Si un usuario aun no es miembro y no tiene permiso de lectura del documento de grupo, la app aplica alta directa por codigo sin bloquear la union.
+
+
+### Movimientos (2026-06-01) - Sin duplicados visuales
+- Se corrige la recarga de datos para que el listado no muestre pagos/gastos repetidos por respuestas asincronas solapadas.
+
+
+### Mantenimiento tecnico (2026-06-01) - Proyecto Firebase versionado
+- Se incluyen firebase.json y firestore.indexes.json en la raiz para permitir despliegue de reglas desde terminal sin configuracion adicional.
+
+
+### Calidad TFG (2026-06-01) - Refactor y validacion
+- Se separa la logica de permisos de pagos en un servicio especifico para mejorar mantenibilidad.
+- Se incorpora checklist de pruebas en TEST_CHECKLIST_TFG.md para validar flujos criticos antes de entrega.
+
+
+
+### Calidad TFG (2026-06-01) - Refactor de mantenibilidad (fase 2)
+- Se reorganiza logica interna de Pisos/Balance para reducir dependencia de fragments gigantes.
+- No cambia el flujo funcional para usuario final: los cambios son de estructura tecnica para estabilidad y mantenimiento.
+- Se amplia checklist de pruebas con regresion especifica para alta por provincia, etiquetas de miembros y textos de gestion.
+
