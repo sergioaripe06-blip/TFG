@@ -200,7 +200,7 @@ Controles:
 Operaciones:
 - Crear/editar/eliminar gasto (`expenses`).
 - Crear/editar/eliminar pago (`payments`).
-- Confirmar/rechazar pagos pendientes.
+- Confirmar justificantes pendientes y aceptar pagos o confirmaciones según su origen.
 - Generacion de vencimientos (`payment_deadlines`).
 - Registro de actividad (`activity_logs`).
 - OCR de ticket para importe.
@@ -208,11 +208,11 @@ Operaciones:
 - Exportacion PDF compatible:
   - Android 10+ (`API 29+`): guarda en Descargas del dispositivo.
   - Android 7-9 (`API 24-28`): guarda en almacenamiento externo privado de la app.
-- `Nuevo gasto` solo aparece en pisos de `alquiler variable`.
+- `Nuevo gasto` aparece tanto en pisos de `alquiler variable` como de `alquiler fijo`.
 
 Campos de gasto:
 - Concepto, importe, categoria, prioridad, fecha limite.
-- En `alquiler variable`, la categoria es editable (texto libre) con sugerencias historicas del propio piso.
+- La categoria es editable (texto libre) con sugerencias historicas del propio piso.
 - Reparto (`customSplit`) equitativo o por importes.
 - Habitacion(es) destino.
 - Estado visual del flujo:
@@ -239,13 +239,16 @@ Campos de pago:
 - Cambio manual de estado del pago: solo permitido mientras está en `Solicitado`.
 
 Flujo de inquilino con deuda (`alquiler fijo` y `alquiler variable`):
-- En `Movimientos` se muestran sus pagos pendientes (`payment_deadlines`) como lista accionable.
+- En `Movimientos` se muestran sus pendientes por confirmar (`payment_deadlines`) como lista accionable.
 - Cada item muestra concepto, importe, fecha limite, destinatario y estado pendiente.
-- Al pulsar un pendiente, se abre `Registrar pago pendiente` con importe/concepto/fecha/destino precargados y bloqueados.
-- `Adjuntar foto` del justificante es obligatorio para enviar el pago.
-- El boton `Enviar pago` solo se habilita cuando hay justificante adjunto.
-- Si no hay deuda, se muestra `No tienes pagos pendientes`.
-- En el dialogo de acciones, para inquilino variable el acceso a pago general queda desactivado cuando no existen pendientes.
+- Si el pendiente nace de un `gasto`, ese gasto sigue siendo el origen y se crea una deuda individual por cada deudor según `customSplit`; no se duplica el gasto principal.
+- Al pulsar un pendiente, se abre `Confirmar gasto pendiente` o `Registrar pago pendiente` con importe/concepto/fecha/destino precargados y bloqueados según el origen.
+- `Adjuntar foto` del justificante es obligatorio para enviar la confirmación o el pago.
+- El botón `Enviar pago` o `Enviar confirmación` solo se habilita cuando hay justificante adjunto.
+- Si no hay deuda, se muestra `No tienes pendientes por confirmar`.
+- En el dialogo de acciones ya no existe un pago libre separado: el flujo principal parte siempre de `Nuevo gasto` y, si debes dinero, de `Confirmar pendiente`.
+- Cuando el deudor envía el justificante, la deuda pasa a revisión (`submitted`) y el gasto padre pasa a `Pendiente`.
+- La aceptación final del pago pendiente la puede hacer el propietario del piso o el acreedor del pago (`toEmail`), que en una deuda nacida desde gasto coincide con quien adelantó ese gasto.
 
 ### 6.4.2 Recordatorios
 Operaciones:
@@ -367,7 +370,8 @@ Crea:
 - Incluye presets de demo:
   - `sergio-demo` (base),
   - `sergio-owner-plus` (Sergio como propietario con más habitaciones),
-  - `sergio-tenant-plus` (Sergio como inquilino con más compañeros).
+  - `sergio-tenant-plus` (Sergio como inquilino con más compañeros),
+  - `sergio-owner-homoerectus` (Sergio como propietario y `homoerectus079@gmail.com` como inquilino real).
 
 ## 8. Inventario de colecciones de negocio
 Ver detalle completo en:
@@ -751,15 +755,15 @@ En cada tarea nueva:
 
 
 ### Pagos (2026-06-01) - Gestion compartida
-- Cualquier miembro del piso puede crear un nuevo pago.
-- El creador del pago y el propietario del piso pueden aceptar pagos pendientes y eliminarlos.
-- El flujo de envio con justificante obligatorio se mantiene para el deudor cuando paga una deuda pendiente.
+- El registro manual de pago deja de exponerse como accion principal separada en la UI.
+- El acreedor del pago (`toEmail`) y el propietario del piso pueden aceptar pagos pendientes; el creador del pago y el propietario pueden eliminarlos.
+- El flujo de envío con justificante obligatorio se mantiene para el deudor cuando paga una deuda pendiente.
 
 
 ### Pagos (2026-06-01) - Nuevo pago para todos
-- Todos los miembros del piso pueden usar Registrar pago, tanto en alquiler fijo como variable.
-- Si hay deudas pendientes, tambien se ofrece Pagar pendiente como acceso guiado con justificante obligatorio.
-- En pagos en estado Pendiente, la accion principal se muestra como Aceptar pago.
+- El flujo visible para todos pasa a ser `Nuevo gasto`, tanto en alquiler fijo como variable.
+- Si hay deudas pendientes, se ofrece `Confirmar pendiente` como acceso guiado con justificante obligatorio.
+- En pagos en estado Pendiente, la acción principal se muestra como `Aceptar pago` o `Aceptar confirmación` cuando el pendiente nace de un gasto.
 
 
 ### Nuevo gasto (2026-06-01) - Desplegables de reparto

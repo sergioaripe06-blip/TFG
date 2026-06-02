@@ -113,6 +113,41 @@ const PRESETS = {
       paymentsPerGroup: 10,
       remindersPerGroup: 5
     }
+  },
+  "sergio-owner-homoerectus": {
+    key: "sergio-owner-homoerectus",
+    ownerEmail: "sergioaripe06@gmail.com",
+    ownerDisplayName: "Sergio Aripe",
+    groupName: "Piso Demo Sergio y Homo Erectus",
+    groupDescription: "Seed con Sergio como propietario y homoerectus079@gmail.com como inquilino real, con gastos, pagos, vencimientos y recordatorios.",
+    location: {
+      street: "Calle Embajadores 58",
+      portal: "Portal D",
+      postalCode: "28012",
+      city: "Madrid",
+      province: "Madrid"
+    },
+    roomTemplates: [
+      { name: "Habitacion principal", monthlyCost: 540 },
+      { name: "Habitacion patio", monthlyCost: 430 },
+      { name: "Habitacion estudio", monthlyCost: 470 },
+      { name: "Habitacion compacta", monthlyCost: 390 }
+    ],
+    tenants: [
+      { email: "homoerectus079@gmail.com", username: "homoerectus079", displayName: "Homo Erectus", passwordSuffix: "homo31" },
+      { email: "nora.homo@seed.flatshare.local", username: "nora_homo", displayName: "Nora Gil", passwordSuffix: "nora32" },
+      { email: "diego.homo@seed.flatshare.local", username: "diego_homo", displayName: "Diego Marin", passwordSuffix: "diego33" },
+      { email: "irene.homo@seed.flatshare.local", username: "irene_homo", displayName: "Irene Castro", passwordSuffix: "irene34" }
+    ],
+    config: {
+      groupsCount: 1,
+      roomsPerGroup: 4,
+      usersCount: 4,
+      membersPerGroup: 4,
+      expensesPerGroup: 12,
+      paymentsPerGroup: 10,
+      remindersPerGroup: 5
+    }
   }
 };
 

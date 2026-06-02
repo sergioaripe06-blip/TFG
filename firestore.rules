@@ -95,7 +95,7 @@ service cloud.firestore {
       return signedInAndVerified()
         && (
           isGroupOwner(resource.data.groupId)
-          || resource.data.fromEmail == authEmail()
+          || resource.data.toEmail == authEmail()
         )
         && request.resource.data.diff(resource.data).changedKeys().hasOnly(['status', 'updatedAt'])
         && resource.data.status == 'pending'

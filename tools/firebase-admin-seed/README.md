@@ -46,7 +46,7 @@ node seed.js \
 
 ## Opciones
 
-- `--preset`: preset de demo. Disponibles: `sergio-demo`, `sergio-owner-plus`, `sergio-tenant-plus`.
+- `--preset`: preset de demo. Disponibles: `sergio-demo`, `sergio-owner-plus`, `sergio-tenant-plus`, `sergio-owner-homoerectus`.
 - `--service-account`: ruta al JSON de service account.
 - `--owner-email`: cuenta propietaria de todos los pisos (obligatorio si no usas preset).
 - `--owner-password`: solo se usa si el owner no existe y hay que crearlo.
@@ -108,6 +108,21 @@ Comando:
 
 ```bash
 npm run seed:sergio-tenant-plus
+```
+
+### `sergio-owner-homoerectus`
+
+Preset con Sergio como propietario y `homoerectus079@gmail.com` dentro del piso:
+
+- owner: `sergioaripe06@gmail.com`,
+- inquilino real: `homoerectus079@gmail.com`,
+- 3 inquilinos seed adicionales,
+- 4 habitaciones con gastos, pagos, vencimientos y recordatorios.
+
+Comando:
+
+```bash
+npm run seed:sergio-owner-homoerectus
 ```
 
 ## Nota sobre passwords

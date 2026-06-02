@@ -1805,37 +1805,25 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
     private void showExpenseActionDialogInternal(@Nullable List<PendingDebtRequest> pendingDebts) {
         LinearLayout content = DialogUtils.createVerticalActions(requireContext());
-        boolean fixedBilling = BILLING_FIXED.equals(currentBillingModel);
-        boolean variableTenant = isVariableTenantUser();
         List<PendingDebtRequest> safePendingDebts = pendingDebts == null ? new ArrayList<>() : pendingDebts;
         boolean hasPendingDebts = !safePendingDebts.isEmpty();
+        boolean canConfirmPending = hasPendingDebts;
 
-        Button expenseBtn = null;
-        if (!fixedBilling) {
-            expenseBtn = DialogUtils.createActionButton(requireContext(), "Nuevo gasto", true);
-            content.addView(expenseBtn);
-        }
-
-        String paymentLabel = "Registrar pago";
-        Button paymentBtn = DialogUtils.createActionButton(requireContext(), paymentLabel, fixedBilling);
+        Button expenseBtn = DialogUtils.createActionButton(requireContext(), "Nuevo gasto", true);
+        content.addView(expenseBtn);
         Button pendingPaymentBtn = null;
-        if (variableTenant && hasPendingDebts) {
-            pendingPaymentBtn = DialogUtils.createActionButton(requireContext(), "Pagar pendiente", false);
+        if (canConfirmPending && hasPendingDebts) {
+            pendingPaymentBtn = DialogUtils.createActionButton(requireContext(), "Confirmar pendiente", false);
         }
         Button exportPdfBtn = DialogUtils.createActionButton(requireContext(), "Exportar PDF", false);
-        content.addView(paymentBtn);
         if (pendingPaymentBtn != null) content.addView(pendingPaymentBtn);
         content.addView(exportPdfBtn);
 
         String subtitle;
-        if (variableTenant) {
-            subtitle = hasPendingDebts
-                    ? "Puedes registrar un pago libre o pagar una deuda pendiente con justificante."
-                    : "Puedes registrar un pago libre.";
-        } else if (fixedBilling) {
-            subtitle = "Registra un pago o exporta PDF.";
+        if (hasPendingDebts) {
+            subtitle = "Crea un gasto o confirma un pendiente con justificante.";
         } else {
-            subtitle = "Crea un gasto, registra un pago o exporta PDF.";
+            subtitle = "Crea un gasto o exporta PDF.";
         }
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
@@ -1849,15 +1837,9 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
         dialog.setOnDismissListener(d -> expenseActionDialogVisible = false);
         shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
-        if (expenseBtn != null) {
-            expenseBtn.setOnClickListener(v -> {
-                dialog.dismiss();
-                createExpenseDialog();
-            });
-        }
-        paymentBtn.setOnClickListener(v -> {
+        expenseBtn.setOnClickListener(v -> {
             dialog.dismiss();
-            createPaymentDialog();
+            createExpenseDialog();
         });
         if (pendingPaymentBtn != null) {
             pendingPaymentBtn.setOnClickListener(v -> {
@@ -1941,10 +1923,6 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     }
 
     private void createExpenseDialog() {
-        if (BILLING_FIXED.equals(currentBillingModel)) {
-            NoticeUtils.show(requireContext(), "En alquiler fijo no se registran gastos de suministros.");
-            return;
-        }
         loadCurrentGroupMembers(members -> {
             if (members.isEmpty()) {
                 NoticeUtils.show(requireContext(), "No hay miembros para repartir");
@@ -1996,10 +1974,6 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     }
 
     private boolean saveExpense(View form, @Nullable String documentId, List<String> members, List<RoomOption> rooms) {
-        if (BILLING_FIXED.equals(currentBillingModel)) {
-            NoticeUtils.show(requireContext(), "Este piso usa alquiler fijo. No se pueden guardar gastos.");
-            return false;
-        }
         String concept = ((EditText) form.findViewById(R.id.conceptEt)).getText().toString().trim();
         String amountStr = ((EditText) form.findViewById(R.id.amountEt)).getText().toString().trim();
         String category = normalizeCategoryKey(((EditText) form.findViewById(R.id.categoryEt)).getText().toString());
@@ -2156,10 +2130,12 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                     configurePaymentDialogForPendingDebt(form, members, rooms, pendingDebtRequest);
                 }
 
-                String dialogTitle = pendingDebtRequest == null ? "Registrar pago" : "Registrar pago pendiente";
+                String dialogTitle = pendingDebtRequest == null
+                        ? "Registrar pago"
+                        : pendingDebtDialogTitle(pendingDebtRequest);
                 String dialogSubtitle = pendingDebtRequest == null
                         ? "Elige si el pago es para una habitación, un miembro o para todos."
-                        : "Revisa los datos, adjunta justificante y env?a el pago.";
+                        : pendingDebtDialogSubtitle(pendingDebtRequest);
 
                 View scrollableForm = ExpenseDialogs.wrapFormForDialogScroll(requireContext(), form);
 
@@ -2169,7 +2145,9 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                         dialogSubtitle,
                         scrollableForm,
                         "Cancelar",
-                        "Enviar pago"
+                        pendingDebtRequest != null && isExpenseDebt(pendingDebtRequest.snapshot)
+                                ? "Enviar confirmación"
+                                : "Enviar pago"
                 );
                 ExpenseDialogs.tuneLongFormShell(shell);
                 AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
@@ -2228,8 +2206,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 .addOnSuccessListener(result -> {
                     List<PendingDebtRequest> rows = new ArrayList<>();
                     for (DocumentSnapshot doc : result.getDocuments()) {
-                        String concept = doc.getString("concept");
-                        if (concept == null || concept.trim().isEmpty()) concept = "Pago pendiente";
+                        String concept = pendingDebtFallbackConcept(doc);
                         Double amount = doc.getDouble("amount");
                         String creditorEmail = doc.getString("creditorEmail");
                         String dueDateText = doc.getString("dueDateText");
@@ -2272,8 +2249,8 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
-                "Tus pagos pendientes",
-                "Selecciona un pendiente para registrar el pago.",
+                "Tus pendientes por confirmar",
+                "Selecciona un pendiente y sube el justificante.",
                 content,
                 "Cerrar",
                 null
@@ -2352,7 +2329,11 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         }
 
         if (proofStatusTv != null) {
-            proofStatusTv.setText("Debes adjuntar justificante para enviar este pago.");
+            proofStatusTv.setText(
+                    isExpenseDebt(debt.snapshot)
+                            ? "Debes adjuntar justificante para enviar esta confirmación."
+                            : "Debes adjuntar justificante para enviar este pago."
+            );
         }
     }
 
@@ -2860,7 +2841,12 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         String normalizedDueDateText = DateInputUtils.formatDay(dueDate);
         boolean missingProof = pendingTicketUri == null || pendingTicketUri.trim().isEmpty();
         if ((activePendingDebtRequest != null || !isOwnerUser()) && missingProof) {
-            NoticeUtils.show(requireContext(), "Adjunta una foto del justificante para enviar el pago");
+            NoticeUtils.show(
+                    requireContext(),
+                    activePendingDebtRequest != null && isExpenseDebt(activePendingDebtRequest.snapshot)
+                            ? "Adjunta una foto del justificante para enviar la confirmación"
+                            : "Adjunta una foto del justificante para enviar el pago"
+            );
             return false;
         }
         double amount = validation.amount;
@@ -2956,7 +2942,12 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         }
         if (selectedPendingDebt != null) {
             if (writes.size() != 1) {
-                NoticeUtils.show(requireContext(), "El pago pendiente debe enviarse en una sola línea");
+                NoticeUtils.show(
+                        requireContext(),
+                        isExpenseDebt(selectedPendingDebt.snapshot)
+                                ? "La confirmación del gasto debe enviarse en una sola línea"
+                                : "El pago pendiente debe enviarse en una sola línea"
+                );
                 return false;
             }
             PaymentService.PaymentWrite write = writes.get(0);
@@ -3654,7 +3645,10 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                             && dueAt.getTime() < System.currentTimeMillis();
                     String statusLabel = statusLabel(normalizedStatus);
                     if (overdue && !confirmed) statusLabel = "Pendiente (vencido)";
-                    String subtitle = (toEmail == null ? "Pago registrado" : "A " + toLabel)
+                    boolean expenseBackedPayment = isExpenseBackedPayment(doc);
+                    String subtitle = (toEmail == null
+                            ? (expenseBackedPayment ? "Confirmación enviada" : "Pago registrado")
+                            : "A " + toLabel)
                             + (roomName == null || roomName.trim().isEmpty() ? "" : " - hab. " + roomName)
                             + " - " + statusLabel
                             + (dueDateText == null || dueDateText.isEmpty() ? "" : " - vence " + dueDateText);
@@ -3662,28 +3656,27 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                     expenseRows.add(new WorkspaceRow(
                             doc.getId(),
                             "payment",
-                            concept == null || concept.trim().isEmpty() ? "Pago enviado" : concept,
+                            concept == null || concept.trim().isEmpty()
+                                    ? (expenseBackedPayment ? "Confirmación enviada" : "Pago enviado")
+                                    : concept,
                             subtitle,
                             amountValue == null ? "0.00 EUR" : df.format(amountValue) + " EUR",
                             doc
                     ));
                 }
-                if (!isVariableTenantUser()) {
-                    if (loadVersion != expensesLoadVersion) return;
-                    expensesAdapter.notifyDataSetChanged();
-                    return;
-                }
                 loadMyPendingDebtRequests(pendingDebts -> {
                     if (loadVersion != expensesLoadVersion) return;
                     if (pendingDebts.isEmpty()) {
-                        expenseRows.add(new WorkspaceRow(
+                        if (!isOwnerUser()) {
+                            expenseRows.add(new WorkspaceRow(
                                 "pending_debt_empty",
                                 ROW_TYPE_PENDING_DEBT,
-                                "No tienes pagos pendientes",
+                                "No tienes pendientes por confirmar",
                                 "Cuando tengas una deuda asignada aparecerá aquí.",
                                 "-",
                                 null
-                        ));
+                            ));
+                        }
                     }
                     for (PendingDebtRequest debt : pendingDebts) {
                         if (!passesPendingDebtFilters(debt)) continue;
@@ -3822,7 +3815,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                     net.put(ownerEmail, net.getOrDefault(ownerEmail, 0.0) + roomCost);
                 }
             }
-            applyPaymentsAndRenderFinancials(net);
+            computeExpenseImpacts(members, net, null);
         });
     }
 
@@ -4684,7 +4677,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     private void showRowDetail(WorkspaceRow row) {
         if (ROW_TYPE_PENDING_DEBT.equals(row.type)) {
             if (row.snapshot == null) {
-                NoticeUtils.show(requireContext(), "No tienes pagos pendientes.");
+                NoticeUtils.show(requireContext(), "No tienes pendientes por confirmar.");
                 return;
             }
             String concept = row.snapshot.getString("concept");
@@ -4695,7 +4688,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             String priority = row.snapshot.getString("priority");
             PendingDebtRequest debt = new PendingDebtRequest(
                     row.id,
-                    concept == null || concept.trim().isEmpty() ? "Pago pendiente" : concept,
+                    concept == null || concept.trim().isEmpty() ? pendingDebtFallbackConcept(row.snapshot) : concept,
                     amount == null ? 0.0 : amount,
                     creditorEmail == null ? "" : creditorEmail.toLowerCase(Locale.ROOT),
                     DateInputUtils.normalizeToDisplay(dueDateText),
@@ -4837,11 +4830,13 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 row.title,
-                "Detalle del pago",
+                isExpenseBackedPayment(row.snapshot) ? "Detalle de la confirmación" : "Detalle del pago",
                 content,
                 showActions && canDelete ? "Borrar" : null,
                 showActions && canToggle
-                        ? (STATUS_PENDING.equals(status) ? "Aceptar pago" : "Cambiar estado")
+                        ? (STATUS_PENDING.equals(status)
+                        ? (isExpenseBackedPayment(row.snapshot) ? "Aceptar confirmación" : "Aceptar pago")
+                        : "Cambiar estado")
                         : "Cerrar"
         );
         AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
@@ -4881,7 +4876,9 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         }
         String status = normalizeFlowStatus(row.snapshot.getString("status"));
 
-        rows.put("Concepto", concept == null || concept.trim().isEmpty() ? "Pago" : concept.trim());
+        rows.put("Concepto", concept == null || concept.trim().isEmpty()
+                ? (isExpenseBackedPayment(row.snapshot) ? "Confirmación de gasto" : "Pago")
+                : concept.trim());
         rows.put("De", fromEmail == null || fromEmail.trim().isEmpty() ? "Sin datos" : memberReferenceInline(fromEmail));
         rows.put("Para", toEmail == null || toEmail.trim().isEmpty() ? "Sin datos" : memberReferenceInline(toEmail));
         rows.put("Habitación", roomName == null || roomName.trim().isEmpty() ? "Varias habitaciones" : roomName.trim());
@@ -6377,7 +6374,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 status,
                 isOwnerUser(),
                 currentUserEmail(),
-                paymentDoc.getString("fromEmail")
+                paymentDoc.getString("toEmail")
         );
     }
 
@@ -6436,6 +6433,35 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         String lower = value.trim().toLowerCase(Locale.ROOT);
         String normalized = Normalizer.normalize(lower, Normalizer.Form.NFD);
         return normalized.replaceAll("\\p{M}+", "");
+    }
+
+    private boolean isExpenseDebt(@Nullable DocumentSnapshot debtDoc) {
+        return debtDoc != null && "expense".equals(safeLowerText(debtDoc.getString("sourceType")));
+    }
+
+    private boolean isExpenseBackedPayment(@Nullable DocumentSnapshot paymentDoc) {
+        return paymentDoc != null && "expense".equals(safeLowerText(paymentDoc.getString("sourceType")));
+    }
+
+    @NonNull
+    private String pendingDebtFallbackConcept(@Nullable DocumentSnapshot debtDoc) {
+        String concept = debtDoc == null ? null : debtDoc.getString("concept");
+        if (concept != null && !concept.trim().isEmpty()) {
+            return concept.trim();
+        }
+        return isExpenseDebt(debtDoc) ? "Gasto pendiente" : "Pago pendiente";
+    }
+
+    @NonNull
+    private String pendingDebtDialogTitle(@NonNull PendingDebtRequest debt) {
+        return isExpenseDebt(debt.snapshot) ? "Confirmar gasto pendiente" : "Registrar pago pendiente";
+    }
+
+    @NonNull
+    private String pendingDebtDialogSubtitle(@NonNull PendingDebtRequest debt) {
+        return isExpenseDebt(debt.snapshot)
+                ? "Revisa tu parte, adjunta justificante y envía la confirmación."
+                : "Revisa los datos, adjunta justificante y envía el pago.";
     }
 
     private boolean canManageRooms() {
@@ -6607,7 +6633,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
                         String myEmail = FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
                         if (debtor.equalsIgnoreCase(myEmail)) {
-                            scheduleDeadlineNotifications(concept, partAmount, dueAt, expenseId + "_" + debtor);
+                            scheduleDeadlineNotifications(concept, partAmount, dueAt, expenseId + "_" + debtor, "expense");
                         }
                     }
                     batch.commit().addOnSuccessListener(done -> refreshExpenseFlowStatus(expenseId));
@@ -6642,26 +6668,47 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                     batch.commit();
                     String myEmail = FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
                     if (fromEmail.equalsIgnoreCase(myEmail)) {
-                        scheduleDeadlineNotifications(concept, amount, dueAt, paymentId);
+                        scheduleDeadlineNotifications(concept, amount, dueAt, paymentId, "payment");
                     }
                 });
     }
 
-    private void scheduleDeadlineNotifications(String concept, double amount, Date dueAt, String suffix) {
-        scheduleDeadlineNotifications(concept, new DecimalFormat("0.00").format(amount) + " EUR", dueAt.getTime(), suffix);
+    private void scheduleDeadlineNotifications(String concept, double amount, Date dueAt, String suffix, String sourceType) {
+        scheduleDeadlineNotifications(
+                concept,
+                new DecimalFormat("0.00").format(amount) + " EUR",
+                dueAt.getTime(),
+                suffix,
+                sourceType
+        );
     }
 
-    private void scheduleDeadlineNotifications(String concept, String amountLabel, long dueAtMs, String suffix) {
+    private void scheduleDeadlineNotifications(String concept, String amountLabel, long dueAtMs, String suffix, String sourceType) {
         long now = System.currentTimeMillis();
         long oneDayBefore = dueAtMs - 24L * 60L * 60L * 1000L;
         int reminderA = Math.abs(("due_a_" + suffix).hashCode());
         int reminderB = Math.abs(("due_b_" + suffix).hashCode());
-        String title = concept == null || concept.isEmpty() ? "Pago pendiente" : concept;
+        boolean expenseDeadline = "expense".equalsIgnoreCase(sourceType);
+        String title = concept == null || concept.isEmpty()
+                ? (expenseDeadline ? "Gasto pendiente" : "Pago pendiente")
+                : concept;
         if (oneDayBefore > now) {
-            ReminderScheduler.scheduleOneTime(requireContext(), reminderA, "Pago vence mañana", title + " - " + amountLabel, oneDayBefore);
+            ReminderScheduler.scheduleOneTime(
+                    requireContext(),
+                    reminderA,
+                    expenseDeadline ? "Gasto vence mañana" : "Pago vence mañana",
+                    title + " - " + amountLabel,
+                    oneDayBefore
+            );
         }
         if (dueAtMs > now) {
-            ReminderScheduler.scheduleOneTime(requireContext(), reminderB, "Pago vence hoy", title + " - " + amountLabel, dueAtMs);
+            ReminderScheduler.scheduleOneTime(
+                    requireContext(),
+                    reminderB,
+                    expenseDeadline ? "Gasto vence hoy" : "Pago vence hoy",
+                    title + " - " + amountLabel,
+                    dueAtMs
+            );
         }
     }
 
@@ -7206,12 +7253,13 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             }
 
             if ("payment".equals(row.type)) {
+                boolean expenseBackedPayment = isExpenseBackedPayment(row.snapshot);
                 if (STATUS_CONFIRMED.equals(flowStatus)) {
-                    titleTv.setText("Pago pagado");
+                    titleTv.setText(expenseBackedPayment ? "Confirmación aceptada" : "Pago pagado");
                 } else if (STATUS_PENDING.equals(flowStatus)) {
-                    titleTv.setText("Pago pendiente");
+                    titleTv.setText(expenseBackedPayment ? "Confirmación pendiente" : "Pago pendiente");
                 } else {
-                    titleTv.setText("Pago solicitado");
+                    titleTv.setText(expenseBackedPayment ? "Confirmación enviada" : "Pago solicitado");
                 }
             } else if ("expense".equals(row.type)) {
                 if (STATUS_CONFIRMED.equals(flowStatus)) {
@@ -7222,7 +7270,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                     titleTv.setText("Gasto solicitado");
                 }
             } else if (ROW_TYPE_PENDING_DEBT.equals(row.type)) {
-                titleTv.setText("Pago solicitado");
+                titleTv.setText(isExpenseDebt(row.snapshot) ? "Gasto por confirmar" : "Pago solicitado");
             }
             return view;
         }

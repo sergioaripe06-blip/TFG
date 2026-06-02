@@ -12,6 +12,17 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
 
 ---
 
+## 2026-06-02
+- Tipo: Avance reconstruido
+- Flujo de deudas desde gasto afinado para que encaje con el modelo mental de "me deben este gasto".
+- Se mantiene `expenses` como documento origen y se refuerza que `payment_deadlines` crea una deuda individual por deudor según `customSplit`, evitando duplicar el gasto principal.
+- Ajustados permisos de aceptación de pagos pendientes para que puedan confirmar el propietario del piso o el acreedor del pago (`toEmail`), alineando app, reglas y documentación.
+- Mejorados textos en `Movimientos` para hablar de pendientes por confirmar y de confirmación de gasto cuando la deuda nace desde un gasto.
+- Refinada la UI de pagos pendientes para mostrar `Enviar confirmación`, `Aceptar confirmación` y estados de confirmación cuando el justificante pertenece a una deuda originada por gasto.
+- Añadido preset de seed `sergio-owner-homoerectus` con `sergioaripe06@gmail.com` como propietario y `homoerectus079@gmail.com` como inquilino real, incluyendo gastos, pagos, vencimientos y recordatorios.
+- Se unifica la acción principal del workspace alrededor de `Nuevo gasto`: desaparece el pago libre visible en UI y el mismo flujo se habilita también en alquiler fijo.
+- Los saldos de `alquiler fijo` pasan a incorporar también gastos compartidos además de la renta base de habitaciones.
+
 ## 2026-03-03
 - Tipo: Avance reconstruido
 - Inicio formal del tramo documentado para TFG.
@@ -1034,7 +1045,7 @@ ooms_groups para eliminar la auto-salida/cambio directo del inquilino (isSelfRoo
 
 ## 2026-06-01
 - Tipo: Correccion de duplicados en listado de Movimientos
-- Se a�ade control de version de carga en ExpensesFragment (expensesLoadVersion) para ignorar respuestas async antiguas.
+- Se añade control de version de carga en ExpensesFragment (expensesLoadVersion) para ignorar respuestas async antiguas.
 - Resultado: al recargar en paralelo no se agregan filas duplicadas de pagos/gastos.
 
 

@@ -13,11 +13,11 @@ public final class PaymentAccessPolicy {
             @NonNull String normalizedStatus,
             boolean isOwner,
             @NonNull String currentUserEmail,
-            @Nullable String fromEmail
+            @Nullable String toEmail
     ) {
         if (!"pending".equals(normalizedStatus)) return false;
         if (isOwner) return true;
-        return currentUserEmail.equals(normalizeEmail(fromEmail));
+        return currentUserEmail.equals(normalizeEmail(toEmail));
     }
 
     public static boolean canDeletePayment(

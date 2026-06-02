@@ -8,7 +8,8 @@
     "seed": "node seed.js",
     "seed:sergio-demo": "node seed.js --service-account ./service-account.json --preset sergio-demo",
     "seed:sergio-owner-plus": "node seed.js --service-account ./service-account.json --preset sergio-owner-plus",
-    "seed:sergio-tenant-plus": "node seed.js --service-account ./service-account.json --preset sergio-tenant-plus"
+    "seed:sergio-tenant-plus": "node seed.js --service-account ./service-account.json --preset sergio-tenant-plus",
+    "seed:sergio-owner-homoerectus": "node seed.js --service-account ./service-account.json --preset sergio-owner-homoerectus"
   },
   "dependencies": {
     "firebase-admin": "^12.7.0"

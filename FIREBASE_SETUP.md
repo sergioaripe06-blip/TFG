@@ -102,6 +102,8 @@ Campos principales:
 
 Pagos entre miembros.
 
+En el flujo actual de la app, `expenses` es el origen principal de deuda y `payments` se usa sobre todo como confirmacion guiada cuando un deudor sube justificante para saldar un pendiente.
+
 Campos principales:
 
 - `groupId`
@@ -144,6 +146,12 @@ Campos principales:
 - `dueAt`
 - `dueDateText` (opcional)
 - `createdAt`
+
+Semantica de estados:
+
+- `pending`: deuda generada y aún no justificada por el deudor.
+- `submitted`: el deudor ya ha subido justificante y queda a la espera de aceptación.
+- `confirmed`: deuda cerrada y aceptada.
 - `submittedAt` (opcional, cuando el inquilino envia justificante)
 - `proofUri` (opcional, copia del justificante enviado en flujo pendiente)
 
@@ -431,14 +439,17 @@ Uso rápido:
    - `cd tools/firebase-admin-seed`
    - `npm install`
    - `node seed.js --service-account ./service-account.json --owner-email TU_EMAIL --owner-password TU_PASSWORD --users 12 --groups 4 --rooms 3 --members-per-group 4`
-   - O preset hardcodeado solicitado: `npm run seed:sergio-demo` (owner fijo `sergioaripe06@gmail.com`)
+   - O presets hardcodeados solicitados:
+     - `npm run seed:sergio-demo` (owner fijo `sergioaripe06@gmail.com`)
+     - `npm run seed:sergio-owner-homoerectus` (owner `sergioaripe06@gmail.com` con `homoerectus079@gmail.com` como inquilino real)
 3. Revisa el archivo de salida de credenciales en:
    - `tools/firebase-admin-seed/output/seed-users-YYYYMMDD-HHMMSS.json`
 
-## Politica de pagos (owner-centric)
-- Solo el propietario (ownerId) puede cambiar estado de un pago entre requested, pending y confirmed.
-- Inquilinos: solo lectura para estados de pago.
-- Solo el propietario puede eliminar pagos del grupo. En la UI diaria se mantiene el borrado en `requested`, y para borrado de piso se permite limpieza completa.
+## Politica de pagos
+- Un pago pendiente (`pending`) se puede confirmar (`confirmed`) por el propietario del piso o por el acreedor del pago (`toEmail`).
+- La edición y borrado de pagos se mantiene para propietario o creador del pago (`fromEmail`), respetando las invariantes de `groupId` y `fromEmail`.
+- Cuando una deuda nace desde un gasto, el gasto sigue siendo el documento origen y se crean deudas individuales en `payment_deadlines` por cada deudor según `customSplit`.
+- Cuando el deudor sube justificante, la deuda pasa a `submitted`; cuando se acepta el pago, la deuda pasa a `confirmed` y se recalcula el estado del gasto origen.
 - Para mostrar nombres reales en UI, se lee users.name (con fallback si no existe).
 - En registro, el usuario debe aceptar términos y se guardan `users.termsAccepted=true` y `users.termsAcceptedAt`.
 
