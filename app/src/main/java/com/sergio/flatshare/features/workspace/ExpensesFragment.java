@@ -2,6 +2,8 @@ package com.sergio.flatshare.features.workspace;
 
 import android.app.AlertDialog;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
 import android.app.DatePickerDialog;
 import android.content.ActivityNotFoundException;
 import android.content.ContentValues;
@@ -51,6 +53,7 @@ import androidx.annotation.Nullable;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.content.ContextCompat;
+import androidx.exifinterface.media.ExifInterface;
 import androidx.fragment.app.Fragment;
 
 import com.google.android.gms.tasks.Task;
@@ -149,7 +152,9 @@ public class ExpensesFragment extends Fragment {
     private final List<WorkspaceRow> expenseRows = new ArrayList<>();
     private final List<WorkspaceRow> saldoRows = new ArrayList<>();
     private final List<WorkspaceRow> reminderRows = new ArrayList<>();
+    private final Map<String, String> expenseEffectiveStatusById = new HashMap<>();
     private final List<RoomOption> roomFilterOptions = new ArrayList<>();
+    private int remindersLoadVersion = 0;
 
     private WorkspaceAdapter expensesAdapter;
     private WorkspaceAdapter saldosAdapter;
@@ -676,7 +681,7 @@ private View buildWorkspaceInfoDialogContent(@NonNull List<RoomOption> rooms) {
         }
     }
 
-    Button addRoomBtn = DialogUtils.createActionButton(requireContext(), "Añadir habitación", false);
+    Button addRoomBtn = DialogUtils.createActionButton(requireContext(), "Añadir inquilinos", false);
     Button openLocationBtn = DialogUtils.createActionButton(requireContext(), "Ver ubicación", true);
     LinearLayout.LayoutParams addParams = (LinearLayout.LayoutParams) addRoomBtn.getLayoutParams();
     addParams.topMargin = dp(14);
@@ -1572,7 +1577,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 List<String> autoOptions = new ArrayList<>(selectedResidents);
                 List<String> autoLabels = new ArrayList<>();
                 for (String option : autoOptions) {
-                    autoLabels.add(displayNameForEmail(option));
+                    autoLabels.add(memberSelectionLabel(option));
                 }
 
                 isBindingAutoSpinner[0] = true;
@@ -1796,10 +1801,6 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     private void showExpenseActionDialog() {
         if (expenseActionDialogVisible) return;
         expenseActionDialogVisible = true;
-        if (!isVariableTenantUser()) {
-            showExpenseActionDialogInternal(null);
-            return;
-        }
         loadMyPendingDebtRequests(this::showExpenseActionDialogInternal);
     }
 
@@ -1997,8 +1998,17 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             return false;
         }
 
-        String customSplit = buildCustomSplitFromUi(form, amount, members);
-        if (customSplit == null) {
+        LinkedHashMap<String, Double> allocations = buildExpenseAllocationsFromUi(form, amount, members);
+        if (allocations == null) {
+            return false;
+        }
+        if (isSelfOnlyExpenseAllocations(allocations)) {
+            NoticeUtils.show(requireContext(), "No puedes crear un gasto dirigido solo a ti mismo");
+            return false;
+        }
+        String payerEmail = currentUserEmail();
+        if (allocations.containsKey(payerEmail)) {
+            NoticeUtils.show(requireContext(), "El pagador no puede estar dentro del reparto del gasto");
             return false;
         }
         Date dueDate = parseDueDateOrNull(dueDateText);
@@ -2018,20 +2028,6 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             return false;
         }
 
-        Map<String, Object> data = new HashMap<>();
-        data.put("groupId", currentGroupId);
-        data.put("concept", concept);
-        data.put("amount", amount);
-        data.put("payerId", FirebaseAuth.getInstance().getCurrentUser().getUid());
-        data.put("payerEmail", FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT));
-        data.put("createdAt", FieldValue.serverTimestamp());
-        data.put("customSplit", customSplit);
-        data.put("category", category.isEmpty() ? "otros" : category);
-        data.put("priority", expenseService.normalizePriority(priority));
-        data.put("ticketUri", pendingTicketUri == null ? "" : pendingTicketUri);
-        data.put("dueAt", dueDate);
-        data.put("dueDateText", normalizedDueDateText);
-        data.put("status", STATUS_REQUESTED);
         List<String> selectedRoomIds = new ArrayList<>();
         List<String> selectedRoomNames = new ArrayList<>();
         for (RoomOption room : selectedRooms) {
@@ -2039,8 +2035,131 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             selectedRoomNames.add(room.name);
         }
         boolean allRoomsSelected = selectedRooms.size() == rooms.size();
-        data.put("roomIds", selectedRoomIds);
-        data.put("roomNames", selectedRoomNames);
+        String payerId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        String safeCategory = category.isEmpty() ? "otros" : category;
+        String normalizedPriority = expenseService.normalizePriority(priority);
+        String proofUri = pendingTicketUri == null ? "" : pendingTicketUri;
+
+        if (documentId == null) {
+            List<ExpenseWriteSeed> createdExpenses = new ArrayList<>();
+            WriteBatch batch = db.batch();
+            for (Map.Entry<String, Double> entry : allocations.entrySet()) {
+                String debtorEmail = entry.getKey();
+                double debtorAmount = round2(entry.getValue() == null ? 0.0 : entry.getValue());
+                if (debtorAmount <= 0.0) continue;
+                String singleSplit = debtorEmail + ":100";
+                var expenseRef = db.collection("expenses").document();
+                batch.set(expenseRef, buildExpenseDocumentData(
+                        concept,
+                        debtorAmount,
+                        payerId,
+                        payerEmail,
+                        singleSplit,
+                        safeCategory,
+                        normalizedPriority,
+                        proofUri,
+                        dueDate,
+                        normalizedDueDateText,
+                        selectedRoomIds,
+                        selectedRoomNames,
+                        allRoomsSelected,
+                        selectedRooms
+                ));
+                createdExpenses.add(new ExpenseWriteSeed(expenseRef.getId(), concept, debtorAmount, singleSplit));
+            }
+            if (createdExpenses.isEmpty()) {
+                NoticeUtils.show(requireContext(), "No se han podido generar gastos válidos");
+                return false;
+            }
+            batch.commit().addOnSuccessListener(task -> {
+                categorySuggestionsRepository.clearGroupCache(currentGroupId);
+                for (ExpenseWriteSeed createdExpense : createdExpenses) {
+                    logActivity("expense_created", createdExpense.concept, createdExpense.amount, safeCategory);
+                    syncExpenseDeadlines(
+                            createdExpense.id,
+                            createdExpense.concept,
+                            createdExpense.amount,
+                            createdExpense.customSplit,
+                            dueDate,
+                            normalizedPriority,
+                            payerEmail
+                    );
+                }
+                pendingTicketUri = null;
+                loadExpenses();
+                loadFinancialViews();
+            });
+        } else {
+            String customSplit = buildCustomSplitFromAllocations(allocations, amount);
+            Map<String, Object> data = buildExpenseDocumentData(
+                    concept,
+                    amount,
+                    payerId,
+                    payerEmail,
+                    customSplit,
+                    safeCategory,
+                    normalizedPriority,
+                    proofUri,
+                    dueDate,
+                    normalizedDueDateText,
+                    selectedRoomIds,
+                    selectedRoomNames,
+                    allRoomsSelected,
+                    selectedRooms
+            );
+            db.collection("expenses").document(documentId).update(data).addOnSuccessListener(task -> {
+                categorySuggestionsRepository.clearGroupCache(currentGroupId);
+                logActivity("expense_edited", concept, amount, safeCategory);
+                syncExpenseDeadlines(
+                        documentId,
+                        concept,
+                        amount,
+                        customSplit,
+                        dueDate,
+                        normalizedPriority,
+                        payerEmail
+                );
+                pendingTicketUri = null;
+                loadExpenses();
+                loadFinancialViews();
+            });
+        }
+        return true;
+    }
+
+    @NonNull
+    private Map<String, Object> buildExpenseDocumentData(
+            @NonNull String concept,
+            double amount,
+            @NonNull String payerId,
+            @NonNull String payerEmail,
+            @NonNull String customSplit,
+            @NonNull String category,
+            @NonNull String priority,
+            @NonNull String ticketUri,
+            @Nullable Date dueDate,
+            @NonNull String dueDateText,
+            @NonNull List<String> selectedRoomIds,
+            @NonNull List<String> selectedRoomNames,
+            boolean allRoomsSelected,
+            @NonNull List<RoomOption> selectedRooms
+    ) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("groupId", currentGroupId);
+        data.put("concept", concept);
+        data.put("amount", amount);
+        data.put("payerId", payerId);
+        data.put("payerEmail", payerEmail);
+        data.put("createdAt", FieldValue.serverTimestamp());
+        data.put("customSplit", customSplit);
+        data.put("category", category);
+        data.put("priority", priority);
+        data.put("ticketUri", ticketUri);
+        data.put("dueAt", dueDate);
+        data.put("dueDateText", dueDateText);
+        data.put("status", STATUS_REQUESTED);
+        data.put("roomIds", new ArrayList<>(selectedRoomIds));
+        data.put("roomNames", new ArrayList<>(selectedRoomNames));
         if (allRoomsSelected) {
             data.put("roomId", "all");
             data.put("roomName", ROOM_ALL_LABEL);
@@ -2051,41 +2170,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             data.put("roomId", "multi");
             data.put("roomName", "Varias habitaciones");
         }
-
-        if (documentId == null) {
-            db.collection("expenses").add(data).addOnSuccessListener(task -> {
-                logActivity("expense_created", concept, amount, data.get("category").toString());
-                syncExpenseDeadlines(
-                        task.getId(),
-                        concept,
-                        amount,
-                        customSplit,
-                        dueDate,
-                        priority,
-                        FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT)
-                );
-                pendingTicketUri = null;
-                loadExpenses();
-                loadFinancialViews();
-            });
-        } else {
-            db.collection("expenses").document(documentId).update(data).addOnSuccessListener(task -> {
-                logActivity("expense_edited", concept, amount, data.get("category").toString());
-                syncExpenseDeadlines(
-                        documentId,
-                        concept,
-                        amount,
-                        customSplit,
-                        dueDate,
-                        priority,
-                        FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT)
-                );
-                pendingTicketUri = null;
-                loadExpenses();
-                loadFinancialViews();
-            });
-        }
-        return true;
+        return data;
     }
 
     private void createPaymentDialog() {
@@ -2271,6 +2356,9 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         Spinner targetTypeSpinner = form.findViewById(R.id.paymentTargetTypeSpinner);
         Spinner prioritySpinner = form.findViewById(R.id.paymentPrioritySpinner);
         AutoCompleteTextView categoryEt = form.findViewById(R.id.paymentCategoryInputEt);
+        TextView categoryFixedTv = form.findViewById(R.id.paymentCategoryFixedTv);
+        View categoryFixedContainer = form.findViewById(R.id.paymentCategoryFixedContainer);
+        TextView categoryFixedHintTv = form.findViewById(R.id.paymentCategoryFixedHintTv);
         TextView proofStatusTv = form.findViewById(R.id.paymentProofStatusTv);
         TextView memberLabelTv = form.findViewById(R.id.paymentMemberLabelTv);
 
@@ -2287,12 +2375,24 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         if (categoryEt.getText() == null || categoryEt.getText().toString().trim().isEmpty()) {
             categoryEt.setText("Otros", false);
         }
-        amountEt.setEnabled(false);
-        conceptEt.setEnabled(false);
-        dueDateEt.setEnabled(false);
-        targetTypeSpinner.setEnabled(false);
-        targetTypeSpinner.setClickable(false);
-        targetTypeSpinner.setAlpha(0.65f);
+        String lockedCategory = categoryEt.getText() == null || categoryEt.getText().toString().trim().isEmpty()
+                ? "Otros"
+                : categoryEt.getText().toString().trim();
+        categoryEt.setVisibility(View.GONE);
+        if (categoryFixedContainer != null) {
+            categoryFixedContainer.setVisibility(View.VISIBLE);
+        }
+        if (categoryFixedTv != null) {
+            categoryFixedTv.setText(lockedCategory);
+        }
+        if (categoryFixedHintTv != null) {
+            categoryFixedHintTv.setText("Categoria bloqueada para esta confirmacion");
+            categoryFixedHintTv.setVisibility(View.VISIBLE);
+        }
+        lockTextField(amountEt);
+        lockTextField(conceptEt);
+        lockTextField(dueDateEt);
+        lockSpinner(targetTypeSpinner);
         if (memberLabelTv != null) {
             memberLabelTv.setText("A quién pagas:");
         }
@@ -2301,6 +2401,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         if (priorityIndex >= 0) {
             prioritySpinner.setSelection(priorityIndex);
         }
+        lockSpinner(prioritySpinner);
 
         rebindPaymentMemberLines(form, members, rooms.size(), Collections.singletonList(debt.creditorEmail));
         int memberTargetIndex = indexOfPaymentTargetType("miembro");
@@ -2316,12 +2417,14 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         LinearLayout membersContainer = form.findViewById(R.id.paymentMembersContainer);
         for (int i = 0; i < membersContainer.getChildCount(); i++) {
             View child = membersContainer.getChildAt(i);
+            Spinner rowSpinner = child.findViewById(R.id.memberSpinner);
             EditText rowAmountEt = child.findViewById(R.id.memberAmountEt);
+            if (rowSpinner != null) {
+                lockSpinner(rowSpinner);
+            }
             if (rowAmountEt != null) {
                 rowAmountEt.setText(formatPercent(debt.amount));
-                rowAmountEt.setEnabled(false);
-                rowAmountEt.setFocusable(false);
-                rowAmountEt.setFocusableInTouchMode(false);
+                lockTextField(rowAmountEt);
             }
             child.setEnabled(false);
             child.setClickable(false);
@@ -2344,6 +2447,24 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             if (PRIORITY_TYPES[i].equals(normalized)) return i;
         }
         return -1;
+    }
+
+    private void lockTextField(@NonNull TextView textView) {
+        textView.setEnabled(false);
+        textView.setFocusable(false);
+        textView.setFocusableInTouchMode(false);
+        textView.setClickable(false);
+        textView.setLongClickable(false);
+        textView.setCursorVisible(false);
+        textView.setTextIsSelectable(false);
+        textView.setAlpha(0.9f);
+    }
+
+    private void lockSpinner(@NonNull Spinner spinner) {
+        spinner.setEnabled(false);
+        spinner.setClickable(false);
+        spinner.setLongClickable(false);
+        spinner.setAlpha(0.65f);
     }
 
     private int indexOfPaymentTargetType(@NonNull String expectedNormalizedType) {
@@ -2572,12 +2693,16 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         selectedKeys = deduplicateStringKeys(selectedKeys);
         container.removeAllViews();
         isRebindingPaymentSelectors = true;
+        List<String> memberLabels = new ArrayList<>();
+        for (String member : members) {
+            memberLabels.add(memberSelectionLabel(member));
+        }
 
         for (int i = 0; i < selectedKeys.size(); i++) {
             String selectedKey = selectedKeys.get(i);
             View row = buildPaymentLineRow(
                     members,
-                    members,
+                    memberLabels,
                     selectedKeys,
                     i,
                     selectedKey,
@@ -3069,6 +3194,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                     }
 
                     String myEmail = FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT);
+                    final Date finalEndAt = endAt;
                     Map<String, Object> data = reminderService.buildReminderData(
                             concept,
                             intervalConfig.intervalKey,
@@ -3095,7 +3221,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                         int reminderCode = Math.abs(("manual_" + ref.getId()).hashCode());
                         db.collection("reminders").document(ref.getId()).update("reminderCode", reminderCode);
                         if (targetConfig.targetEmails.contains(myEmail)) {
-                            scheduleManualReminder(reminderCode, concept, startAt.getTime(), intervalConfig.intervalMs);
+                            scheduleManualReminder(reminderCode, concept, startAt.getTime(), intervalConfig.intervalMs, finalEndAt);
                         }
                         loadReminders();
                         NoticeUtils.show(requireContext(), "Recordatorio guardado");
@@ -3354,12 +3480,12 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             }
             if (!selectedElsewhere || member.equals(selectedKey)) {
                 optionKeys.add(member);
-                optionLabels.add(displayNameForEmail(member));
+                optionLabels.add(memberSelectionLabel(member));
             }
         }
         if (optionKeys.isEmpty() && !members.isEmpty()) {
             optionKeys.add(members.get(0));
-            optionLabels.add(displayNameForEmail(members.get(0)));
+            optionLabels.add(memberSelectionLabel(members.get(0)));
         }
 
         spinner.setTag(optionKeys);
@@ -3477,12 +3603,19 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         return null;
     }
 
-    private void scheduleManualReminder(int reminderCode, String title, long firstTrigger, long intervalMs) {
-        if (intervalMs <= 0) {
+    private void scheduleManualReminder(int reminderCode, String title, long firstTrigger, long intervalMs, @Nullable Date endAt) {
+        long effectiveIntervalMs = resolveEffectiveReminderIntervalMs(firstTrigger, intervalMs, endAt);
+        if (effectiveIntervalMs <= 0) {
             ReminderScheduler.scheduleOneTime(requireContext(), reminderCode, "FlatShare: " + title, "Recordatorio pendiente", firstTrigger);
             return;
         }
-        ReminderScheduler.schedule(requireContext(), reminderCode, "FlatShare: " + title, "Recordatorio pendiente", firstTrigger, intervalMs);
+        ReminderScheduler.schedule(requireContext(), reminderCode, "FlatShare: " + title, "Recordatorio pendiente", firstTrigger, effectiveIntervalMs);
+    }
+
+    private long resolveEffectiveReminderIntervalMs(long firstTrigger, long intervalMs, @Nullable Date endAt) {
+        if (intervalMs <= 0L || endAt == null) return intervalMs;
+        long nextOccurrence = firstTrigger + intervalMs;
+        return nextOccurrence > endAt.getTime() ? 0L : intervalMs;
     }
 
     @Nullable
@@ -3513,12 +3646,15 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
     private void loadReminders() {
         if (currentGroupId == null) return;
+        final int loadVersion = ++remindersLoadVersion;
         reminderRows.clear();
         db.collection("reminders")
                 .whereEqualTo("groupId", currentGroupId)
                 .get()
                 .addOnSuccessListener(result -> {
+                    if (loadVersion != remindersLoadVersion) return;
                     List<DocumentSnapshot> docs = new ArrayList<>(result.getDocuments());
+                    Set<String> seenReminderIds = new HashSet<>();
                     docs.sort((a, b) -> {
                         Date da = a.getDate("startAt");
                         Date dbDate = b.getDate("startAt");
@@ -3528,6 +3664,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                         return da.compareTo(dbDate);
                     });
                     for (DocumentSnapshot doc : docs) {
+                        if (!seenReminderIds.add(doc.getId())) continue;
                         String title = doc.getString("title");
                         String subtitle = buildReminderSubtitle(doc);
                         String interval = doc.getString("interval");
@@ -3545,7 +3682,10 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                     }
                     remindersAdapter.notifyDataSetChanged();
                 })
-                .addOnFailureListener(e -> remindersAdapter.notifyDataSetChanged());
+                .addOnFailureListener(e -> {
+                    if (loadVersion != remindersLoadVersion) return;
+                    remindersAdapter.notifyDataSetChanged();
+                });
     }
 
     private String buildReminderSubtitle(DocumentSnapshot doc) {
@@ -3576,6 +3716,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         final int loadVersion = ++expensesLoadVersion;
         DecimalFormat df = new DecimalFormat("0.00");
         expenseRows.clear();
+        expenseEffectiveStatusById.clear();
         String myEmail = FirebaseAuth.getInstance().getCurrentUser() == null
                 || FirebaseAuth.getInstance().getCurrentUser().getEmail() == null
                 ? ""
@@ -3586,7 +3727,8 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
         expenseQuery.get().addOnSuccessListener(result -> {
             if (loadVersion != expensesLoadVersion) return;
-            for (DocumentSnapshot doc : result.getDocuments()) {
+            List<DocumentSnapshot> expenseDocs = new ArrayList<>(result.getDocuments());
+            for (DocumentSnapshot doc : expenseDocs) {
                 if (hasRoomContext() && !matchesExpenseWithCurrentRoom(doc)) continue;
                 Double amountValue = doc.getDouble("amount");
                 String concept = doc.getString("concept");
@@ -3615,15 +3757,21 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
             db.collection("payments").whereEqualTo("groupId", currentGroupId).get().addOnSuccessListener(payments -> {
                 if (loadVersion != expensesLoadVersion) return;
+                Set<String> hiddenExpenseIds = new HashSet<>();
                 for (DocumentSnapshot doc : payments.getDocuments()) {
                     String fromEmail = doc.getString("fromEmail");
                     String toEmail = doc.getString("toEmail");
                     String toLabel = memberReferenceInline(toEmail);
+                    boolean expenseBackedPayment = isExpenseBackedPayment(doc);
                     // Para inquilino, mostrar solo pagos que el mismo ha enviado.
                     // El resto de "deudas por pagar" se muestran en ROW_TYPE_PENDING_DEBT.
+                    // Si el movimiento es una confirmacion de gasto recibida, el acreedor tambien debe verla.
                     if (!ownerView) {
                         String fromLc = fromEmail == null ? "" : fromEmail.trim().toLowerCase(Locale.ROOT);
-                        if (!fromLc.equals(myEmail)) continue;
+                        String toLc = toEmail == null ? "" : toEmail.trim().toLowerCase(Locale.ROOT);
+                        boolean sentByMe = fromLc.equals(myEmail);
+                        boolean incomingExpenseConfirmation = expenseBackedPayment && toLc.equals(myEmail);
+                        if (!sentByMe && !incomingExpenseConfirmation) continue;
                     }
                     if (hasRoomContext() && !isRoomPayment(doc, fromEmail, toEmail)) continue;
 
@@ -3645,7 +3793,12 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                             && dueAt.getTime() < System.currentTimeMillis();
                     String statusLabel = statusLabel(normalizedStatus);
                     if (overdue && !confirmed) statusLabel = "Pendiente (vencido)";
-                    boolean expenseBackedPayment = isExpenseBackedPayment(doc);
+                    if (expenseBackedPayment && myEmail.equalsIgnoreCase(PaymentAccessPolicy.normalizeEmail(fromEmail))) {
+                        String sourceExpenseId = doc.getString("sourceId");
+                        if (sourceExpenseId != null && !sourceExpenseId.trim().isEmpty()) {
+                            hiddenExpenseIds.add(sourceExpenseId.trim());
+                        }
+                    }
                     String subtitle = (toEmail == null
                             ? (expenseBackedPayment ? "Confirmación enviada" : "Pago registrado")
                             : "A " + toLabel)
@@ -3664,7 +3817,16 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                             doc
                     ));
                 }
-                loadMyPendingDebtRequests(pendingDebts -> {
+                if (!hiddenExpenseIds.isEmpty()) {
+                    expenseRows.removeIf(row -> "expense".equals(row.type)
+                            && hiddenExpenseIds.contains(row.id)
+                            && row.snapshot != null);
+                }
+                db.collection("payment_deadlines").whereEqualTo("groupId", currentGroupId).get().addOnSuccessListener(deadlines -> {
+                    if (loadVersion != expensesLoadVersion) return;
+                    expenseEffectiveStatusById.clear();
+                    expenseEffectiveStatusById.putAll(buildExpenseStatusById(deadlines.getDocuments()));
+                    loadMyPendingDebtRequests(pendingDebts -> {
                     if (loadVersion != expensesLoadVersion) return;
                     if (pendingDebts.isEmpty()) {
                         if (!isOwnerUser()) {
@@ -3696,7 +3858,8 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                         ));
                     }
                     expensesAdapter.notifyDataSetChanged();
-                });
+                    });
+                }).addOnFailureListener(e -> expensesAdapter.notifyDataSetChanged());
             });
         });
     }
@@ -4313,6 +4476,14 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         return name + " (" + normalized + ")";
     }
 
+    @NonNull
+    private String memberSelectionLabel(@Nullable String value) {
+        if (value == null) return "";
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) return "";
+        return trimmed.contains("@") ? memberReferenceInline(trimmed) : trimmed;
+    }
+
     private String formatMembersDetailed(List<String> memberEmails) {
         if (memberEmails == null || memberEmails.isEmpty()) {
             return "Sin datos";
@@ -4753,6 +4924,10 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         }
 
         if (row.snapshot != null) {
+            if (isExpenseAssignedToCurrentUser(row.snapshot)) {
+                openExpensePendingDebtFlow(row);
+                return;
+            }
             String payerId = row.snapshot.getString("payerId");
             if (!canManageExpense(payerId)) {
                 View content = DialogUtils.createInfoRowsView(requireContext(), buildExpenseInfoRows(row));
@@ -4824,7 +4999,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             boolean canDelete,
             @NonNull String targetStatus
     ) {
-        View content = DialogUtils.createInfoRowsView(requireContext(), buildPaymentInfoRows(row));
+        View content = buildPaymentInfoContent(row);
         boolean showActions = canToggle || canDelete;
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
@@ -4901,7 +5076,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         String roomName = row.snapshot.getString("roomName");
         String category = row.snapshot.getString("category");
         String dueDateText = DateInputUtils.normalizeToDisplay(row.snapshot.getString("dueDateText"));
-        String status = normalizeFlowStatus(row.snapshot.getString("status"));
+        String status = effectiveExpenseStatus(row.id, row.snapshot);
         String customSplit = row.snapshot.getString("customSplit");
 
         rows.put("Pagado por", payerEmail == null || payerEmail.trim().isEmpty() ? "Sin datos" : memberReferenceInline(payerEmail));
@@ -5362,6 +5537,10 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         if (preferredMembers != null && !preferredMembers.isEmpty()) {
             rowMembers.addAll(sanitizeRoomMembers(preferredMembers, allMembers));
         }
+        if (equitative && candidateMembers.size() > 1 && rowMembers.size() <= 1) {
+            rowMembers.clear();
+            rowMembers.addAll(candidateMembers);
+        }
         if (rowMembers.isEmpty() && !candidateMembers.isEmpty()) {
             rowMembers.add(candidateMembers.get(0));
         }
@@ -5385,7 +5564,10 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             }
         }
 
-        splitModeSpinner.setSelection(equitative ? 1 : 0);
+        int targetSelection = equitative ? 1 : 0;
+        if (splitModeSpinner.getSelectedItemPosition() != targetSelection) {
+            splitModeSpinner.setSelection(targetSelection);
+        }
         refreshSplitControls(form);
         bindSplitRowsWatcher(form);
         refreshSplitRemainingIndicator(form);
@@ -5469,6 +5651,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         splitModeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                refreshSplitRowsFromScope(form, members, true);
                 refreshSplitControls(form);
                 refreshSplitRemainingIndicator(form);
             }
@@ -5565,7 +5748,9 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 selectedMembers.add(email);
             }
         }
-        setSplitRowsForMembers(form, allMembers, selectedMembers.isEmpty() ? null : selectedMembers, false);
+        Spinner splitModeSpinner = form.findViewById(R.id.splitModeSpinner);
+        boolean equitative = splitModeSpinner != null && splitModeSpinner.getSelectedItemPosition() == 1;
+        setSplitRowsForMembers(form, allMembers, selectedMembers.isEmpty() ? null : selectedMembers, equitative);
     }
 
     private void setSplitRowsForRooms(@NonNull View form, boolean keepCurrentValues) {
@@ -5808,7 +5993,11 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         Spinner memberSpinner = row.findViewById(R.id.memberSpinner);
         EditText memberAmountEt = row.findViewById(R.id.memberAmountEt);
 
-        ArrayAdapter<String> memberAdapter = buildLightSpinnerAdapter(members.toArray(new String[0]));
+        List<String> memberLabels = new ArrayList<>();
+        for (String member : members) {
+            memberLabels.add(memberSelectionLabel(member));
+        }
+        ArrayAdapter<String> memberAdapter = buildLightSpinnerAdapter(memberLabels.toArray(new String[0]));
         memberSpinner.setAdapter(memberAdapter);
         prepareDialogSpinnerTouch(memberSpinner);
 
@@ -5840,13 +6029,13 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     }
 
     @Nullable
-    private String buildCustomSplitFromUi(View form, double totalAmount, List<String> members) {
+    private LinkedHashMap<String, Double> buildExpenseAllocationsFromUi(View form, double totalAmount, List<String> members) {
         Spinner splitModeSpinner = form.findViewById(R.id.splitModeSpinner);
         LinearLayout splitRowsContainer = form.findViewById(R.id.splitRowsContainer);
         boolean roomScope = isRoomScopeSelected(form);
         boolean equitative = splitModeSpinner.getSelectedItemPosition() == 1 && !roomScope;
 
-        Map<String, Double> splitsByEmail = new LinkedHashMap<>();
+        LinkedHashMap<String, Double> splitsByEmail = new LinkedHashMap<>();
         for (int i = 0; i < splitRowsContainer.getChildCount(); i++) {
             View row = splitRowsContainer.getChildAt(i);
             Spinner memberSpinner = row.findViewById(R.id.memberSpinner);
@@ -5911,14 +6100,17 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 NoticeUtils.show(requireContext(), "El reparto equitativo necesita minimo 2 personas");
                 return null;
             }
-            double percent = 100.0 / splitsByEmail.size();
-            StringBuilder builder = new StringBuilder();
-            int i = 0;
-            for (String email : splitsByEmail.keySet()) {
-                if (i++ > 0) builder.append(",");
-                builder.append(email).append(":").append(percent);
+            double assigned = 0.0;
+            double amountPerPerson = round2(totalAmount / splitsByEmail.size());
+            int index = 0;
+            int lastIndex = splitsByEmail.size() - 1;
+            for (String email : new ArrayList<>(splitsByEmail.keySet())) {
+                double personAmount = index == lastIndex ? round2(totalAmount - assigned) : amountPerPerson;
+                splitsByEmail.put(email, personAmount);
+                assigned += personAmount;
+                index++;
             }
-            return builder.toString();
+            return splitsByEmail;
         }
 
         if (splitsByEmail.isEmpty()) {
@@ -5937,14 +6129,39 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             return null;
         }
 
+        for (Map.Entry<String, Double> entry : splitsByEmail.entrySet()) {
+            entry.setValue(round2(entry.getValue()));
+        }
+        return splitsByEmail;
+    }
+
+    @NonNull
+    private String buildCustomSplitFromAllocations(@NonNull Map<String, Double> allocations, double totalAmount) {
         StringBuilder builder = new StringBuilder();
         int i = 0;
-        for (Map.Entry<String, Double> entry : splitsByEmail.entrySet()) {
+        for (Map.Entry<String, Double> entry : allocations.entrySet()) {
             double percent = (entry.getValue() * 100.0) / totalAmount;
             if (i++ > 0) builder.append(",");
             builder.append(entry.getKey()).append(":").append(percent);
         }
         return builder.toString();
+    }
+
+    private boolean isSelfOnlyExpenseAllocations(@NonNull Map<String, Double> allocations) {
+        String payerEmail = currentUserEmail();
+        if (payerEmail.isEmpty()) return false;
+        if (allocations.isEmpty()) return false;
+        boolean hasOtherDebtor = false;
+        for (Map.Entry<String, Double> entry : allocations.entrySet()) {
+            String email = entry.getKey();
+            double percent = entry.getValue() == null ? 0.0 : entry.getValue();
+            if (percent <= 0.0) continue;
+            if (!payerEmail.equalsIgnoreCase(email)) {
+                hasOtherDebtor = true;
+                break;
+            }
+        }
+        return !hasOtherDebtor;
     }
 
     private void requestExpenseDeletion(WorkspaceRow row) {
@@ -5961,7 +6178,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
     private void requestPaymentDeletion(WorkspaceRow row) {
         if (row.snapshot == null || !canDeletePayment(row.snapshot)) {
-            NoticeUtils.show(requireContext(), "Solo el creador del pago o el propietario pueden eliminarlo");
+            NoticeUtils.show(requireContext(), "Solo puedes eliminar pagos en estado Solicitado");
             return;
         }
         showDeleteConfirmation(
@@ -5985,6 +6202,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             return;
         }
         db.collection("expenses").document(row.id).delete().addOnSuccessListener(v -> {
+            categorySuggestionsRepository.clearGroupCache(currentGroupId);
             deleteDeadlinesBySource("expense", row.id);
             if (row.snapshot != null) {
                 double amount = row.snapshot.getDouble("amount") == null ? 0.0 : row.snapshot.getDouble("amount");
@@ -6317,6 +6535,45 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         return "Solicitado";
     }
 
+    private String effectiveExpenseStatus(@NonNull String expenseId, @Nullable DocumentSnapshot expenseDoc) {
+        String mapped = expenseEffectiveStatusById.get(expenseId);
+        if (mapped != null && !mapped.trim().isEmpty()) {
+            return mapped;
+        }
+        return normalizeFlowStatus(expenseDoc == null ? null : expenseDoc.getString("status"));
+    }
+
+    @NonNull
+    private Map<String, String> buildExpenseStatusById(@NonNull List<DocumentSnapshot> deadlineDocs) {
+        Map<String, String> out = new HashMap<>();
+        Map<String, Boolean> hasPending = new HashMap<>();
+        Map<String, Boolean> hasSubmitted = new HashMap<>();
+        Map<String, Boolean> hasAny = new HashMap<>();
+        for (DocumentSnapshot doc : deadlineDocs) {
+            if (!"expense".equals(safeLowerText(doc.getString("sourceType")))) continue;
+            String expenseId = doc.getString("sourceId");
+            if (expenseId == null || expenseId.trim().isEmpty()) continue;
+            String safeExpenseId = expenseId.trim();
+            hasAny.put(safeExpenseId, true);
+            String status = normalizeFlowStatus(doc.getString("status"));
+            if (STATUS_PENDING.equals(status)) {
+                hasPending.put(safeExpenseId, true);
+            } else if (STATUS_SUBMITTED.equals(status)) {
+                hasSubmitted.put(safeExpenseId, true);
+            }
+        }
+        for (String expenseId : hasAny.keySet()) {
+            if (Boolean.TRUE.equals(hasPending.get(expenseId))) {
+                out.put(expenseId, STATUS_REQUESTED);
+            } else if (Boolean.TRUE.equals(hasSubmitted.get(expenseId))) {
+                out.put(expenseId, STATUS_PENDING);
+            } else {
+                out.put(expenseId, STATUS_CONFIRMED);
+            }
+        }
+        return out;
+    }
+
     private boolean passesDateFilter(DocumentSnapshot doc) {
         Date createdAt = doc.getDate("createdAt");
         if (createdAt == null) return true;
@@ -6358,8 +6615,176 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         return payerId != null && payerId.equals(myUid);
     }
 
+    private boolean isExpenseAssignedToCurrentUser(@Nullable DocumentSnapshot expenseDoc) {
+        if (expenseDoc == null) return false;
+        String myEmail = currentUserEmail();
+        String payerEmail = PaymentAccessPolicy.normalizeEmail(expenseDoc.getString("payerEmail"));
+        if (myEmail.isEmpty() || myEmail.equals(payerEmail)) return false;
+        Map<String, Double> split = parseCustomSplitPercentages(expenseDoc.getString("customSplit"));
+        return split.containsKey(myEmail);
+    }
+
+    private void openExpensePendingDebtFlow(@NonNull WorkspaceRow row) {
+        if (row.snapshot == null) return;
+        String myEmail = currentUserEmail();
+        db.collection("payment_deadlines")
+                .whereEqualTo("groupId", currentGroupId)
+                .whereEqualTo("sourceType", "expense")
+                .whereEqualTo("sourceId", row.id)
+                .whereEqualTo("debtorEmail", myEmail)
+                .get()
+                .addOnSuccessListener(result -> {
+                    View content = DialogUtils.createInfoRowsView(requireContext(), buildExpenseInfoRows(row));
+                    DocumentSnapshot debtDoc = pickBestExpenseDebt(result.getDocuments());
+                    if (debtDoc == null) {
+                        DialogUtils.Shell shell = DialogUtils.buildShell(
+                                requireContext(),
+                                row.title,
+                                "Este gasto va dirigido a ti. Sube un justificante para dejarlo en revision.",
+                                content,
+                                "Cerrar",
+                                "Subir justificante"
+                        );
+                        AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+                        shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+                        shell.confirmBtn.setOnClickListener(v -> {
+                            dialog.dismiss();
+                            createMissingExpenseDebtAndOpen(row);
+                        });
+                        return;
+                    }
+                    String concept = debtDoc.getString("concept");
+                    Double amount = debtDoc.getDouble("amount");
+                    String creditorEmail = debtDoc.getString("creditorEmail");
+                    String dueDateText = debtDoc.getString("dueDateText");
+                    Date dueAt = debtDoc.getDate("dueAt");
+                    String priority = debtDoc.getString("priority");
+                    PendingDebtRequest debt = new PendingDebtRequest(
+                            debtDoc.getId(),
+                            concept == null || concept.trim().isEmpty() ? pendingDebtFallbackConcept(debtDoc) : concept,
+                            amount == null ? 0.0 : amount,
+                            creditorEmail == null ? "" : creditorEmail.toLowerCase(Locale.ROOT),
+                            DateInputUtils.normalizeToDisplay(dueDateText),
+                            dueAt,
+                            priority == null ? "media" : priority.toLowerCase(Locale.ROOT),
+                            debtDoc
+                    );
+                    String debtStatus = normalizeFlowStatus(debtDoc.getString("status"));
+                    if (STATUS_PENDING.equals(debtStatus)) {
+                        DialogUtils.Shell shell = DialogUtils.buildShell(
+                                requireContext(),
+                                row.title,
+                                "Este gasto va dirigido a ti. Sube un justificante para dejarlo en revision.",
+                                content,
+                                "Cerrar",
+                                "Subir justificante"
+                        );
+                        AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+                        shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+                        shell.confirmBtn.setOnClickListener(v -> {
+                            dialog.dismiss();
+                            createPaymentDialog(debt);
+                        });
+                        return;
+                    }
+                    if (STATUS_SUBMITTED.equals(debtStatus)) {
+                        DialogUtils.Shell shell = DialogUtils.buildShell(
+                                requireContext(),
+                                row.title,
+                                "Ya subiste el justificante. Ahora quien pago el gasto debe validarlo.",
+                                content,
+                                null,
+                                "Cerrar"
+                        );
+                        AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+                        shell.confirmBtn.setOnClickListener(v -> dialog.dismiss());
+                        return;
+                    }
+                    DialogUtils.Shell shell = DialogUtils.buildShell(
+                            requireContext(),
+                            row.title,
+                            "Este gasto ya esta acreditado para tu parte.",
+                            content,
+                            null,
+                            "Cerrar"
+                    );
+                    AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+                    shell.confirmBtn.setOnClickListener(v -> dialog.dismiss());
+                })
+                .addOnFailureListener(e -> NoticeUtils.show(requireContext(), "No se pudo abrir tu pendiente para este gasto"));
+    }
+
+    @Nullable
+    private DocumentSnapshot pickBestExpenseDebt(@NonNull List<DocumentSnapshot> docs) {
+        if (docs.isEmpty()) return null;
+        DocumentSnapshot submitted = null;
+        DocumentSnapshot confirmed = null;
+        for (DocumentSnapshot doc : docs) {
+            String status = normalizeFlowStatus(doc.getString("status"));
+            if (STATUS_PENDING.equals(status)) return doc;
+            if (STATUS_SUBMITTED.equals(status) && submitted == null) {
+                submitted = doc;
+            } else if (STATUS_CONFIRMED.equals(status) && confirmed == null) {
+                confirmed = doc;
+            }
+        }
+        return submitted != null ? submitted : confirmed;
+    }
+
+    private void createMissingExpenseDebtAndOpen(@NonNull WorkspaceRow row) {
+        if (row.snapshot == null || currentGroupId == null) return;
+        String myEmail = currentUserEmail();
+        Map<String, Double> split = parseCustomSplitPercentages(row.snapshot.getString("customSplit"));
+        Double percentage = split.get(myEmail);
+        Double expenseAmount = row.snapshot.getDouble("amount");
+        String payerEmail = PaymentAccessPolicy.normalizeEmail(row.snapshot.getString("payerEmail"));
+        if (percentage == null || expenseAmount == null || expenseAmount <= 0 || payerEmail.isEmpty()) {
+            NoticeUtils.show(requireContext(), "No se pudo preparar tu justificante para este gasto");
+            return;
+        }
+        double debtAmount = round2(expenseAmount * (percentage / 100.0));
+        Map<String, Object> data = new HashMap<>();
+        data.put("groupId", currentGroupId);
+        data.put("groupName", currentGroupName);
+        data.put("sourceType", "expense");
+        data.put("sourceId", row.id);
+        data.put("concept", row.snapshot.getString("concept"));
+        data.put("amount", debtAmount);
+        data.put("debtorEmail", myEmail);
+        data.put("creditorEmail", payerEmail);
+        data.put("dueAt", row.snapshot.getDate("dueAt"));
+        data.put("dueDateText", DateInputUtils.normalizeToDisplay(row.snapshot.getString("dueDateText")));
+        data.put("priority", row.snapshot.getString("priority") == null ? "media" : row.snapshot.getString("priority").toLowerCase(Locale.ROOT));
+        data.put("status", STATUS_PENDING);
+        data.put("createdAt", FieldValue.serverTimestamp());
+
+        var debtRef = db.collection("payment_deadlines").document();
+        debtRef.set(data)
+                .addOnSuccessListener(v -> debtRef.get()
+                        .addOnSuccessListener(createdDoc -> {
+                            if (!createdDoc.exists()) {
+                                NoticeUtils.show(requireContext(), "No se pudo abrir tu justificante para este gasto");
+                                return;
+                            }
+                            PendingDebtRequest debt = new PendingDebtRequest(
+                                    createdDoc.getId(),
+                                    pendingDebtFallbackConcept(createdDoc),
+                                    createdDoc.getDouble("amount") == null ? debtAmount : createdDoc.getDouble("amount"),
+                                    payerEmail,
+                                    DateInputUtils.normalizeToDisplay(createdDoc.getString("dueDateText")),
+                                    createdDoc.getDate("dueAt"),
+                                    createdDoc.getString("priority") == null ? "media" : createdDoc.getString("priority").toLowerCase(Locale.ROOT),
+                                    createdDoc
+                            );
+                            createPaymentDialog(debt);
+                        })
+                        .addOnFailureListener(e -> NoticeUtils.show(requireContext(), "No se pudo abrir tu justificante para este gasto")))
+                .addOnFailureListener(e -> NoticeUtils.show(requireContext(), "No se pudo preparar tu justificante para este gasto"));
+    }
+
     private boolean canEditOrDeleteExpense(@NonNull DocumentSnapshot expenseDoc) {
         if (!canManageExpense(expenseDoc.getString("payerId"))) return false;
+        if (isExpenseAssignedToCurrentUser(expenseDoc)) return false;
         String status = normalizeFlowStatus(expenseDoc.getString("status"));
         return STATUS_REQUESTED.equals(status);
     }
@@ -6379,7 +6804,9 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     }
 
     private boolean canDeletePayment(@NonNull DocumentSnapshot paymentDoc) {
+        String status = normalizeFlowStatus(paymentDoc.getString("status"));
         return PaymentAccessPolicy.canDeletePayment(
+                status,
                 isOwnerUser(),
                 currentUserEmail(),
                 paymentDoc.getString("fromEmail")
@@ -6404,7 +6831,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         String action = "confirmed".equalsIgnoreCase(targetStatus) ? "aceptar este pago" : "cambiar el estado";
         View content = DialogUtils.createMessageView(
                 requireContext(),
-                "Vas a " + action + " este pago.\n\\n¿Deseas continuar?"
+                "Vas a " + action + " este pago.\n\n¿Deseas continuar?"
         );
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
@@ -6712,6 +7139,138 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         }
     }
 
+    private View buildPaymentInfoContent(@NonNull WorkspaceRow row) {
+        LinearLayout container = new LinearLayout(requireContext());
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.addView(DialogUtils.createInfoRowsView(requireContext(), buildPaymentInfoRows(row)));
+
+        String proofUri = row.snapshot == null ? "" : row.snapshot.getString("ticketUri");
+        boolean hasProof = proofUri != null && !proofUri.trim().isEmpty();
+        if (proofUri != null && !proofUri.trim().isEmpty()) {
+            TextView proofTitle = new TextView(requireContext());
+            proofTitle.setText("Justificante subido");
+            proofTitle.setTextColor(requireContext().getColor(R.color.text_light));
+            proofTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            proofTitle.setTypeface(proofTitle.getTypeface(), android.graphics.Typeface.BOLD);
+            LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+            );
+            titleParams.topMargin = dp(12);
+            proofTitle.setLayoutParams(titleParams);
+            container.addView(proofTitle);
+
+            ImageView proofImage = new ImageView(requireContext());
+            proofImage.setAdjustViewBounds(true);
+            proofImage.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            proofImage.setBackgroundResource(R.drawable.bg_input_dark_round);
+            proofImage.setClipToOutline(true);
+            LinearLayout.LayoutParams imageParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dp(260)
+            );
+            imageParams.topMargin = dp(8);
+            proofImage.setLayoutParams(imageParams);
+            loadProofPreviewAsync(proofImage, proofUri, 1280, 1280);
+            container.addView(proofImage);
+        }
+
+        ScrollView scrollView = new ScrollView(requireContext());
+        scrollView.setFillViewport(true);
+        scrollView.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
+        scrollView.addView(container);
+        if (hasProof) {
+            scrollView.setLayoutParams(new ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(430)
+            ));
+        }
+        return scrollView;
+    }
+
+    private void loadProofPreviewAsync(@NonNull ImageView imageView, @NonNull String proofUri, int maxWidth, int maxHeight) {
+        imageView.setImageDrawable(null);
+        Thread worker = new Thread(() -> {
+            Bitmap bitmap = decodeSampledBitmapFromUri(proofUri, maxWidth, maxHeight);
+            if (!isAdded()) return;
+            imageView.post(() -> {
+                if (!isAdded()) return;
+                if (bitmap != null) {
+                    imageView.setImageBitmap(bitmap);
+                }
+            });
+        }, "proof-preview-loader");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    @Nullable
+    private Bitmap decodeSampledBitmapFromUri(@Nullable String uriValue, int reqWidth, int reqHeight) {
+        if (uriValue == null || uriValue.trim().isEmpty() || !isAdded()) return null;
+        Uri uri = Uri.parse(uriValue);
+        try {
+            BitmapFactory.Options bounds = new BitmapFactory.Options();
+            bounds.inJustDecodeBounds = true;
+            try (var stream = requireContext().getContentResolver().openInputStream(uri)) {
+                if (stream == null) return null;
+                BitmapFactory.decodeStream(stream, null, bounds);
+            }
+
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inSampleSize = calculateInSampleSize(bounds, reqWidth, reqHeight);
+            options.inPreferredConfig = Bitmap.Config.RGB_565;
+            try (var stream = requireContext().getContentResolver().openInputStream(uri)) {
+                if (stream == null) return null;
+                Bitmap bitmap = BitmapFactory.decodeStream(stream, null, options);
+                return applyExifRotation(uri, bitmap);
+            }
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private int calculateInSampleSize(@NonNull BitmapFactory.Options options, int reqWidth, int reqHeight) {
+        int height = options.outHeight;
+        int width = options.outWidth;
+        int inSampleSize = 1;
+        if (height <= 0 || width <= 0) return inSampleSize;
+        while ((height / inSampleSize) > reqHeight || (width / inSampleSize) > reqWidth) {
+            inSampleSize *= 2;
+        }
+        return Math.max(1, inSampleSize);
+    }
+
+    @Nullable
+    private Bitmap applyExifRotation(@NonNull Uri uri, @Nullable Bitmap bitmap) {
+        if (bitmap == null || !isAdded()) return bitmap;
+        try (var stream = requireContext().getContentResolver().openInputStream(uri)) {
+            if (stream == null) return bitmap;
+            ExifInterface exif = new ExifInterface(stream);
+            int orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
+            Matrix matrix = new Matrix();
+            switch (orientation) {
+                case ExifInterface.ORIENTATION_ROTATE_90:
+                    matrix.postRotate(90f);
+                    break;
+                case ExifInterface.ORIENTATION_ROTATE_180:
+                    matrix.postRotate(180f);
+                    break;
+                case ExifInterface.ORIENTATION_ROTATE_270:
+                    matrix.postRotate(270f);
+                    break;
+                default:
+                    return bitmap;
+            }
+            Bitmap rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+            if (rotated != bitmap) {
+                bitmap.recycle();
+            }
+            return rotated;
+        } catch (Exception ignored) {
+            return bitmap;
+        }
+    }
+
     private void deleteDeadlinesBySource(String sourceType, String sourceId) {
         db.collection("payment_deadlines")
                 .whereEqualTo("sourceType", sourceType)
@@ -6834,20 +7393,157 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         }
         try {
             PdfDocument pdfDocument = new PdfDocument();
-            PdfDocument.PageInfo pageInfo = new PdfDocument.PageInfo.Builder(595, 842, 1).create();
-            PdfDocument.Page page = pdfDocument.startPage(pageInfo);
-            android.graphics.Paint paint = new android.graphics.Paint();
-            paint.setColor(ContextCompat.getColor(requireContext(), R.color.text_light));
-            paint.setTextSize(14f);
-            int y = 40;
-            page.getCanvas().drawText("Resumen mensual - " + currentGroupName, 30, y, paint);
-            y += 28;
-            for (WorkspaceRow row : expenseRows) {
-                if (y > 800) break;
-                page.getCanvas().drawText(row.title + " | " + row.subtitle + " | " + row.amount, 30, y, paint);
-                y += 22;
+            final int pageWidth = 595;
+            final int pageHeight = 842;
+            final float margin = 30f;
+            final float contentWidth = pageWidth - (margin * 2f);
+            final int totalRows = expenseRows.size();
+            final String safeGroupName = currentGroupName == null || currentGroupName.trim().isEmpty()
+                    ? "Piso actual"
+                    : currentGroupName.trim();
+
+            android.graphics.Paint backgroundPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            backgroundPaint.setShader(new android.graphics.LinearGradient(
+                    0f, 0f, pageWidth, pageHeight,
+                    Color.parseColor("#F5FBFF"),
+                    Color.parseColor("#EAF4FF"),
+                    android.graphics.Shader.TileMode.CLAMP
+            ));
+
+            android.graphics.Paint headerPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            headerPaint.setShader(new android.graphics.LinearGradient(
+                    0f, 0f, pageWidth, 220f,
+                    Color.parseColor("#0F172A"),
+                    Color.parseColor("#123B63"),
+                    android.graphics.Shader.TileMode.CLAMP
+            ));
+
+            android.graphics.Paint cardPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            cardPaint.setColor(Color.WHITE);
+            cardPaint.setShadowLayer(10f, 0f, 4f, Color.argb(28, 15, 23, 42));
+
+            android.graphics.Paint titlePaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            titlePaint.setColor(Color.WHITE);
+            titlePaint.setTextAlign(android.graphics.Paint.Align.CENTER);
+            titlePaint.setTextSize(24f);
+            titlePaint.setFakeBoldText(true);
+
+            android.graphics.Paint subtitlePaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            subtitlePaint.setColor(Color.parseColor("#D6E8FF"));
+            subtitlePaint.setTextAlign(android.graphics.Paint.Align.CENTER);
+            subtitlePaint.setTextSize(11f);
+
+            android.graphics.Paint summaryLabelPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            summaryLabelPaint.setColor(Color.parseColor("#5B708A"));
+            summaryLabelPaint.setTextSize(10f);
+
+            android.graphics.Paint summaryValuePaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            summaryValuePaint.setColor(Color.parseColor("#10233A"));
+            summaryValuePaint.setTextSize(16f);
+            summaryValuePaint.setFakeBoldText(true);
+
+            android.graphics.Paint bodyTitlePaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            bodyTitlePaint.setColor(Color.parseColor("#10233A"));
+            bodyTitlePaint.setTextSize(13f);
+            bodyTitlePaint.setFakeBoldText(true);
+
+            android.graphics.Paint bodyTextPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            bodyTextPaint.setColor(Color.parseColor("#465A72"));
+            bodyTextPaint.setTextSize(10.5f);
+
+            android.graphics.Paint amountPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            amountPaint.setTextSize(13f);
+            amountPaint.setFakeBoldText(true);
+            amountPaint.setTextAlign(android.graphics.Paint.Align.RIGHT);
+
+            android.graphics.Paint chipPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            android.graphics.Paint chipTextPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            chipTextPaint.setColor(Color.WHITE);
+            chipTextPaint.setTextSize(9f);
+            chipTextPaint.setFakeBoldText(true);
+            chipTextPaint.setTextAlign(android.graphics.Paint.Align.CENTER);
+
+            android.graphics.Paint footerPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            footerPaint.setColor(Color.parseColor("#7A8CA3"));
+            footerPaint.setTextSize(9f);
+            footerPaint.setTextAlign(android.graphics.Paint.Align.CENTER);
+
+            int pageNumber = 1;
+            int rowIndex = 0;
+            while (rowIndex < totalRows) {
+                PdfDocument.PageInfo pageInfo = new PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create();
+                PdfDocument.Page page = pdfDocument.startPage(pageInfo);
+                android.graphics.Canvas canvas = page.getCanvas();
+
+                canvas.drawRect(0f, 0f, pageWidth, pageHeight, backgroundPaint);
+                canvas.drawRoundRect(new android.graphics.RectF(margin, margin, pageWidth - margin, 170f), 28f, 28f, headerPaint);
+
+                canvas.drawText("Resumen de Movimientos", pageWidth / 2f, 78f, titlePaint);
+                canvas.drawText(safeGroupName, pageWidth / 2f, 106f, subtitlePaint);
+                canvas.drawText("Documento generado por FlatShare", pageWidth / 2f, 126f, subtitlePaint);
+
+                float summaryTop = 145f;
+                float summaryGap = 14f;
+                float summaryWidth = (contentWidth - summaryGap) / 2f;
+                drawPdfSummaryCard(
+                        canvas,
+                        margin,
+                        summaryTop,
+                        summaryWidth,
+                        74f,
+                        "Movimientos incluidos",
+                        String.valueOf(totalRows),
+                        Color.parseColor("#DDF4FF"),
+                        Color.parseColor("#0F6E9C"),
+                        cardPaint,
+                        summaryLabelPaint,
+                        summaryValuePaint
+                );
+                drawPdfSummaryCard(
+                        canvas,
+                        margin + summaryWidth + summaryGap,
+                        summaryTop,
+                        summaryWidth,
+                        74f,
+                        "Piso",
+                        safeGroupName,
+                        Color.parseColor("#E6FFF4"),
+                        Color.parseColor("#11795F"),
+                        cardPaint,
+                        summaryLabelPaint,
+                        summaryValuePaint
+                );
+
+                float cursorY = 245f;
+                while (rowIndex < totalRows) {
+                    WorkspaceRow row = expenseRows.get(rowIndex);
+                    String status = resolvePdfRowStatus(row);
+                    float cardHeight = estimatePdfRowHeight(row, bodyTextPaint, contentWidth - 34f);
+                    if (cursorY + cardHeight > 785f) {
+                        break;
+                    }
+                    drawPdfMovementCard(
+                            canvas,
+                            row,
+                            margin,
+                            cursorY,
+                            contentWidth,
+                            status,
+                            cardPaint,
+                            bodyTitlePaint,
+                            bodyTextPaint,
+                            amountPaint,
+                            chipPaint,
+                            chipTextPaint
+                    );
+                    cursorY += cardHeight + 14f;
+                    rowIndex++;
+                }
+
+                canvas.drawText("Pagina " + pageNumber, pageWidth / 2f, pageHeight - 22f, footerPaint);
+                pdfDocument.finishPage(page);
+                pageNumber++;
             }
-            pdfDocument.finishPage(page);
 
             String fileName = "flatshare_resumen_" + System.currentTimeMillis() + ".pdf";
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -6885,6 +7581,148 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         }
     }
 
+    private void drawPdfSummaryCard(
+            @NonNull android.graphics.Canvas canvas,
+            float left,
+            float top,
+            float width,
+            float height,
+            @NonNull String label,
+            @NonNull String value,
+            int accentBackground,
+            int accentColor,
+            @NonNull android.graphics.Paint cardPaint,
+            @NonNull android.graphics.Paint labelPaint,
+            @NonNull android.graphics.Paint valuePaint
+    ) {
+        canvas.drawRoundRect(new android.graphics.RectF(left, top, left + width, top + height), 22f, 22f, cardPaint);
+
+        android.graphics.Paint accentPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        accentPaint.setColor(accentBackground);
+        canvas.drawRoundRect(new android.graphics.RectF(left + 14f, top + 14f, left + 58f, top + 58f), 18f, 18f, accentPaint);
+
+        android.graphics.Paint accentDotPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        accentDotPaint.setColor(accentColor);
+        canvas.drawCircle(left + 36f, top + 36f, 10f, accentDotPaint);
+
+        android.graphics.Paint localValuePaint = new android.graphics.Paint(valuePaint);
+        localValuePaint.setColor(accentColor);
+        localValuePaint.setTextSize(value.length() > 18 ? 11f : valuePaint.getTextSize());
+
+        canvas.drawText(label, left + 72f, top + 30f, labelPaint);
+        canvas.drawText(value, left + 72f, top + 54f, localValuePaint);
+    }
+
+    private float estimatePdfRowHeight(@NonNull WorkspaceRow row, @NonNull android.graphics.Paint bodyTextPaint, float maxWidth) {
+        int subtitleLines = wrapPdfText(row.subtitle == null ? "" : row.subtitle, bodyTextPaint, maxWidth).size();
+        return 74f + (Math.max(1, subtitleLines) - 1) * 12f;
+    }
+
+    private void drawPdfMovementCard(
+            @NonNull android.graphics.Canvas canvas,
+            @NonNull WorkspaceRow row,
+            float left,
+            float top,
+            float width,
+            @NonNull String status,
+            @NonNull android.graphics.Paint cardPaint,
+            @NonNull android.graphics.Paint titlePaint,
+            @NonNull android.graphics.Paint bodyTextPaint,
+            @NonNull android.graphics.Paint amountPaint,
+            @NonNull android.graphics.Paint chipPaint,
+            @NonNull android.graphics.Paint chipTextPaint
+    ) {
+        float height = estimatePdfRowHeight(row, bodyTextPaint, width - 34f);
+        canvas.drawRoundRect(new android.graphics.RectF(left, top, left + width, top + height), 24f, 24f, cardPaint);
+
+        int[] palette = resolvePdfStatusPalette(status, row.type);
+        android.graphics.Paint leftBarPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        leftBarPaint.setColor(palette[0]);
+        canvas.drawRoundRect(new android.graphics.RectF(left, top, left + 8f, top + height), 24f, 24f, leftBarPaint);
+
+        android.graphics.Paint localTitlePaint = new android.graphics.Paint(titlePaint);
+        localTitlePaint.setColor(Color.parseColor("#11263D"));
+        canvas.drawText(row.title == null ? "Movimiento" : row.title, left + 22f, top + 24f, localTitlePaint);
+
+        android.graphics.Paint localAmountPaint = new android.graphics.Paint(amountPaint);
+        localAmountPaint.setColor(palette[1]);
+        localAmountPaint.setTextSize(row.amount != null && row.amount.length() > 12 ? 11.5f : 13f);
+        canvas.drawText(row.amount == null ? "0.00 EUR" : row.amount, left + width - 18f, top + 24f, localAmountPaint);
+
+        chipPaint.setColor(palette[1]);
+        android.graphics.RectF chipRect = new android.graphics.RectF(left + 22f, top + 34f, left + 112f, top + 56f);
+        canvas.drawRoundRect(chipRect, 11f, 11f, chipPaint);
+        canvas.drawText(statusLabel(status), chipRect.centerX(), top + 49f, chipTextPaint);
+
+        float textY = top + 71f;
+        for (String line : wrapPdfText(row.subtitle == null ? "" : row.subtitle, bodyTextPaint, width - 34f)) {
+            canvas.drawText(line, left + 22f, textY, bodyTextPaint);
+            textY += 12f;
+        }
+    }
+
+    @NonNull
+    private List<String> wrapPdfText(@NonNull String text, @NonNull android.graphics.Paint paint, float maxWidth) {
+        List<String> lines = new ArrayList<>();
+        String safeText = text.trim();
+        if (safeText.isEmpty()) {
+            lines.add("");
+            return lines;
+        }
+        String[] words = safeText.split("\\s+");
+        StringBuilder current = new StringBuilder();
+        for (String word : words) {
+            String candidate = current.length() == 0 ? word : current + " " + word;
+            if (paint.measureText(candidate) <= maxWidth) {
+                current.setLength(0);
+                current.append(candidate);
+            } else {
+                if (current.length() > 0) {
+                    lines.add(current.toString());
+                    current.setLength(0);
+                    current.append(word);
+                } else {
+                    lines.add(word);
+                }
+            }
+        }
+        if (current.length() > 0) {
+            lines.add(current.toString());
+        }
+        return lines;
+    }
+
+    @NonNull
+    private String resolvePdfRowStatus(@NonNull WorkspaceRow row) {
+        if (ROW_TYPE_PENDING_DEBT.equals(row.type)) {
+            return STATUS_REQUESTED;
+        }
+        if ("expense".equals(row.type)) {
+            return effectiveExpenseStatus(row.id, row.snapshot);
+        }
+        if (row.snapshot == null) {
+            return STATUS_REQUESTED;
+        }
+        return normalizeFlowStatus(row.snapshot.getString("status"));
+    }
+
+    @NonNull
+    private int[] resolvePdfStatusPalette(@NonNull String status, @Nullable String rowType) {
+        if ("reminder".equals(rowType)) {
+            return new int[]{Color.parseColor("#8B5CF6"), Color.parseColor("#7C3AED")};
+        }
+        if (STATUS_CONFIRMED.equals(status)) {
+            return new int[]{Color.parseColor("#D9FAEC"), Color.parseColor("#119669")};
+        }
+        if (STATUS_PENDING.equals(status)) {
+            return new int[]{Color.parseColor("#FFF2CC"), Color.parseColor("#D97706")};
+        }
+        if (STATUS_SUBMITTED.equals(status)) {
+            return new int[]{Color.parseColor("#E0ECFF"), Color.parseColor("#2563EB")};
+        }
+        return new int[]{Color.parseColor("#FFE0E0"), Color.parseColor("#DC2626")};
+    }
+
     private static class WorkspaceRow {
         final String id;
         final String type;
@@ -6900,6 +7738,20 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             this.subtitle = subtitle;
             this.amount = amount;
             this.snapshot = snapshot;
+        }
+    }
+
+    private static class ExpenseWriteSeed {
+        final String id;
+        final String concept;
+        final double amount;
+        final String customSplit;
+
+        ExpenseWriteSeed(@NonNull String id, @NonNull String concept, double amount, @NonNull String customSplit) {
+            this.id = id;
+            this.concept = concept;
+            this.amount = amount;
+            this.customSplit = customSplit;
         }
     }
 
@@ -7235,7 +8087,9 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             if (ROW_TYPE_PENDING_DEBT.equals(row.type)) {
                 flowStatus = STATUS_REQUESTED;
             } else if (row.snapshot != null) {
-                flowStatus = normalizeFlowStatus(row.snapshot.getString("status"));
+                flowStatus = "expense".equals(row.type)
+                        ? effectiveExpenseStatus(row.id, row.snapshot)
+                        : normalizeFlowStatus(row.snapshot.getString("status"));
             }
 
             if ("reminder".equals(row.type)) {
@@ -7276,6 +8130,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         }
     }
 }
+
 
 
 

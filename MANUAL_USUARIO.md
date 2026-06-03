@@ -205,6 +205,7 @@ Operaciones:
 - Registro de actividad (`activity_logs`).
 - OCR de ticket para importe.
 - Exportacion PDF resumen mensual.
+- El PDF de resumen usa ahora una presentacion visual cuidada: cabecera centrada, tarjetas por movimiento, paginacion y colores diferenciados por estado.
 - Exportacion PDF compatible:
   - Android 10+ (`API 29+`): guarda en Descargas del dispositivo.
   - Android 7-9 (`API 24-28`): guarda en almacenamiento externo privado de la app.
@@ -237,12 +238,17 @@ Campos de pago:
   - `Pagado` (verde).
 - Edicion y borrado: solo permitidos en estado `Solicitado`.
 - Cambio manual de estado del pago: solo permitido mientras está en `Solicitado`.
+- Si un pago ya está en `Pendiente`, `En revisión` o `Pagado`, deja de poder borrarse o editarse.
+- No se permite crear un gasto dirigido solo al propio pagador; debe haber al menos otro destinatario real en el reparto.
+- Las categorías al crear gasto se sugieren a partir de gastos previos del mismo piso, no de otros pisos.
+- Si vuelves a escribir la misma categoría (aunque cambien mayúsculas o espacios), se reutiliza la misma clave lógica para mantener el balance agrupado; si escribes una distinta, se crea una nueva categoría para ese piso.
 
 Flujo de inquilino con deuda (`alquiler fijo` y `alquiler variable`):
 - En `Movimientos` se muestran sus pendientes por confirmar (`payment_deadlines`) como lista accionable.
 - Cada item muestra concepto, importe, fecha limite, destinatario y estado pendiente.
 - Si el pendiente nace de un `gasto`, ese gasto sigue siendo el origen y se crea una deuda individual por cada deudor según `customSplit`; no se duplica el gasto principal.
 - Al pulsar un pendiente, se abre `Confirmar gasto pendiente` o `Registrar pago pendiente` con importe/concepto/fecha/destino precargados y bloqueados según el origen.
+- Si eres propietario del piso pero ese gasto te ha sido dirigido a ti como deudor, la app prioriza igualmente el flujo de `Confirmar gasto pendiente`: no te deja editar ni borrar ese gasto desde su detalle.
 - `Adjuntar foto` del justificante es obligatorio para enviar la confirmación o el pago.
 - El botón `Enviar pago` o `Enviar confirmación` solo se habilita cuando hay justificante adjunto.
 - Si no hay deuda, se muestra `No tienes pendientes por confirmar`.
@@ -265,6 +271,8 @@ Operaciones:
 Configuracion:
 - Titulo/concepto.
 - Fecha inicio.
+- Fecha final opcional para limitar la recurrencia.
+- La fecha `Hasta` se respeta tambien en `Calendario`: un recordatorio diario con mismo inicio y fin solo aparece ese dia y no se arrastra a fechas posteriores.
 - Frecuencia: unico, diario, semanal, mensual, personalizado.
 - Fecha fin opcional.
 - Destinatarios:
@@ -493,6 +501,16 @@ En cada tarea nueva:
 - Cuando registras un pago desde `Pagar pendiente`, el destinatario queda bloqueado al acreedor real de esa deuda.
 - En ese flujo no se permite cambiar tipo de destino, ni añadir/quitar líneas de miembros/habitaciones.
 - El importe que aparece corresponde a tu parte pendiente (no al total de otros inquilinos).
+
+### Gastos dirigidos al propietario (2026-06-03)
+- Si un gasto está asignado al propietario como deudor, ese propietario ve el flujo de confirmación con justificante igual que cualquier otro usuario afectado.
+- En ese caso especial, el detalle del gasto deja de ofrecer `Editar` y `Borrar`, aunque el usuario siga siendo propietario del piso.
+- Mientras su deuda esté pendiente, el modal del gasto muestra abajo el botón `Subir justificante`.
+- Si el gasto antiguo todavía no tenía creada su deuda técnica en `payment_deadlines`, la app la reconstruye al pulsar ese botón para no bloquear el envío del justificante.
+- En la pantalla de justificante, importe, concepto, destino, categoría, fecha y prioridad quedan en solo lectura: el único paso editable es adjuntar la foto.
+- Al enviar la foto, su parte queda `En revisión` y la validación final corresponde a quien adelantó el gasto.
+- Cuando ya existe una confirmación ligada a ese gasto para el usuario actual, `Movimientos` deja de mostrar además el gasto original para evitar duplicados visuales.
+- El estado visible de un gasto con deudas asociadas se recalcula desde `payment_deadlines`, para que propietario y deudor vean la misma transición efectiva entre `Solicitado`, `Pendiente`, `En revisión` y `Pagado`.
 
 ### Pagos pendientes (2026-05-27) - Validación estricta y OCR seguro
 - Si el pago viene de una deuda pendiente, el OCR no puede sobreescribir el importe bloqueado.
@@ -792,4 +810,43 @@ En cada tarea nueva:
 - Se reorganiza logica interna de Pisos/Balance para reducir dependencia de fragments gigantes.
 - No cambia el flujo funcional para usuario final: los cambios son de estructura tecnica para estabilidad y mantenimiento.
 - Se amplia checklist de pruebas con regresion especifica para alta por provincia, etiquetas de miembros y textos de gestion.
+
+### UI (2026-06-03) - Texto del boton en info del piso
+- En la informacion del piso, el boton visible pasa a mostrarse como `Añadir inquilinos` sin cambiar la logica asociada.
+
+### Confirmaciones (2026-06-03) - Vista del justificante
+- Cuando una confirmacion o pago ya tiene justificante subido, su detalle muestra tambien la imagen para poder revisarla visualmente.
+
+### Gastos compartidos (2026-06-03) - Un gasto por deudor
+- Cuando repartes un gasto entre varias personas, la app ya no guarda un unico gasto con reparto interno.
+- Ahora crea un gasto independiente por cada deudor, con su importe exacto y su propio flujo de confirmacion.
+- Ejemplo: si el total era 53 EUR y el reparto era 20 EUR + 33 EUR, se generan dos gastos distintos: uno de 20 EUR y otro de 33 EUR.
+- Esto evita duplicados raros, mezclas de estados y errores al aceptar justificantes.
+- Si recibes una confirmacion de un gasto que tu adelantaste, `Movimientos` te la muestra aunque no seas el propietario del piso, para que puedas aceptarla desde tu propia cuenta.
+- En `Reparto equitativo`, si hay varios deudores posibles, el formulario expande automaticamente el reparto para todos ellos y genera un gasto por cada persona.
+
+### Balance (2026-06-03) - Renombre visual
+- La pantalla de balance pasa a presentar el bloque principal como `Balance de gastos`.
+- El grafico mensual se renombra a `Balance mensual` para darle el mismo peso visual que al bloque principal.
+- Se oculta el detalle secundario por mes y miembro para dejar solo los bloques principales, sin cambiar calculos ni datos.
+
+### Balance (2026-06-03) - Dos bloques principales y rango temporal
+- La pantalla queda reducida a dos visualizaciones principales con el mismo peso: `Balance de gastos` y `Balance por tiempo`.
+- Se elimina el tercer bloque secundario de balance para simplificar la lectura y evitar competir visualmente con los dos graficos principales.
+- `Balance por tiempo` incorpora un desplegable entre el titulo y la grafica para cambiar el rango visible.
+- El rango temporal permite ver al menos `Trimestre`, `Cuatrimestre`, `Semestre`, `Año completo` y `2 años`.
+- Las barras muestran los meses con etiqueta de mes y año corto para que un rango largo no repita nombres ambiguos.
+
+### Recordatorios y selectores (2026-06-03) - Etiquetas de inquilinos
+- En los selectores de personas visibles de la app se muestra el formato `Nombre (correo)` en lugar de solo nombre o solo email.
+- Se aplica al menos en recordatorios, pagos, reparto de gastos y selectores relacionados con residentes.
+- La recarga visual de recordatorios se protege para no mostrar duplicados por respuestas solapadas del listado.
+
+### Confirmaciones (2026-06-03) - Justificante y rendimiento
+- El detalle de una confirmacion con justificante permite desplazarse verticalmente para ver toda la imagen.
+- La vista previa del justificante se carga reducida y en segundo plano para evitar cierres o bloqueos al abrir gastos en revision.
+
+### Recordatorios (2026-06-03) - Rango de fechas respetado
+- Los recordatorios con recurrencia pasan a respetar la fecha `Hasta` tambien en `Calendario`.
+- Si un recordatorio empieza y termina el mismo dia, aunque su frecuencia sea `Diario`, solo se muestra y programa para ese unico dia.
 

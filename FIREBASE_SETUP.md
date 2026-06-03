@@ -447,9 +447,17 @@ Uso rápido:
 
 ## Politica de pagos
 - Un pago pendiente (`pending`) se puede confirmar (`confirmed`) por el propietario del piso o por el acreedor del pago (`toEmail`).
-- La edición y borrado de pagos se mantiene para propietario o creador del pago (`fromEmail`), respetando las invariantes de `groupId` y `fromEmail`.
+- La edición y borrado de pagos se mantiene para propietario o creador del pago (`fromEmail`) solo mientras el pago siga en `requested`, respetando las invariantes de `groupId` y `fromEmail`.
 - Cuando una deuda nace desde un gasto, el gasto sigue siendo el documento origen y se crean deudas individuales en `payment_deadlines` por cada deudor según `customSplit`.
+- Si el propietario también aparece como deudor dentro de ese `customSplit`, en app se le trata como deudor para ese gasto concreto: debe enviar justificante y no se le ofrece edición/borrado desde el detalle del gasto.
+- En ese escenario, el detalle del gasto muestra una acción específica para subir justificante mientras la deuda individual siga en `pending`.
+- Si un gasto legado no tuviera aún su documento en `payment_deadlines`, la app puede reconstruir esa deuda individual al iniciar el flujo de justificante del deudor.
+- El flujo de justificante bloquea el resto de campos del pago derivado: solo se adjunta la foto, sin permitir editar datos precargados.
 - Cuando el deudor sube justificante, la deuda pasa a `submitted`; cuando se acepta el pago, la deuda pasa a `confirmed` y se recalcula el estado del gasto origen.
+- En la vista de movimientos del propio deudor, si ya existe un `payment` ligado a `sourceType=expense` y `sourceId=<expenseId>`, se oculta la fila duplicada del gasto original.
+- Las sugerencias de categoría para crear gastos se obtienen solo de `expenses` del mismo `groupId`, para no mezclar categorías entre pisos.
+- La categoría se normaliza antes de guardarse (minúsculas y espacios estables), de modo que el balance reutiliza la misma categoría lógica cuando el nombre es el mismo.
+- La UI de `Movimientos` recalcula el estado efectivo del gasto desde `payment_deadlines` para reflejar de forma consistente confirmaciones enviadas, aceptadas o aún pendientes en todas las cuentas implicadas.
 - Para mostrar nombres reales en UI, se lee users.name (con fallback si no existe).
 - En registro, el usuario debe aceptar términos y se guardan `users.termsAccepted=true` y `users.termsAcceptedAt`.
 
@@ -523,4 +531,10 @@ Uso rápido:
 ## Nota tecnica (2026-06-01) - Refactor UI sin cambio de esquema
 - Esta iteracion solo mueve logica de presentacion a clases de servicio/utilidad en Android.
 - No se introducen nuevas colecciones, campos ni cambios de reglas Firestore.
+
+## Actualizacion funcional (2026-06-03) - Gastos repartidos por deudor
+- No se anaden nuevas colecciones ni campos obligatorios.
+- El reparto multiple de un gasto se materializa ahora en varios documentos de `expenses`, uno por cada deudor final.
+- Cada uno de esos gastos individuales mantiene su propio `customSplit` al 100% para el deudor afectado y genera su propia entrada en `payment_deadlines`.
+- El flujo de aceptacion sigue apoyandose en `payments` y `payment_deadlines`; no ha sido necesario cambiar `firestore.rules` para esta iteracion.
 

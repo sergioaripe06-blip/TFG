@@ -3,8 +3,6 @@ package com.sergio.flatshare.features.workspace.services;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.google.android.gms.tasks.Task;
-import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
@@ -48,28 +46,18 @@ public class CategorySuggestionsRepository {
             }
         }
 
-        Task<QuerySnapshot> expensesTask = db.collection("expenses")
+        db.collection("expenses")
                 .whereEqualTo("groupId", safeGroupId)
                 .orderBy("createdAt", Query.Direction.DESCENDING)
                 .limit(SUGGESTION_QUERY_LIMIT)
-                .get();
-        Task<QuerySnapshot> paymentsTask = db.collection("payments")
-                .whereEqualTo("groupId", safeGroupId)
-                .orderBy("createdAt", Query.Direction.DESCENDING)
-                .limit(SUGGESTION_QUERY_LIMIT)
-                .get();
-
-        Tasks.whenAllSuccess(expensesTask, paymentsTask)
-                .addOnSuccessListener(results -> {
+                .get()
+                .addOnSuccessListener(snapshot -> {
                     LinkedHashMap<String, String> unique = new LinkedHashMap<>();
-                    for (Object result : results) {
-                        if (!(result instanceof QuerySnapshot snapshot)) continue;
-                        for (DocumentSnapshot doc : snapshot.getDocuments()) {
-                            String normalized = normalizeCategoryKey(doc.getString("category"));
-                            if (normalized.isEmpty() || "otros".equals(normalized)) continue;
-                            if (!unique.containsKey(normalized)) {
-                                unique.put(normalized, normalized);
-                            }
+                    for (DocumentSnapshot doc : snapshot.getDocuments()) {
+                        String normalized = normalizeCategoryKey(doc.getString("category"));
+                        if (normalized.isEmpty() || "otros".equals(normalized)) continue;
+                        if (!unique.containsKey(normalized)) {
+                            unique.put(normalized, normalized);
                         }
                     }
                     List<String> out = new ArrayList<>(unique.values());
@@ -114,4 +102,3 @@ public class CategorySuggestionsRepository {
         }
     }
 }
-

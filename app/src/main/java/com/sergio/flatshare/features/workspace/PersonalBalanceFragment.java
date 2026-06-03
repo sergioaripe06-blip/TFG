@@ -30,14 +30,12 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Comparator;
 
 public class PersonalBalanceFragment extends Fragment {
     private static final String BILLING_FIXED = "fixed";
@@ -57,22 +55,21 @@ public class PersonalBalanceFragment extends Fragment {
             Color.parseColor("#9AA5B1")
     };
     private static final String GROUP_ALL = "Todas las habitaciones";
-    private static final int MONTHLY_BAR_COUNT = 6;
     private static final int BASE_PIE_CHART_HEIGHT_DP = 270;
     private static final int PIE_CHART_STEP_HEIGHT_DP = 18;
     private static final int PIE_CHART_MAX_HEIGHT_DP = 360;
 
-    private enum OwnerPeriod {
-        MONTH("Mes actual", 1),
+    private enum TimePeriod {
         QUARTER("Trimestre", 3),
         FOUR_MONTHS("Cuatrimestre", 4),
         HALF_YEAR("Semestre", 6),
-        YEAR("Año", 12);
+        YEAR("Año completo", 12),
+        TWO_YEARS("2 años", 24);
 
         final String label;
         final int months;
 
-        OwnerPeriod(String label, int months) {
+        TimePeriod(String label, int months) {
             this.label = label;
             this.months = months;
         }
@@ -80,21 +77,15 @@ public class PersonalBalanceFragment extends Fragment {
 
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
     private final List<GroupOption> groupOptions = new ArrayList<>();
-    private final LinkedHashSet<String> ownedGroupIds = new LinkedHashSet<>();
     private final Map<String, String> ownerMemberNamesByEmail = new HashMap<>();
 
     private PieChartView chart;
     private MonthlyBarChartView monthlyChart;
-    private MonthlyBarChartView ownerPaidChart;
     private LinearLayout legend;
-    private LinearLayout ownerStatsSection;
     private Spinner groupSpinner;
-    private Spinner ownerPeriodSpinner;
+    private Spinner timePeriodSpinner;
     private TextView monthlyChartTitleTv;
     private TextView monthlyChartSubtitleTv;
-    private TextView ownerChartSubtitleTv;
-    private TextView ownerMemberDetailTitleTv;
-    private LinearLayout ownerMemberDetailContainer;
     private boolean viewActive = false;
 
     @Nullable
@@ -104,18 +95,13 @@ public class PersonalBalanceFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_personal_balance, container, false);
         chart = view.findViewById(R.id.personalPieChart);
         monthlyChart = view.findViewById(R.id.monthlyBarChart);
-        ownerPaidChart = view.findViewById(R.id.ownerPaidChart);
         legend = view.findViewById(R.id.personalLegendContainer);
         groupSpinner = view.findViewById(R.id.groupSelectorSpinner);
-        ownerPeriodSpinner = view.findViewById(R.id.ownerPeriodSpinner);
-        ownerStatsSection = view.findViewById(R.id.ownerStatsSection);
+        timePeriodSpinner = view.findViewById(R.id.timePeriodSpinner);
         monthlyChartTitleTv = view.findViewById(R.id.monthlyChartTitleTv);
         monthlyChartSubtitleTv = view.findViewById(R.id.monthlyChartSubtitleTv);
-        ownerChartSubtitleTv = view.findViewById(R.id.ownerChartSubtitleTv);
-        ownerMemberDetailTitleTv = view.findViewById(R.id.ownerMemberDetailTitleTv);
-        ownerMemberDetailContainer = view.findViewById(R.id.ownerMemberDetailContainer);
 
-        setupOwnerPeriodSelector();
+        setupTimePeriodSelector();
         loadUserGroupsAndSetupSelector();
         return view;
     }
@@ -130,20 +116,20 @@ public class PersonalBalanceFragment extends Fragment {
         return viewActive && isAdded() && getContext() != null;
     }
 
-    private void setupOwnerPeriodSelector() {
-        if (!canUseUi() || ownerPeriodSpinner == null) return;
+    private void setupTimePeriodSelector() {
+        if (!canUseUi() || timePeriodSpinner == null) return;
         List<String> labels = new ArrayList<>();
-        for (OwnerPeriod period : OwnerPeriod.values()) {
+        for (TimePeriod period : TimePeriod.values()) {
             labels.add(period.label);
         }
         Context context = getContext();
         if (context == null) return;
-        ownerPeriodSpinner.setAdapter(buildLightSpinnerAdapter(context, labels.toArray(new String[0])));
-        ownerPeriodSpinner.setSelection(0);
-        ownerPeriodSpinner.setOnItemSelectedListener(new SimpleItemSelectedListener() {
+        timePeriodSpinner.setAdapter(buildLightSpinnerAdapter(context, labels.toArray(new String[0])));
+        timePeriodSpinner.setSelection(3);
+        timePeriodSpinner.setOnItemSelectedListener(new SimpleItemSelectedListener() {
             @Override
             public void onChanged(int position) {
-                refreshOwnerPaidSection();
+                refreshChart();
             }
         });
     }
@@ -155,7 +141,6 @@ public class PersonalBalanceFragment extends Fragment {
         db.collection("groups").whereArrayContains("members", uid).get().addOnSuccessListener(result -> {
             if (!canUseUi() || groupSpinner == null) return;
             groupOptions.clear();
-            ownedGroupIds.clear();
             groupOptions.add(new GroupOption(GROUP_ALL, null, false));
 
             for (DocumentSnapshot doc : result.getDocuments()) {
@@ -163,7 +148,6 @@ public class PersonalBalanceFragment extends Fragment {
                 String name = doc.getString("name");
                 String ownerId = doc.getString("ownerId");
                 boolean isOwner = uid.equals(ownerId);
-                if (isOwner) ownedGroupIds.add(id);
                 groupOptions.add(new GroupOption(name == null ? "Piso" : name, id, isOwner));
             }
 
@@ -204,310 +188,47 @@ public class PersonalBalanceFragment extends Fragment {
             accumulateForManyGroups(allIds, false, myEmail, totals, () -> {
                 render(totals);
                 refreshPersonalPaidSection(selected, myEmail);
-                refreshOwnerPaidSection();
             });
         } else {
             accumulateForGroup(selected.groupId, false, myEmail, totals, () -> {
                 render(totals);
                 refreshPersonalPaidSection(selected, myEmail);
-                refreshOwnerPaidSection();
             });
         }
     }
 
     private void refreshPersonalPaidSection(GroupOption selected, String myEmail) {
         if (!canUseUi() || monthlyChart == null) return;
-        if (selected.groupId == null) {
-            if (monthlyChartTitleTv != null) {
-                monthlyChartTitleTv.setText("Pagado por mes (todas las habitaciones)");
-            }
-            if (monthlyChartSubtitleTv != null) {
-                monthlyChartSubtitleTv.setText("Tus gastos y pagos confirmados (EUR)");
-            }
-            refreshMonthlyPaidBars(getAllGroupIds(), myEmail);
-            return;
-        }
-
+        TimePeriod period = resolveTimePeriod();
         if (monthlyChartTitleTv != null) {
-            monthlyChartTitleTv.setText("Pagado este mes por inquilino");
+            monthlyChartTitleTv.setText("Balance por tiempo");
         }
         if (monthlyChartSubtitleTv != null) {
-            monthlyChartSubtitleTv.setText("Importe registrado en el piso seleccionado (EUR)");
+            String scope = selected.groupId == null
+                    ? "todas las habitaciones"
+                    : "el piso seleccionado";
+            monthlyChartSubtitleTv.setText("Tus gastos y pagos confirmados de " + scope + " en " + period.label.toLowerCase(Locale.ROOT) + " (EUR)");
         }
-        refreshTenantMonthlyBars(selected.groupId);
+        List<String> scopeGroupIds = selected.groupId == null
+                ? getAllGroupIds()
+                : java.util.Collections.singletonList(selected.groupId);
+        refreshTimeBalanceBars(scopeGroupIds, myEmail, period);
     }
 
-    private void refreshTenantMonthlyBars(String groupId) {
-        LinkedHashMap<String, Double> totalsByTenant = new LinkedHashMap<>();
-        db.collection("groups").document(groupId).get().addOnSuccessListener(groupDoc -> {
-            List<String> memberEmails = toLowerList(groupDoc.get("memberEmails"));
-            if (memberEmails != null) {
-                for (String email : memberEmails) {
-                    totalsByTenant.put(email, 0.0);
-                }
-            }
-
-            db.collection("expenses")
-                    .whereEqualTo("groupId", groupId)
-                    .get()
-                    .addOnSuccessListener(expenses -> {
-                        for (DocumentSnapshot doc : expenses.getDocuments()) {
-                            DateRange monthlyRange = currentMonthRange();
-                            DateRange guard = monthlyRange;
-                            java.util.Date date = resolveDocDate(doc);
-                            if (date == null || !guard.contains(date)) continue;
-                            String payerEmail = safeLower(doc.getString("payerEmail"));
-                            if (payerEmail.isEmpty()) continue;
-                            double amount = doc.getDouble("amount") == null ? 0.0 : doc.getDouble("amount");
-                            totalsByTenant.put(payerEmail, totalsByTenant.getOrDefault(payerEmail, 0.0) + amount);
-                        }
-
-                        db.collection("payments")
-                                .whereEqualTo("groupId", groupId)
-                                .whereEqualTo("status", "confirmed")
-                                .get()
-                                .addOnSuccessListener(payments -> {
-                                    for (DocumentSnapshot doc : payments.getDocuments()) {
-                                        DateRange monthlyRange = currentMonthRange();
-                                        DateRange guard = monthlyRange;
-                                        java.util.Date date = resolveDocDate(doc);
-                                        if (date == null || !guard.contains(date)) continue;
-                                        String fromEmail = safeLower(doc.getString("fromEmail"));
-                                        if (fromEmail.isEmpty()) continue;
-                                        double amount = doc.getDouble("amount") == null ? 0.0 : doc.getDouble("amount");
-                                        totalsByTenant.put(fromEmail, totalsByTenant.getOrDefault(fromEmail, 0.0) + amount);
-                                    }
-                                    renderTenantBarsWithResolvedNames(totalsByTenant);
-                                })
-                                .addOnFailureListener(e -> renderTenantBarsWithResolvedNames(totalsByTenant));
-                    })
-                    .addOnFailureListener(e -> renderTenantBarsWithResolvedNames(totalsByTenant));
-        }).addOnFailureListener(e -> renderTenantBarsWithResolvedNames(totalsByTenant));
-    }
-
-    private void renderTenantBarsWithResolvedNames(LinkedHashMap<String, Double> totalsByTenant) {
-        resolveNamesForEmails(new ArrayList<>(totalsByTenant.keySet()), () -> renderTenantBars(totalsByTenant));
-    }
-
-    private void renderTenantBars(LinkedHashMap<String, Double> totalsByTenant) {
-        if (!canUseUi() || monthlyChart == null) return;
-
-        List<MonthlyBarChartView.Bar> bars = new ArrayList<>();
-        int index = 1;
-        for (Map.Entry<String, Double> entry : totalsByTenant.entrySet()) {
-            String email = entry.getKey();
-            String displayName = memberNameOnly(email);
-            String label = "Sin nombre".equalsIgnoreCase(displayName)
-                    ? "Miembro " + index
-                    : shortLabel(displayName);
-            if (label.isEmpty()) {
-                label = "M" + index;
-            }
-            bars.add(new MonthlyBarChartView.Bar(label, entry.getValue().floatValue()));
-            index++;
-        }
-        monthlyChart.setBars(bars);
-    }
-
-    private void refreshOwnerPaidSection() {
-        if (!canUseUi() || ownerStatsSection == null || ownerPaidChart == null) return;
-        if (FirebaseAuth.getInstance().getCurrentUser() == null) return;
-
-        GroupOption selected = resolveSelectedGroupOption();
-        List<String> scopeGroupIds = resolveOwnerScopeGroupIds(selected);
-        if (scopeGroupIds.isEmpty()) {
-            ownerStatsSection.setVisibility(View.GONE);
-            ownerPaidChart.setBars(Collections.emptyList());
-            renderOwnerMemberDetails(new LinkedHashMap<>());
-            return;
-        }
-
-        ownerStatsSection.setVisibility(View.VISIBLE);
-        OwnerPeriod period = resolveOwnerPeriod();
-        if (ownerChartSubtitleTv != null) {
-            ownerChartSubtitleTv.setText("Pagos confirmados recibidos en " + period.label.toLowerCase(Locale.ROOT) + " (EUR)");
-        }
-
-        LinkedHashMap<String, Double> monthlyTotals = createMonthlyBuckets(period.months);
-        LinkedHashMap<String, LinkedHashMap<String, Double>> detailByMonthMember = createMonthlyMemberBuckets(monthlyTotals);
-        String myEmail = safeLower(FirebaseAuth.getInstance().getCurrentUser().getEmail());
-        accumulateOwnerMonthlyForManyRecursive(
-                scopeGroupIds,
-                0,
-                myEmail,
-                monthlyTotals,
-                detailByMonthMember,
-                () -> {
-                    renderOwnerBars(monthlyTotals);
-                    resolveOwnerMemberNames(detailByMonthMember, () -> renderOwnerMemberDetails(detailByMonthMember));
-                }
-        );
-    }
-
-    private List<String> resolveOwnerScopeGroupIds(GroupOption selected) {
-        if (selected.groupId == null) {
-            return new ArrayList<>(ownedGroupIds);
-        }
-        if (selected.isOwner) {
-            return Collections.singletonList(selected.groupId);
-        }
-        return Collections.emptyList();
-    }
-
-    private OwnerPeriod resolveOwnerPeriod() {
-        int index = ownerPeriodSpinner == null ? 0 : ownerPeriodSpinner.getSelectedItemPosition();
-        OwnerPeriod[] values = OwnerPeriod.values();
-        if (index < 0 || index >= values.length) return OwnerPeriod.MONTH;
+    private TimePeriod resolveTimePeriod() {
+        int index = timePeriodSpinner == null ? 3 : timePeriodSpinner.getSelectedItemPosition();
+        TimePeriod[] values = TimePeriod.values();
+        if (index < 0 || index >= values.length) return TimePeriod.YEAR;
         return values[index];
     }
 
-    private void accumulateOwnerMonthlyForManyRecursive(
-            List<String> groupIds,
-            int index,
-            String myEmail,
-            LinkedHashMap<String, Double> monthlyTotals,
-            LinkedHashMap<String, LinkedHashMap<String, Double>> detailByMonthMember,
-            Runnable done
-    ) {
-        if (index >= groupIds.size()) {
-            done.run();
+    private void refreshTimeBalanceBars(List<String> groupIds, String myEmail, TimePeriod period) {
+        LinkedHashMap<String, Double> monthlyTotals = createMonthlyBuckets(period.months);
+        if (groupIds == null || groupIds.isEmpty()) {
+            renderMonthlyBars(monthlyTotals);
             return;
         }
-        String groupId = groupIds.get(index);
-        accumulateOwnerMonthlyForGroup(groupId, myEmail, monthlyTotals, detailByMonthMember,
-                () -> accumulateOwnerMonthlyForManyRecursive(groupIds, index + 1, myEmail, monthlyTotals, detailByMonthMember, done));
-    }
-
-    private void accumulateOwnerMonthlyForGroup(
-            String groupId,
-            String myEmail,
-            LinkedHashMap<String, Double> monthlyTotals,
-            LinkedHashMap<String, LinkedHashMap<String, Double>> detailByMonthMember,
-            Runnable done
-    ) {
-        db.collection("payments")
-                .whereEqualTo("groupId", groupId)
-                .whereEqualTo("status", "confirmed")
-                .get()
-                .addOnSuccessListener(payments -> {
-                    for (DocumentSnapshot doc : payments.getDocuments()) {
-                        java.util.Date date = resolveDocDate(doc);
-                        if (date == null) continue;
-
-                        String monthKey = monthKey(date);
-                        if (!monthlyTotals.containsKey(monthKey)) continue;
-
-                        String toEmail = safeLower(doc.getString("toEmail"));
-                        String fromEmail = safeLower(doc.getString("fromEmail"));
-
-                        if (!toEmail.isEmpty() && !toEmail.equals(myEmail)) continue;
-                        if (fromEmail.equals(myEmail)) continue;
-
-                        double amount = doc.getDouble("amount") == null ? 0.0 : doc.getDouble("amount");
-                        monthlyTotals.put(monthKey, monthlyTotals.getOrDefault(monthKey, 0.0) + amount);
-                        LinkedHashMap<String, Double> memberTotals = detailByMonthMember.get(monthKey);
-                        if (memberTotals != null && !fromEmail.isEmpty()) {
-                            memberTotals.put(fromEmail, memberTotals.getOrDefault(fromEmail, 0.0) + amount);
-                        }
-                    }
-                    done.run();
-                })
-                .addOnFailureListener(e -> done.run());
-    }
-
-    private void renderOwnerBars(LinkedHashMap<String, Double> monthlyTotals) {
-        if (!canUseUi() || ownerPaidChart == null) return;
-        List<MonthlyBarChartView.Bar> bars = new ArrayList<>();
-        for (Map.Entry<String, Double> entry : monthlyTotals.entrySet()) {
-            bars.add(new MonthlyBarChartView.Bar(monthLabel(entry.getKey()), entry.getValue().floatValue()));
-        }
-        ownerPaidChart.setBars(bars);
-    }
-
-    private void resolveOwnerMemberNames(
-            LinkedHashMap<String, LinkedHashMap<String, Double>> detailByMonthMember,
-            Runnable done
-    ) {
-        List<String> allEmails = new ArrayList<>();
-        for (LinkedHashMap<String, Double> totalsByEmail : detailByMonthMember.values()) {
-            for (String email : totalsByEmail.keySet()) {
-                String normalized = safeLower(email);
-                if (!normalized.isEmpty() && !allEmails.contains(normalized)) {
-                    allEmails.add(normalized);
-                }
-            }
-        }
-        if (allEmails.isEmpty()) {
-            done.run();
-            return;
-        }
-
-        List<Task<?>> tasks = new ArrayList<>();
-        for (String email : allEmails) {
-            if (ownerMemberNamesByEmail.containsKey(email)) continue;
-            Task<?> task = db.collection("users")
-                    .whereEqualTo("email", email)
-                    .limit(1)
-                    .get()
-                    .addOnSuccessListener(result -> {
-                        String resolvedName = "Sin nombre";
-                        if (!result.isEmpty()) {
-                            DocumentSnapshot userDoc = result.getDocuments().get(0);
-                            resolvedName = resolveNameFromUserDoc(userDoc);
-                        }
-                        ownerMemberNamesByEmail.put(email, resolvedName);
-                    })
-                    .addOnFailureListener(e -> ownerMemberNamesByEmail.put(email, "Sin nombre"));
-            tasks.add(task);
-        }
-
-        if (tasks.isEmpty()) {
-            done.run();
-            return;
-        }
-        Tasks.whenAllComplete(tasks).addOnCompleteListener(t -> done.run());
-    }
-
-    private void renderOwnerMemberDetails(LinkedHashMap<String, LinkedHashMap<String, Double>> detailByMonthMember) {
-        if (!canUseUi() || ownerMemberDetailContainer == null || ownerMemberDetailTitleTv == null) return;
-        Context context = getContext();
-        if (context == null) return;
-
-        ownerMemberDetailContainer.removeAllViews();
-        boolean hasRows = false;
-
-        List<String> monthKeys = new ArrayList<>(detailByMonthMember.keySet());
-        Collections.reverse(monthKeys);
-        for (String monthKey : monthKeys) {
-            LinkedHashMap<String, Double> memberTotals = detailByMonthMember.get(monthKey);
-            if (memberTotals == null || memberTotals.isEmpty()) continue;
-
-            List<Map.Entry<String, Double>> rows = new ArrayList<>(memberTotals.entrySet());
-            rows.sort(Comparator.comparingDouble((Map.Entry<String, Double> e) -> e.getValue()).reversed());
-
-            for (Map.Entry<String, Double> row : rows) {
-                double amount = row.getValue() == null ? 0.0 : row.getValue();
-                if (amount <= 0.0) continue;
-
-                TextView line = new TextView(context);
-                line.setTextColor(context.getColor(R.color.text_light));
-                line.setTextSize(14f);
-                String month = monthLabel(monthKey);
-                String memberInfo = memberNameOnly(row.getKey());
-                line.setText(String.format(Locale.ROOT, "%s - %.2f EUR - %s", month, amount, memberInfo));
-                ownerMemberDetailContainer.addView(line);
-                hasRows = true;
-            }
-        }
-
-        if (!hasRows) {
-            TextView empty = new TextView(context);
-            empty.setTextColor(context.getColor(R.color.text_muted));
-            empty.setTextSize(13f);
-            empty.setText("Sin cobros confirmados por miembro en este periodo.");
-            ownerMemberDetailContainer.addView(empty);
-        }
-        ownerMemberDetailTitleTv.setVisibility(View.VISIBLE);
+        accumulateMonthlyForManyRecursive(groupIds, 0, myEmail, monthlyTotals, () -> renderMonthlyBars(monthlyTotals));
     }
 
     private List<String> getAllGroupIds() {
@@ -662,7 +383,7 @@ public class PersonalBalanceFragment extends Fragment {
     }
 
     private void refreshMonthlyPaidBars(List<String> groupIds, String myEmail) {
-        LinkedHashMap<String, Double> monthlyTotals = createMonthlyBuckets(MONTHLY_BAR_COUNT);
+        LinkedHashMap<String, Double> monthlyTotals = createMonthlyBuckets(TimePeriod.YEAR.months);
         if (groupIds == null || groupIds.isEmpty()) {
             renderMonthlyBars(monthlyTotals);
             return;
@@ -774,7 +495,7 @@ public class PersonalBalanceFragment extends Fragment {
         try {
             java.util.Date date = parser.parse(key);
             if (date == null) return key;
-            String month = new SimpleDateFormat("MMM", new Locale("es", "ES")).format(date);
+            String month = new SimpleDateFormat("MMM yy", new Locale("es", "ES")).format(date);
             month = month.replace(".", "");
             return capitalize(month);
         } catch (ParseException e) {
@@ -808,7 +529,7 @@ public class PersonalBalanceFragment extends Fragment {
     }
 
     private List<String> toLowerList(@Nullable Object raw) {
-        if (!(raw instanceof List<?> rawList)) return Collections.emptyList();
+        if (!(raw instanceof List<?> rawList)) return java.util.Collections.emptyList();
         List<String> out = new ArrayList<>();
         for (Object value : rawList) {
             if (value == null) continue;

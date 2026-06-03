@@ -20,10 +20,20 @@
             android:layout_height="52dp"
             android:background="@drawable/bg_balance_title_pill"
             android:gravity="center"
-            android:text="Balance"
+            android:text="Balance de gastos"
             android:textColor="@color/text_light"
             android:textSize="34sp"
             android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/balanceSubtitleTv"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="Resumen por categorías del piso seleccionado"
+            android:textAlignment="center"
+            android:textColor="@color/text_muted"
+            android:textSize="14sp" />
 
         <Spinner
             android:id="@+id/groupSelectorSpinner"
@@ -53,90 +63,41 @@
         <TextView
             android:id="@+id/monthlyChartTitleTv"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="52dp"
             android:layout_marginTop="16dp"
-            android:text="Pagado por mes"
+            android:background="@drawable/bg_balance_title_pill"
+            android:gravity="center"
+            android:text="Balance por tiempo"
             android:textColor="@color/text_light"
-            android:textSize="18sp"
+            android:textSize="34sp"
             android:textStyle="bold" />
 
         <TextView
-            android:layout_width="wrap_content"
             android:id="@+id/monthlyChartSubtitleTv"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:text="Has pagado (EUR)"
+            android:text="Distribucion temporal de tus movimientos (EUR)"
+            android:textAlignment="center"
             android:textColor="@color/text_muted"
             android:textSize="14sp" />
+
+        <Spinner
+            android:id="@+id/timePeriodSpinner"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/bg_select_dark_round"
+            android:paddingHorizontal="12dp"
+            android:popupBackground="@drawable/bg_spinner_popup" />
 
         <com.sergio.flatshare.shared.widgets.MonthlyBarChartView
             android:id="@+id/monthlyBarChart"
             android:layout_width="match_parent"
-            android:layout_height="250dp"
+            android:layout_height="270dp"
             android:layout_marginTop="8dp"
             android:background="@drawable/bg_group_row"
             android:padding="10dp" />
-
-        <LinearLayout
-            android:id="@+id/ownerStatsSection"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
-            android:orientation="vertical"
-            android:visibility="gone">
-
-            <TextView
-                android:id="@+id/ownerChartTitleTv"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Cobros del propietario"
-                android:textColor="@color/text_light"
-                android:textSize="18sp"
-                android:textStyle="bold" />
-
-            <Spinner
-                android:id="@+id/ownerPeriodSpinner"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginTop="8dp"
-                android:background="@drawable/bg_select_dark_round"
-                android:paddingHorizontal="12dp"
-                android:popupBackground="@drawable/bg_spinner_popup" />
-
-            <TextView
-                android:id="@+id/ownerChartSubtitleTv"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="Pagos confirmados recibidos (EUR)"
-                android:textColor="@color/text_muted"
-                android:textSize="14sp" />
-
-            <com.sergio.flatshare.shared.widgets.MonthlyBarChartView
-                android:id="@+id/ownerPaidChart"
-                android:layout_width="match_parent"
-                android:layout_height="250dp"
-                android:layout_marginTop="8dp"
-                android:background="@drawable/bg_group_row"
-                android:padding="10dp" />
-
-            <TextView
-                android:id="@+id/ownerMemberDetailTitleTv"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:text="Detalle por mes y miembro"
-                android:textColor="@color/text_light"
-                android:textSize="16sp"
-                android:textStyle="bold" />
-
-            <LinearLayout
-                android:id="@+id/ownerMemberDetailContainer"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:orientation="vertical" />
-        </LinearLayout>
 
     </LinearLayout>
 

@@ -125,7 +125,7 @@ public class CalendarFragment extends Fragment {
                         String title = concept == null || concept.isEmpty() ? "Pago pendiente" : concept;
                         String subtitle = (groupName == null ? "Piso" : groupName) + " - Pagar a " + displayNameWithEmail(creditor);
                         String amountText = (amount == null ? "0.00" : df.format(amount)) + " EUR";
-                        allRows.add(new CalendarRow(title, subtitle, amountText, due.getTime(), doc.getId(), normalizePriority(priority), "none", 0, false));
+                        allRows.add(new CalendarRow(title, subtitle, amountText, due.getTime(), doc.getId(), normalizePriority(priority), "none", 0, -1L, false));
                         scheduleDeadlineNotifications(title, amountText, due.getTime(), doc.getId());
                     }
                     loadRegisteredPayments(myEmail);
@@ -177,7 +177,7 @@ public class CalendarFragment extends Fragment {
             String state = confirmed ? "Confirmado" : (overdue ? "Vencido" : "Pendiente");
             String subtitle = direction + " - " + state;
             String amountText = (amount == null ? "0.00" : df.format(amount)) + " EUR";
-            allRows.add(new CalendarRow(title, subtitle, amountText, createdAt.getTime(), "payment_" + id, normalizePriority(priority), "none", 0, false));
+            allRows.add(new CalendarRow(title, subtitle, amountText, createdAt.getTime(), "payment_" + id, normalizePriority(priority), "none", 0, -1L, false));
         }
     }
 
@@ -236,6 +236,7 @@ public class CalendarFragment extends Fragment {
             if (!isOwner && !isTarget) continue;
 
             Date startAt = doc.getDate("startAt");
+            Date endAt = doc.getDate("endAt");
             if (startAt == null) continue;
             String title = doc.getString("title");
             String groupName = doc.getString("groupName");
@@ -253,6 +254,7 @@ public class CalendarFragment extends Fragment {
                     "media",
                     interval == null ? "semanal" : interval.toLowerCase(Locale.ROOT),
                     intervalDays == null ? 0 : intervalDays.intValue(),
+                    endAt == null ? -1L : endAt.getTime(),
                     true
             ));
         }
@@ -531,6 +533,7 @@ public class CalendarFragment extends Fragment {
             }
 
             final int finalIntervalDays = intervalDays;
+            final Date finalEndAt = endAt;
             Map<String, Object> updates = new HashMap<>();
             updates.put("title", title);
             updates.put("interval", newIntervalKey);
@@ -545,7 +548,7 @@ public class CalendarFragment extends Fragment {
                     .document(reminderDoc.getId())
                     .update(updates)
                     .addOnSuccessListener(done -> {
-                        rescheduleReminderForCurrentUser(reminderDoc, title, startAt.getTime(), newIntervalKey, finalIntervalDays);
+                        rescheduleReminderForCurrentUser(reminderDoc, title, startAt.getTime(), newIntervalKey, finalIntervalDays, finalEndAt);
                         NoticeUtils.show(requireContext(), "Recordatorio actualizado");
                         dialog.dismiss();
                         loadDeadlines();
@@ -561,7 +564,8 @@ public class CalendarFragment extends Fragment {
             @NonNull String title,
             long startAtMs,
             @NonNull String intervalKey,
-            int intervalDays
+            int intervalDays,
+            @Nullable Date endAt
     ) {
         Long reminderCode = reminderDoc.getLong("reminderCode");
         if (reminderCode == null) return;
@@ -569,12 +573,18 @@ public class CalendarFragment extends Fragment {
 
         int code = reminderCode.intValue();
         ReminderScheduler.cancel(requireContext(), code);
-        long intervalMs = intervalMsForReminder(intervalKey, intervalDays);
+        long intervalMs = resolveEffectiveReminderIntervalMs(startAtMs, intervalMsForReminder(intervalKey, intervalDays), endAt);
         if (intervalMs <= 0L) {
             ReminderScheduler.scheduleOneTime(requireContext(), code, "FlatShare: " + title, "Recordatorio pendiente", startAtMs);
         } else {
             ReminderScheduler.schedule(requireContext(), code, "FlatShare: " + title, "Recordatorio pendiente", startAtMs, intervalMs);
         }
+    }
+
+    private long resolveEffectiveReminderIntervalMs(long startAtMs, long intervalMs, @Nullable Date endAt) {
+        if (intervalMs <= 0L || endAt == null) return intervalMs;
+        long nextOccurrence = startAtMs + intervalMs;
+        return nextOccurrence > endAt.getTime() ? 0L : intervalMs;
     }
 
     private boolean isCurrentUserTarget(@NonNull DocumentSnapshot reminderDoc) {
@@ -729,7 +739,7 @@ public class CalendarFragment extends Fragment {
             }
         }
         if (filteredRows.isEmpty()) {
-            filteredRows.add(new CalendarRow("Sin eventos para este día", "No hay pagos ni recordatorios", "-", dayStart, "empty", "", "none", 0, false));
+            filteredRows.add(new CalendarRow("Sin eventos para este día", "No hay pagos ni recordatorios", "-", dayStart, "empty", "", "none", 0, -1L, false));
         }
         adapter.notifyDataSetChanged();
     }
@@ -737,6 +747,7 @@ public class CalendarFragment extends Fragment {
     private boolean reminderOccursOnDay(CalendarRow row, long dayStart) {
         long startDay = startOfDay(row.dueAtMs);
         if (dayStart < startDay) return false;
+        if (row.endAtMs > 0L && dayStart > startOfDay(row.endAtMs)) return false;
         long diffDays = (dayStart - startDay) / (24L * 60L * 60L * 1000L);
         if ("unico".equals(row.intervalType)) return diffDays == 0L;
         if ("diario".equals(row.intervalType)) return true;
@@ -852,9 +863,10 @@ public class CalendarFragment extends Fragment {
         final String priority;
         final String intervalType;
         final int intervalDays;
+        final long endAtMs;
         final boolean isReminder;
 
-        CalendarRow(String title, String subtitle, String amount, long dueAtMs, String id, String priority, String intervalType, int intervalDays, boolean isReminder) {
+        CalendarRow(String title, String subtitle, String amount, long dueAtMs, String id, String priority, String intervalType, int intervalDays, long endAtMs, boolean isReminder) {
             this.title = title;
             this.subtitle = subtitle;
             this.amount = amount;
@@ -863,6 +875,7 @@ public class CalendarFragment extends Fragment {
             this.priority = priority;
             this.intervalType = intervalType;
             this.intervalDays = intervalDays;
+            this.endAtMs = endAtMs;
             this.isReminder = isReminder;
         }
     }

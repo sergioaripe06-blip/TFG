@@ -21,10 +21,12 @@ public final class PaymentAccessPolicy {
     }
 
     public static boolean canDeletePayment(
+            @NonNull String normalizedStatus,
             boolean isOwner,
             @NonNull String currentUserEmail,
             @Nullable String fromEmail
     ) {
+        if (!"requested".equals(normalizedStatus)) return false;
         if (isOwner) return true;
         return currentUserEmail.equals(normalizeEmail(fromEmail));
     }

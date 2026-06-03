@@ -104,8 +104,14 @@ service cloud.firestore {
 
     function isPaymentEditableByManager() {
       return canManagePayment()
+        && resource.data.status == 'requested'
         && request.resource.data.groupId == resource.data.groupId
         && request.resource.data.fromEmail == resource.data.fromEmail;
+    }
+
+    function isPaymentDeletableByManager() {
+      return canManagePayment()
+        && resource.data.status == 'requested';
     }
 
     match /users/{userId} {
@@ -188,7 +194,7 @@ service cloud.firestore {
       allow update: if isPaymentStatusToggleByApprover()
         || isPaymentEditableByManager();
 
-      allow delete: if canManagePayment();
+      allow delete: if isPaymentDeletableByManager();
     }
 
     match /payment_deadlines/{deadlineId} {

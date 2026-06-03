@@ -12,6 +12,33 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
 
 ---
 
+## 2026-06-03
+- Tipo: Avance reconstruido
+- Corregida la expansion de recordatorios recurrentes en `CalendarFragment` para que la fecha `Hasta` limite de verdad su presencia en calendario.
+- Ajustado el programado local de recordatorios para que un caso de inicio y fin en el mismo dia no se registre como repetitivo infinito.
+- Rehecha la pantalla de balance para dejar solo dos bloques principales con el mismo peso visual: `Balance de gastos` y `Balance por tiempo`.
+- Eliminado el tercer bloque secundario del balance y añadido un selector de periodo en la segunda grafica con rangos como trimestre, cuatrimestre, semestre, año completo y 2 años.
+- El detalle de confirmaciones y pagos pasa a enseñar la imagen del justificante cuando ya se ha subido, facilitando la revision visual antes de aceptar.
+- Ajuste visual menor en la informacion del piso: el boton pasa a leerse `Añadir inquilinos` sin alterar la accion interna.
+- Ajustado el detalle de gastos en `Movimientos` para priorizar el flujo de deudor cuando el gasto va dirigido al propio usuario, aunque ese usuario sea el propietario del piso.
+- En ese caso especial, el detalle del gasto deja de mostrar acciones de edición y borrado y abre el flujo de confirmación con justificante si existe deuda pendiente asociada en `payment_deadlines`.
+- El propio modal del gasto muestra ahora el CTA `Subir justificante` mientras la deuda siga en `pending`; tras enviarlo, la parte del deudor queda `En revisión` hasta que la valide quien pagó el gasto.
+- Para gastos anteriores que no hubieran generado bien su `payment_deadline`, el flujo reconstruye esa deuda individual al pulsar el CTA y evita dejar al usuario bloqueado.
+- El formulario de justificante queda en solo lectura salvo el adjunto de foto, y `Movimientos` deja de duplicar gasto + confirmación cuando ambos pertenecen a la misma deuda del usuario.
+- Se endurecen también los permisos de `payments`: solo pueden editarse o borrarse en estado `requested`; al pasar a `pending`, `submitted` o `confirmed` quedan bloqueados.
+- Se bloquea la creación de gastos dirigidos solo al propio pagador y se afinan las sugerencias de categorías para que salgan del histórico de gastos del piso actual, reutilizando la misma clave cuando el nombre coincide.
+- Se ajusta la carga de `Movimientos` para recalcular estado efectivo de gastos desde `payment_deadlines` y ocultar el gasto original cuando ya existe su confirmación ligada, evitando vistas distintas entre cuentas.
+- Se mantiene visible la acción `Confirmar pendiente` también para propietarios cuando tienen deudas reales asignadas.
+- Actualizada la documentación viva (`MANUAL_USUARIO.md` y `FIREBASE_SETUP.md`) para reflejar este comportamiento especial.
+
+- El alta de gastos compartidos deja de guardar un unico gasto con reparto interno y pasa a crear un gasto independiente por cada deudor, con su propio importe y su propio ciclo de confirmacion.
+- Tambien se corrige la visibilidad de confirmaciones recibidas para que quien adelanto el gasto pueda aceptarlas desde su cuenta aunque no sea el propietario del piso.
+- Validado con `assembleDebug` en local tras el cambio.
+- Ajustado ademas el modo `Reparto equitativo` para que, si hay varios deudores implicados, no se quede en una sola fila ni en un solo gasto: expande el reparto y crea un gasto separado por cada persona.
+- Ajuste visual en la pantalla de balance: el bloque principal pasa a llamarse `Balance de gastos`, el grafico mensual gana el titulo `Balance mensual` y se oculta el detalle secundario por mes y miembro sin tocar la logica de calculo.
+- Ajuste visual adicional en recordatorios y selectores de personas: los miembros pasan a mostrarse como `Nombre (correo)` y la carga de recordatorios evita duplicados visuales si se solapan refrescos de la lista.
+- El detalle de justificantes en confirmaciones pasa a usar scroll vertical y carga reducida en segundo plano para evitar cierres y mejorar fluidez al entrar en gastos en revision.
+
 ## 2026-06-02
 - Tipo: Avance reconstruido
 - Flujo de deudas desde gasto afinado para que encaje con el modelo mental de "me deben este gasto".
