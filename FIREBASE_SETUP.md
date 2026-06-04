@@ -522,7 +522,7 @@ Uso rápido:
 
 
 
-## Actualizacion funcional (2026-05-29)
+## Actualizacion funcional (29/05/2026)
 
 ### Variable rent: source of truth
 - `groups.variableSplitMode` se mantiene como preferencia por defecto para nuevas habitaciones.
@@ -543,7 +543,7 @@ Uso rápido:
 - `rentSplitPercentages` (map vacio)
 - `rentSplitOrder` (array vacio)
 
-## Actualización funcional (2026-06-01)
+## Actualización funcional (01/06/2026)
 
 ### Documentos de alquiler con archivo adjunto (Storage)
 - El módulo group_documents ahora permite subir archivo real desde el móvil (no solo URL manual).
@@ -557,45 +557,45 @@ Uso rápido:
 - Recomendación: definir reglas de Storage que limiten lectura/escritura a miembros autenticados del piso según vuestra política de seguridad.
 
 
-## Actualizacion funcional (2026-06-01) - Entrada condicionada a habitacion
+## Actualizacion funcional (01/06/2026) - Entrada condicionada a habitacion
 - Flujo de app reforzado: para inquilinos, el acceso al workspace de un piso requiere tener habitacion asignada en rooms_groups.
 - Si no existe asignacion o no hay plazas, el usuario no entra directamente al piso.
 - Reasignaciones posteriores se mantienen restringidas al propietario segun firestore.rules.
 
 
-## Actualizacion funcional (2026-06-01) - Aceptacion de pagos pendientes
+## Actualizacion funcional (01/06/2026) - Aceptacion de pagos pendientes
 - payments.update ahora permite confirmar un pago pendiente (pending -> confirmed) al propietario del grupo o al acreedor del pago (toEmail).
 - Solo se permite actualizar campos status y updatedAt en esa transicion.
 
 
-## Actualizacion funcional (2026-06-01) - Permisos compartidos en pagos
+## Actualizacion funcional (01/06/2026) - Permisos compartidos en pagos
 - En payments, creador del pago y propietario del piso pueden gestionar pagos.
 - update permitido para gestion por creador/propietario, preservando groupId y fromEmail.
 - delete permitido para creador/propietario.
 - Aceptacion de pago restringida a transicion pending -> confirmed.
 
 
-## Despliegue CLI (2026-06-01)
+## Despliegue CLI (01/06/2026)
 - El repositorio ya incluye firebase.json y firestore.indexes.json.
 - Desde la raiz del proyecto puedes ejecutar: firebase deploy --only firestore:rules
 
 
-## Validacion previa a defensa (2026-06-01)
+## Validacion previa a defensa (01/06/2026)
 - Revisar TEST_CHECKLIST_TFG.md y ejecutar pruebas de reglas sobre union por codigo y permisos de pagos.
 
 
 
-## Nota tecnica (2026-06-01) - Refactor UI sin cambio de esquema
+## Nota tecnica (01/06/2026) - Refactor UI sin cambio de esquema
 - Esta iteracion solo mueve logica de presentacion a clases de servicio/utilidad en Android.
 - No se introducen nuevas colecciones, campos ni cambios de reglas Firestore.
 
-## Actualizacion funcional (2026-06-03) - Gastos repartidos por deudor
+## Actualizacion funcional (03/06/2026) - Gastos repartidos por deudor
 - No se anaden nuevas colecciones ni campos obligatorios.
 - El reparto multiple de un gasto se materializa ahora en varios documentos de `expenses`, uno por cada deudor final.
 - Cada uno de esos gastos individuales mantiene su propio `customSplit` al 100% para el deudor afectado y genera su propia entrada en `payment_deadlines`.
 - El flujo de aceptacion sigue apoyandose en `payments` y `payment_deadlines`; no ha sido necesario cambiar `firestore.rules` para esta iteracion.
 
-## Actualizacion funcional (2026-06-04) - Reglas alineadas con el flujo real de gastos
+## Actualizacion funcional (04/06/2026) - Reglas alineadas con el flujo real de gastos
 - `expenses.read` sigue permitido para miembros del piso.
 - `expenses.update` y `expenses.delete` quedan limitados a gastos en estado `requested`.
 - Solo puede gestionar un gasto su pagador original o el propietario del piso.

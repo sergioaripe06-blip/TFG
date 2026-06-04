@@ -12,10 +12,22 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
 
 ---
 
+## 04/06/2026
+- Tipo: Avance reconstruido
+- Rehecho el HTML `docs_entrega/01_manual_de_uso_flatshare.html` para alinearlo con el nuevo `MANUAL_USUARIO.md`, con enfoque de `manual de uso` en lugar de `manual de usuario`.
+- Eliminada la referencia de fecha en la portada del manual HTML para mantener la documentación más neutra y reutilizable dentro de la entrega.
+- Reorganizadas las secciones del manual por flujo real de uso de la app: acceso, pisos, espacio interno del piso, movimientos, recordatorios, gestión, balance, calendario, perfil y ajustes.
+- Añadidos huecos visibles para capturas y pies de figura sugeridos, dejando el documento listo para insertar imágenes de cada pestaña sin rehacer la maquetación.
+- Reescrita la memoria HTML `docs_entrega/03_memoria_flatshare.html` con estructura técnica de TFG, excluyendo manuales y diario, y reforzando apartados de justificación tecnológica, arquitectura, modelo de datos, plan de pruebas, resultados, limitaciones y trabajo futuro.
+- Añadidos diagramas conceptuales en formato texto/Mermaid dentro de la memoria para apoyar la defensa técnica sin depender todavía de gráficos externos maquetados.
+- Creado `docs_entrega/04_diario_flatshare.html` como versión de entrega del diario, con portada, criterio de veracidad, convención de lectura y línea temporal organizada por etapas del proyecto.
+- Ampliada de forma profunda la memoria HTML para convertirla en una base mucho más cercana a una memoria final larga: se añaden requisitos, arquitectura ampliada, diagramas de flujo, modelo de datos, desarrollo por módulos, plan de pruebas detallado, resultados, limitaciones e información pendiente de completar manualmente.
+
 - Retocado `Nuevo gasto` para quitar la coletilla `(OCR)` del botón de ticket, ocultar al propio pagador en los selectores de reparto por personas y reforzar la lectura de `Solicitado por` y `Para` en las tarjetas de movimientos.
 - Añadida la `Fecha del gasto` en la tarjeta y en el detalle de cada gasto, y unificado el formato visible de fechas a `DD/MM/AAAA`, incluyendo los meses mostrados en gastos, cobros de habitación y balance temporal.
 - Refinada la tarjeta de `Movimientos` para gastos y cobros de habitación: ahora usa nombres compactos sin correos repetidos en la vista rápida, resalta mejor las etiquetas y deja el color de estado centrado en el importe para evitar una lectura recargada.
 - Sustituido el buscador lateral de `Movimientos` por una banda de filtros rápidos por estado (`Solicitado`, `En revisión`, `Pagados`) en formato de tarjetita discreta, manteniendo el botón `Filtros` independiente.
+- Corregida la carga de `Perfil` para cuentas nuevas: si el documento `users/{uid}` aún no está incompleto o tarda en llegar, la pantalla usa también los datos de Firebase Auth y del perfil pendiente local, y rehidrata Firestore con nombre, email, teléfono y fecha de nacimiento cuando faltan.
 - Simplificados los HTML de entrega para darles un aspecto sobrio tipo Word, sin decoracion innecesaria y priorizando la legibilidad del contenido.
 - Actualizadas las portadas de la documentación HTML de entrega con los datos reales del autor y de la titulación.
 - Corregido el comportamiento de `Recordarme`: ahora la sesion solo persiste entre cierres si la opcion esta activada; si esta desactivada, la app cierra sesion al salir a segundo plano.
@@ -37,7 +49,7 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
 - En `Horarios`, los campos de fecha y sus listados ya muestran formato español `DD/MM/AAAA` en lugar de ISO.
 - Añadido aviso automático de vencimiento para deudas de gasto y pago: al pasar la fecha límite se lanza una notificación local con recordatorio de resolución.
 
-## 2026-06-03
+## 03/06/2026
 - Tipo: Avance reconstruido
 - Corregida la expansion de recordatorios recurrentes en `CalendarFragment` para que la fecha `Hasta` limite de verdad su presencia en calendario.
 - Ajustado el programado local de recordatorios para que un caso de inicio y fin en el mismo dia no se registre como repetitivo infinito.
@@ -68,7 +80,7 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
 - Ajuste visual adicional en recordatorios y selectores de personas: los miembros pasan a mostrarse como `Nombre (correo)` y la carga de recordatorios evita duplicados visuales si se solapan refrescos de la lista.
 - El detalle de justificantes en confirmaciones pasa a usar scroll vertical y carga reducida en segundo plano para evitar cierres y mejorar fluidez al entrar en gastos en revision.
 
-## 2026-06-02
+## 02/06/2026
 - Tipo: Avance reconstruido
 - Flujo de deudas desde gasto afinado para que encaje con el modelo mental de "me deben este gasto".
 - Se mantiene `expenses` como documento origen y se refuerza que `payment_deadlines` crea una deuda individual por deudor según `customSplit`, evitando duplicar el gasto principal.
@@ -79,23 +91,23 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
 - Se unifica la acción principal del workspace alrededor de `Nuevo gasto`: desaparece el pago libre visible en UI y el mismo flujo se habilita también en alquiler fijo.
 - Los saldos de `alquiler fijo` pasan a incorporar también gastos compartidos además de la renta base de habitaciones.
 
-## 2026-03-03
+## 03/03/2026
 - Tipo: Avance reconstruido
 - Inicio formal del tramo documentado para TFG.
 - Definicion del alcance: app Android para gestion de pisos compartidos.
 - Casos de uso principales definidos: autenticacion, pisos, gastos, pagos, recordatorios, perfil.
 
-## 2026-03-07
+## 07/03/2026
 - Tipo: Avance reconstruido
 - Diseno inicial de modelo de datos en Firestore (usuarios, pisos, membresia, gastos, pagos).
 - Decision de usar Firebase Authentication con Email/Password.
 
-## 2026-03-11
+## 11/03/2026
 - Tipo: Avance reconstruido
 - Boceto de navegacion principal de la app (flujo Splash -> Login/Main).
 - Definicion del patron visual base para pantallas de negocio.
 
-## 2026-03-15
+## 15/03/2026
 - Tipo: Avance reconstruido
 - Especificacion funcional de modulo Pisos:
   - crear piso,
@@ -103,7 +115,7 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
   - detalle de miembros,
   - gestion de habitaciones.
 
-## 2026-03-19
+## 19/03/2026
 - Tipo: Avance reconstruido
 - Diseno del modulo Workspace:
   - lista de movimientos,
@@ -111,21 +123,21 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
   - creacion de pagos,
   - estados y filtros.
 
-## 2026-03-23
+## 23/03/2026
 - Tipo: Avance reconstruido
 - Diseno de logica de balances:
   - reparto por partes iguales,
   - reparto personalizado,
   - efecto de pagos en saldo neto.
 
-## 2026-03-27
+## 27/03/2026
 - Tipo: Avance reconstruido
 - Definicion de recordatorios y calendario:
   - vencimientos de pago,
   - recordatorios manuales,
   - estructura de visualizacion por fecha.
 
-## 2026-03-31
+## 31/03/2026
 - Tipo: Avance reconstruido
 - Planificacion de perfil y ajustes:
   - edicion de datos personales,
@@ -133,39 +145,39 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
   - tema,
   - notificaciones.
 
-## 2026-04-04
+## 04/04/2026
 - Tipo: Avance reconstruido
 - Decision de modularizacion por capas y dominio:
   - `features`,
   - `core`,
   - `shared`.
 
-## 2026-04-08
+## 08/04/2026
 - Tipo: Avance reconstruido
 - Preparacion del entorno de trabajo Android/Firebase para implementacion continua.
 - Estructura preliminar de paquetes y recursos UI.
 
-## 2026-04-12
+## 12/04/2026
 - Tipo: Avance reconstruido
 - Prototipado de formularios para alta de gastos y pagos.
 - Definicion de validaciones minimas de entrada (importe, fecha, destinatarios).
 
-## 2026-04-16
+## 16/04/2026
 - Tipo: Avance reconstruido
 - Diseno de seguridad de datos por pertenencia a grupo.
 - Borrador de reglas Firestore orientadas a `owner/member`.
 
-## 2026-04-20
+## 20/04/2026
 - Tipo: Avance reconstruido
 - Preparacion de flujos de invitacion y codigos de acceso a piso.
 - Definicion de estados de invitacion pendientes/aceptadas/rechazadas.
 
-## 2026-04-24
+## 24/04/2026
 - Tipo: Avance reconstruido
 - Definicion del flujo de alta de habitaciones iniciales tras crear piso.
 - Ajuste del comportamiento para evitar pisos incompletos.
 
-## 2026-04-28
+## 28/04/2026
 - Tipo: Avance reconstruido
 - Diseno de soporte para gestion de alquiler:
   - contratos,
@@ -175,61 +187,61 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
   - auditoria,
   - automatizaciones.
 
-## 2026-05-02
+## 02/05/2026
 - Tipo: Avance reconstruido
 - Revision de consistencia general de arquitectura y preparacion para subida a repositorio.
 
-## 2026-05-05
+## 05/05/2026
 - Tipo: Historial Git
 - Commit real: `f960593` - `first commit`.
 - Alta inicial del repositorio y base del proyecto.
 
-## 2026-05-07
+## 07/05/2026
 - Tipo: Historial Git
 - Commit real: `d54ef8a` - `upgrades`.
 - Mejoras iterativas sobre la base inicial.
 
-## 2026-05-08
+## 08/05/2026
 - Tipo: Historial Git
 - Commit real: `448b7fa` - `upgrade`.
 - Evolucion incremental de codigo y recursos.
 
-## 2026-05-10
+## 10/05/2026
 - Tipo: Historial Git
 - Commit real: `d9aff05` - `rooms`.
 - Avance focalizado en gestion de habitaciones.
 
-## 2026-05-11
+## 11/05/2026
 - Tipo: Historial Git
 - Commit real: `26b97ff` - `upgrades`.
 - Ajustes funcionales y de estabilidad.
 
-## 2026-05-12
+## 12/05/2026
 - Tipo: Historial Git
 - Commit real: `fd199e9`.
 - Refactor UI/UX en pisos y balances; mejora de formularios por pasos.
 
-## 2026-05-12
+## 12/05/2026
 - Tipo: Historial Git
 - Commit real: `8020ad5`.
 - Mejora UX en pisos: cierre rapido y alta de habitaciones obligatoria.
 
-## 2026-05-13
+## 13/05/2026
 - Tipo: Historial Git
 - Commit real: `d182ec1`.
 - Estructura base del proyecto por modulos y capas.
 
-## 2026-05-13
+## 13/05/2026
 - Tipo: Historial Git
 - Commit real: `85fc8dd`.
 - Implementacion de componentes UI, dialogos y navegacion de funcionalidades principales.
 
-## 2026-05-14
+## 14/05/2026
 - Tipo: Historial Git
 - Commit real: `22d74b5`.
 - Herramienta debug para seed, mejoras de interfaz y ampliacion de tablas/colecciones.
 
-## 2026-05-18
+## 18/05/2026
 - Tipo: Avance reconstruido (sesion actual, aun no consolidado en commit en esta rama)
 - Ajustes recientes de compilacion y flujo de autenticacion.
 - Recuperacion de contrasena por correo en login.
@@ -251,7 +263,7 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
   - al abrir la app se muestran invitaciones pendientes con detalle del piso,
   - opcion directa de `Unirme` o `Rechazar` para el usuario invitado.
 
-## 2026-05-21
+## 21/05/2026
 - Tipo: Avance reconstruido (sesion actual)
 - Mejora UX del dialogo de registro de pagos:
   - se anade etiqueta visible para `Prioridad`,
@@ -304,7 +316,7 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
 - Firebase:
   - revisado `FIREBASE_SETUP.md`; sin cambios de esquema ni reglas en esta tarea.
 
-## 2026-05-21
+## 21/05/2026
 - Tipo: Ajuste tecnico de control de versiones
 - Se refuerza `.gitignore` para evitar incluir artefactos locales y de build:
   - se anaden `.gradle-home/` y exclusion completa de `.idea/`,
@@ -315,7 +327,7 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
 - Impacto:
   - evita commits masivos con miles de archivos temporales de entorno local.
 
-## 2026-05-22
+## 22/05/2026
   - `android.permission.INTERNET`
   - `android.permission.ACCESS_NETWORK_STATE`
 - Motivo:
@@ -327,7 +339,7 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
 - Firebase:
   - revisado `FIREBASE_SETUP.md`; sin cambios de esquema ni de reglas.
 
-## 2026-05-25
+## 25/05/2026
 - Endurecimiento de acceso:
   - login bloquea usuarios con `emailVerified=false`,
   - reglas Firestore pasan a requerir usuario autenticado y correo verificado.
@@ -343,7 +355,7 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
   - `MANUAL_USUARIO.md`
   - `FIREBASE_SETUP.md`
   - `firestore.rules`
-## 2026-05-25
+## 25/05/2026
 - Borrado funcional implementado:
   - elimina perfil en `users` y alias en `usernames`,
   - elimina invitaciones relacionadas,
@@ -360,7 +372,7 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
   - `MANUAL_USUARIO.md`
   - `FIREBASE_SETUP.md`
   - `firestore.rules`
-## 2026-05-25
+## 25/05/2026
 - Ajustes UI solicitados:
 - Pago en alquiler fijo:
   - se muestra `Alquiler` como campo de solo lectura con ayuda contextual.
@@ -373,7 +385,7 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
   - `app/src/main/res/values/strings.xml`
   - `app/src/main/res/drawable/bg_button_pill_danger.xml`
 
-## 2026-05-25
+## 25/05/2026
   - `Borrar cuenta` pasa a estilo exclusivo rojo con `MaterialButton` para evitar herencia de tint turquesa.
   - mismo rojo en modo claro y oscuro (`status_danger` unificado).
 - Archivos principales afectados:
@@ -381,7 +393,7 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
   - `app/src/main/res/values/themes.xml`
   - `app/src/main/res/values-night/colors.xml`
 
-## 2026-05-25
+## 25/05/2026
 - Mejora visual del modo claro por contraste:
   - ajuste de paleta clara (fondo/superficies/divisores/texto secundario),
   - barra inferior con fondo propio (no transparente),
@@ -391,7 +403,7 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
   - `app/src/main/res/color/bottom_nav_item_colors.xml`
   - `MANUAL_USUARIO.md`
 
-## 2026-05-25
+## 25/05/2026
 - Sonidos de feedback en acciones clave:
   - nuevo helper `AppSoundFx` para reproducir efectos por nombre desde `res/raw`,
   - sonido al crear piso (`sfx_group_created`),
@@ -403,12 +415,12 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
   - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
   - `MANUAL_USUARIO.md`
 
-## 2026-05-25
+## 25/05/2026
 - Archivos principales afectados:
   - `app/src/main/java/com/sergio/flatshare/features/settings/SettingsFragment.java`
   - `MANUAL_USUARIO.md`
 
-## 2026-05-25
+## 25/05/2026
 - Ajustes simplificados por UX:
   - se elimina por completo el bloque de `Volumen` en Ajustes,
 - Archivos principales afectados:
@@ -417,7 +429,7 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
   - `app/src/main/res/values/strings.xml`
   - `MANUAL_USUARIO.md`
 
-## 2026-05-25
+## 25/05/2026
 - Seguridad en borrado de cuenta:
   - se comprueba que el correo introducido coincide con la cuenta autenticada antes de reautenticar,
   - mensaje de error unificado para credenciales incorrectas.
@@ -448,13 +460,13 @@ En cada avance relevante anadir:
 
 
 
-## 2026-05-25
+## 25/05/2026
   - se mantiene el reparto anterior en pagos no vinculados a alquiler fijo para evitar regresiones.
 - Archivos principales afectados:
   - `app/src/main/java/com/sergio/flatshare/features/workspace/services/PaymentService.java`
   - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
   - `MANUAL_USUARIO.md`
-## 2026-05-25
+## 25/05/2026
   - se guardan nuevos campos en `rooms_groups`: `rentSplitMode`, `rentSplitPercentages`, `rentSplitOrder`.
 - Archivos principales afectados:
   - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
@@ -462,38 +474,38 @@ En cada avance relevante anadir:
   - `MANUAL_USUARIO.md`
   - `FIREBASE_SETUP.md`
   - `firestore.rules`
-## 2026-05-25
+## 25/05/2026
 - Archivos principales afectados:
   - `app/src/main/res/layout/activity_owner_rooms.xml`
   - `app/src/main/java/com/sergio/flatshare/features/groups/GroupsFragment.java`
   - `MANUAL_USUARIO.md`
-## 2026-05-25
+## 25/05/2026
 - Ajuste visual del encabezado del piso en Workspace:
   - los tabs `Movimientos`, `Recordatorios` y `Gestion` pasan a estar junto al nombre del piso;
 - Archivos principales afectados:
   - `app/src/main/res/layout/fragment_expenses.xml`
   - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
   - `MANUAL_USUARIO.md`
-## 2026-05-25
+## 25/05/2026
 - Archivos principales afectados:
   - `app/src/main/res/layout/fragment_groups.xml`
   - `app/src/main/java/com/sergio/flatshare/features/groups/GroupsFragment.java`
   - `app/src/main/java/com/sergio/flatshare/features/groups/OwnerRoomsActivity.java`
   - `app/src/main/res/values-en/strings.xml`
-## 2026-05-25
+## 25/05/2026
   - si hay 2+ inquilinos, se puede elegir reparto `equitativo` o `porcentual`;
 - Persistencia en `rooms_groups`:
   - `memberEmails` (ordenado por plaza), `rentSplitMode`, `rentSplitPercentages`, `rentSplitOrder`.
 - Archivos principales afectados:
   - `app/src/main/java/com/sergio/flatshare/features/groups/OwnerRoomsActivity.java`
   - `MANUAL_USUARIO.md`
-## 2026-05-25
+## 25/05/2026
 - Ajuste visual en pantalla `Pisos`:
 - Archivos principales afectados:
   - `app/src/main/res/layout/fragment_groups.xml`
   - `MANUAL_USUARIO.md`
 
-## 2026-05-25
+## 25/05/2026
 - Tipo: Avance reconstruido (sesion actual)
 - Flujo de pagos pendientes para inquilino en alquiler variable:
   - en `Movimientos` se anade listado de pendientes propios desde `payment_deadlines` con acceso directo al pago,
@@ -512,7 +524,7 @@ En cada avance relevante anadir:
   - `FIREBASE_SETUP.md`
   - `firestore.rules`
 
-## 2026-05-25
+## 25/05/2026
 - Tipo: Avance reconstruido (sesion actual)
 - Mejora premium de flujo en `Movimientos` para gastos y pagos:
   - se habilita registro de gasto tambien en alquiler fijo y se normaliza el flujo en ambos modelos,
@@ -532,7 +544,7 @@ En cada avance relevante anadir:
   - `FIREBASE_SETUP.md`
   - `firestore.rules`
 
-## 2026-05-25
+## 25/05/2026
 - Ajuste solicitado en `Movimientos`:
   - se oculta la opcion `Nuevo gasto` cuando el piso esta en `alquiler fijo`,
   - `Nuevo gasto` queda disponible solo para `alquiler variable`.
@@ -540,7 +552,7 @@ En cada avance relevante anadir:
   - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
   - `MANUAL_USUARIO.md`
 
-## 2026-05-25
+## 25/05/2026
 - Piso: mejora en `Editar piso` (solo propietario):
   - ahora permite cambiar el modelo de alquiler entre `fijo` y `variable`,
   - si se selecciona `variable`, permite elegir reparto `equitativo` o `porcentual`.
@@ -550,7 +562,7 @@ En cada avance relevante anadir:
   - `app/src/main/res/layout/dialog_edit_group.xml`
   - `MANUAL_USUARIO.md`
 
-## 2026-05-25
+## 25/05/2026
   - nuevo preset `sergio-demo` con owner fijo `sergioaripe06@gmail.com`,
   - crea 1 piso demo con inquilinos inventados, habitaciones con distintos importes, gastos, pagos y recordatorios.
   - nuevo script `npm run seed:sergio-demo` para ejecutar el preset en un comando.
@@ -561,7 +573,7 @@ En cada avance relevante anadir:
   - `FIREBASE_SETUP.md`
   - `MANUAL_USUARIO.md`
 
-## 2026-05-26
+## 26/05/2026
 - Tipo: Ajuste UI puntual
 - Cabecera de Workspace (`ExpensesFragment`):
   - los botones `Movimientos`, `Recordatorios` y `Gestion` quedan centrados horizontalmente cuando se muestran debajo del nombre del piso.
@@ -569,12 +581,12 @@ En cada avance relevante anadir:
   - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
   - `MANUAL_USUARIO.md`
 
-## 2026-05-26
+## 26/05/2026
 - Archivos principales afectados:
   - `app/src/main/java/com/sergio/flatshare/features/groups/GroupsFragment.java`
   - `MANUAL_USUARIO.md`
 
-## 2026-05-26
+## 26/05/2026
 - Tipo: Ajuste UI puntual
 - Recordatorios en `Movimientos` (`ExpensesFragment`):
   - se elimina la herencia de color por estado para filas tipo `reminder`,
@@ -583,28 +595,28 @@ En cada avance relevante anadir:
   - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
   - `MANUAL_USUARIO.md`
 
-## 2026-05-26
+## 26/05/2026
 - Tipo: Ajuste UI puntual
 - Calendario (`CalendarFragment`):
 - Archivos principales afectados:
   - `app/src/main/java/com/sergio/flatshare/features/workspace/CalendarFragment.java`
   - `MANUAL_USUARIO.md`
 
-## 2026-05-26
+## 26/05/2026
 - Tipo: Mejora visual de componente
 - Balance personal (`PieChartView`):
 - Archivos principales afectados:
   - `app/src/main/java/com/sergio/flatshare/shared/widgets/PieChartView.java`
   - `MANUAL_USUARIO.md`
 
-## 2026-05-26
+## 26/05/2026
 - Tipo: Ajuste UI puntual
 - Calendario:
 - Archivos principales afectados:
   - `app/src/main/res/color/calendar_day_text_selector.xml`
   - `MANUAL_USUARIO.md`
 
-## 2026-05-26
+## 26/05/2026
 - Tipo: Ajuste funcional en pagos
 - `Movimientos` (`ExpensesFragment`):
   - las acciones manuales sobre pago quedan disponibles solo en estado `Solicitado`.
@@ -612,7 +624,7 @@ En cada avance relevante anadir:
   - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
   - `MANUAL_USUARIO.md`
 
-## 2026-05-26
+## 26/05/2026
 - Tipo: Ajuste UI puntual
 - Calendario (`CalendarFragment`):
   - la etiqueta `Fecha seleccionada` se muestra en formato `dd/MM/yyyy` (ejemplo: `26/05/2026`).
@@ -620,14 +632,14 @@ En cada avance relevante anadir:
   - `app/src/main/java/com/sergio/flatshare/features/workspace/CalendarFragment.java`
   - `MANUAL_USUARIO.md`
 
-## 2026-05-26
+## 26/05/2026
 - Tipo: Ajuste UI puntual
 - Workspace (`ExpensesFragment`):
 - Archivos principales afectados:
   - `app/src/main/res/layout/fragment_expenses.xml`
   - `MANUAL_USUARIO.md`
 
-## 2026-05-26
+## 26/05/2026
 - Tipo: Mejora UX de textos
 - Recordatorios (`ExpensesFragment` y `CalendarFragment`):
 - Archivos principales afectados:
@@ -635,7 +647,7 @@ En cada avance relevante anadir:
   - `app/src/main/java/com/sergio/flatshare/features/workspace/CalendarFragment.java`
   - `MANUAL_USUARIO.md`
 
-## 2026-05-26
+## 26/05/2026
 - Detalle de recordatorios:
   - se aplica tanto en `Movimientos` como en `Calendario` para mantener consistencia visual.
 - Infraestructura compartida:
@@ -646,7 +658,7 @@ En cada avance relevante anadir:
   - `app/src/main/java/com/sergio/flatshare/features/workspace/CalendarFragment.java`
   - `MANUAL_USUARIO.md`
 
-## 2026-05-26
+## 26/05/2026
 - Tipo: Ajuste de layout en detalle de recordatorio
 - Detalle de recordatorios (movimientos y calendario):
   - `Nombre del piso` en tarjeta dedicada,
@@ -659,13 +671,13 @@ En cada avance relevante anadir:
   - `app/src/main/java/com/sergio/flatshare/features/workspace/CalendarFragment.java`
   - `MANUAL_USUARIO.md`
 
-## 2026-05-26
+## 26/05/2026
 - Detalle de gasto en `Movimientos`:
 - Archivos principales afectados:
   - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
   - `MANUAL_USUARIO.md`
 
-## 2026-05-26
+## 26/05/2026
 - Tipo: Ajuste visual de compatibilidad (calendario)
 - Calendario (`CalendarView`):
 - Archivos principales afectados:
@@ -673,7 +685,7 @@ En cada avance relevante anadir:
   - `app/src/main/java/com/sergio/flatshare/features/workspace/CalendarFragment.java`
   - `MANUAL_USUARIO.md`
 
-## 2026-05-26
+## 26/05/2026
   - se crean colores dedicados `calendar_day_text` y `calendar_day_text_muted` en `values` y `values-night`,
   - se actualiza `calendar_day_text_selector` y `TextAppearance.FlatShare.CalendarDate` para usar esos colores dedicados,
 - Resultado:
@@ -685,13 +697,13 @@ En cada avance relevante anadir:
   - `app/src/main/java/com/sergio/flatshare/features/workspace/CalendarFragment.java`
   - `MANUAL_USUARIO.md`
 
-## 2026-05-26
+## 26/05/2026
 - Tipo: Ajuste UI puntual
 - Archivos principales afectados:
   - `app/src/main/res/color/bottom_nav_item_colors.xml`
   - `MANUAL_USUARIO.md`
 
-## 2026-05-26
+## 26/05/2026
 - Tipo: Ajuste UI puntual
 - CTA principal de `Movimientos`:
   - se oculta la etiqueta inferior separada para simplificar el bloque CTA.
@@ -700,14 +712,14 @@ En cada avance relevante anadir:
   - `app/src/main/java/com/sergio/flatshare/features/workspace/ExpensesFragment.java`
   - `MANUAL_USUARIO.md`
 
-## 2026-05-26
+## 26/05/2026
 - Tipo: Ajuste UI puntual
 - Cabecera de Workspace:
 - Archivos principales afectados:
   - `app/src/main/res/layout/fragment_expenses.xml`
   - `MANUAL_USUARIO.md`
 
-## 2026-05-26
+## 26/05/2026
 - Tipo: Ajuste UI puntual de cabecera
 - Workspace (`ExpensesFragment`):
 - Archivos principales afectados:
@@ -715,98 +727,98 @@ En cada avance relevante anadir:
   - `app/src/main/res/layout/fragment_expenses.xml`
   - `MANUAL_USUARIO.md`
 
-## 2026-05-26
+## 26/05/2026
 - Tipo: Avance reconstruido
 - Ajuste visual en pantalla de Movimientos para mejorar el anclaje del CTA inferior y evitar solape visual con la lista de gastos.
 - El bloque de accion principal queda mas cercano al menu inferior, manteniendo separacion para no verse pegado.
 - Se recalculo el inset inferior dinamico de listas para que los items finales no queden ocultos bajo el CTA.
 
 
-## 2026-05-26
+## 26/05/2026
 - Tipo: Avance reconstruido
 - Corregido comportamiento del formulario largo de Nuevo gasto para mejorar scroll tras ocultar teclado en dialogos.
 - Reforzada la apertura del selector de habitaciones en el formulario de gasto para evitar que se quede bloqueado en una unica opcion visible.
 
 
-## 2026-05-26
+## 26/05/2026
 - Tipo: Avance reconstruido
 - Homogeneizado el comportamiento de dialogos tipo formulario en toda la app desde DialogUtils.show(...).
 
 
-## 2026-05-26
+## 26/05/2026
 - Tipo: Avance reconstruido
 - Ajuste correctivo: se retira la captura global de toque en DialogUtils.show(...) porque interferia con selectores desplegables (Spinner) en formularios como Nuevo gasto.
 - Se mantiene la mejora de scroll/teclado en formularios largos via ExpenseDialogs, evitando bloquear seleccion de habitacion y persona en reparto.
 
 
-## 2026-05-26
+## 26/05/2026
 - Tipo: Avance reconstruido
 - Si el email ya existe, se muestra aviso claro al usuario: Ese correo ya tiene una cuenta registrada.
 
 
-## 2026-05-26
+## 26/05/2026
 - Tipo: Avance reconstruido
 - Pantalla Pisos: el buscador de pisos se integra dentro de la tarjeta principal de listado, en la parte superior, para un bloque visual unico.
 - Se ajusta espaciado interno para mantener separacion entre buscador y lista.
 
 
-## 2026-05-26
+## 26/05/2026
 - Tipo: Avance reconstruido
 - Ventana de detalle del piso (long press en nombre): se sustituye el bloque de miembros por bloque de habitaciones con tarjetas clicables.
 - Cada habitacion abre acciones: Ver informacion, Editar habitacion, Eliminar habitacion (editar/eliminar solo para propietario).
 - Se mantiene visible el Modelo de reparto dentro del resumen superior del piso.
 
 
-## 2026-05-26
+## 26/05/2026
 - Tipo: Avance reconstruido
 
 
-## 2026-05-26
+## 26/05/2026
 - Tipo: Avance reconstruido
 - Pagos en Movimientos: el detalle deja de mostrarse como notificacion (Toast) y pasa a ventana/modal de detalle, consistente con gastos y recordatorios.
 - Se incluye en el detalle: piso, concepto, de, para, habitacion, estado, vencimiento e importe.
 
 
-## 2026-05-26
+## 26/05/2026
 - Tipo: Avance reconstruido
 - Movimientos (pagos): al tocar una fila de pago se abre directamente el modal de detalle.
 - Estados Solicitado y Pendiente: el modal muestra acciones inferiores Editar y Borrar (segun permisos).
 - Estado Pagado: modal en solo lectura (sin acciones de modificacion).
 
 
-## 2026-05-26
+## 26/05/2026
 - Tipo: Avance reconstruido
   - rojo cuando falta importe por repartir o hay exceso,
 
 
-## 2026-05-26
+## 26/05/2026
 - Tipo: Avance reconstruido
 
 
-## 2026-05-27
+## 27/05/2026
 - Tipo: Avance reconstruido
   - muestra asignado/total,
   - avisa en rojo si falta importe o si se supera,
   - confirma en verde cuando el reparto es correcto.
 
 
-## 2026-05-27
+## 27/05/2026
 - Tipo: Avance reconstruido
 
 
-## 2026-05-27
+## 27/05/2026
 - Tipo: Avance reconstruido
 - Actualizado `tools/firebase-admin-seed/package.json` con scripts directos para ejecutar ambos presets.
 - Actualizado `tools/firebase-admin-seed/README.md` con comandos y detalles de uso de los nuevos presets.
 
 
-## 2026-05-27
+## 27/05/2026
 - Tipo: Avance reconstruido
 - Corregido scroll en el modal de `Registrar pago pendiente`.
 - Se evita el bloqueo al deslizar hacia abajo en formularios largos de pago.
 
 
-## 2026-05-27
+## 27/05/2026
 - Tipo: Avance reconstruido
 - Corregidos textos visibles con caracteres corruptos en:
   - `ExpensesFragment.java`
@@ -814,126 +826,126 @@ En cada avance relevante anadir:
   - `fragment_groups.xml`
 
 
-## 2026-05-27
+## 27/05/2026
 - Tipo: Avance reconstruido
 
 
-## 2026-05-27
+## 27/05/2026
 - Tipo: Avance reconstruido
 
 
-## 2026-05-27
+## 27/05/2026
 - Tipo: Avance reconstruido
 - Pagos pendientes: endurecimiento de validaciones y claridad de estados.
 - OCR ya no sobreescribe el importe cuando el pago nace de una deuda pendiente bloqueada.
 - Recordatorios: permisos alineados en UI y `firestore.rules` para que solo creador o propietario puedan actualizar/eliminar.
 
 
-## 2026-05-27
+## 27/05/2026
 - Tipo: Hotfix UX
 - Nuevo gasto: corregido bloqueo de los desplegables de habitaciones e inquilinos en el modal.
 
 
-## 2026-05-27
+## 27/05/2026
 - Fondo en modo claro para pantallas de acceso (`activity_login` y `activity_register`): blanco plano sin degradado.
 
 
-## 2026-05-27
+## 27/05/2026
 - Cobertura en:
 
 
-## 2026-05-27
+## 27/05/2026
 - Tipo: Ajuste de registro
 - Campo `Fecha de nacimiento` en `RegisterActivity`: se inicializa con la fecha actual en formato `YYYY-MM-DD`.
 
 
-## 2026-05-27
+## 27/05/2026
 - Tipo: UX de validaciones Auth
 
 
-## 2026-05-27
+## 27/05/2026
 - Registro: ahora solicita y guarda solo `nombre completo` como identidad visible (sin alias).
 - Sync de perfil: `users.displayName` y `users.fullName` quedan alineados con nombre completo.
 
 
-## 2026-05-27
+## 27/05/2026
 - Se consultan colecciones por `uid` y/o `email` y se actualizan campos de nombre existentes (`displayName`, `fullName`, `name` y derivados) sin crear campos nuevos.
 
 
-## 2026-05-27
+## 27/05/2026
 
 
-## 2026-05-27
+## 27/05/2026
 - Tipo: Ajuste UX de teclado en registro
 - `RegisterActivity`: activado `windowSoftInputMode=adjustResize` y ajuste del contenedor del formulario a `wrap_content`.
 
 
-## 2026-05-27
+## 27/05/2026
 - Objetivo: mismo comportamiento de visibilidad de campos con teclado en todas las pantallas de acceso.
 
-## 2026-05-27
+## 27/05/2026
 - Si el usuario sale del piso activo, se limpia `SessionStore` (`currentGroup/currentRoom`) para evitar referencias colgantes.
 
-## 2026-05-27
+## 27/05/2026
 - Tipo: Ajuste UI en detalle de piso
 
-## 2026-05-27
+## 27/05/2026
 
-## 2026-05-27
+## 27/05/2026
 - Tipo: Mejora de reparto en Nuevo gasto
 - El reparto sigue persistiendo por persona en Firestore, manteniendo compatibilidad con balances y vencimientos actuales.
 
-## 2026-05-27
+## 27/05/2026
 - Tipo: Mejora de reparto en Nuevo cobro/pago
 
-## 2026-05-27
+## 27/05/2026
 - Corregido texto mojibake y caracteres de reemplazo (``) en Java y XML de UI.
 
-## 2026-05-27
+## 27/05/2026
 
 
-## 2026-05-28
+## 28/05/2026
 - Tipo: Mejora de referencia visual de inquilinos
 - `GroupsFragment`: en `Expulsar inquilino` la lista pasa a mostrar `Nombre` y debajo `correo`, y la confirmacion de expulsion tambien muestra ambos datos.
 - `RentalManagementFragment`: en los selectores de persona (`Inquilino` y `Responsable`) se muestra `Nombre` + `correo` en dos lineas.
 - `RentalManagementFragment`: se valida que no se guarden cobros/incidencias/automatizaciones sin persona seleccionada valida.
 - `RentalManagementFragment`: en listados de cobros, incidencias y automatizaciones se muestra la persona en formato de dos lineas para mejorar identificacion.
 
-## 2026-05-28
+## 28/05/2026
 - Tipo: UX de avisos en Ajustes
 - En `SettingsFragment`, los avisos del flujo de borrado de cuenta dejan de usar mensajes fugaces y pasan a ventana emergente con `Aceptar`.
 - Se introduce `NoticeUtils` para mostrar avisos persistentes en formato dialogo (`Aviso` + boton `Aceptar`).
 
-## 2026-05-28
+## 28/05/2026
 - Tipo: Ajuste visual de Login
 
-## 2026-05-28
+## 28/05/2026
 - Tipo: Ajuste UX en Nuevo gasto (reparto por personas)
 - En `ExpensesFragment`, el reparto por personas arranca con una sola fila tanto en `Reparto personalizado` como en `Reparto equitativo`.
 
-## 2026-05-28
+## 28/05/2026
 - Tipo: Correccion de compilacion Android
 - Se restauro el package com.sergio.flatshare.features.auth; en LoginActivity, RegisterActivity y VerifyEmailActivity tras una incidencia de codificacion.
 - Se repuso import android.widget.Toast; en las pantallas que aun usan Toast.makeText(...) para evitar errores cannot find symbol Toast.
 - Se validaron archivos Java en UTF-8 sin BOM para evitar fallos de caracteres ilegales.
 
-## 2026-05-28
+## 28/05/2026
 - Tipo: Correccion de textos UTF-8 y UI de registro
 - Se mejora el comportamiento con teclado en Crear cuenta para evitar que tape campos (scroll y espaciado inferior).
 
-## 2026-05-28
+## 28/05/2026
 - Tipo: Limpieza global de mojibake en textos visibles
 
-## 2026-05-29
+## 29/05/2026
 - Se corrigen permisos para evitar fallos `PERMISSION_DENIED` en borrado en cascada de piso.
 - Cambios de reglas:
   - `payments.delete`: ahora permitido al propietario del grupo para soportar limpieza completa del piso.
   - `audit_events.delete` y `event_reminder_jobs.delete`: permitido al propietario del grupo (se mantiene `update` bloqueado).
 
-## 2026-05-29
+## 29/05/2026
 - `SettingsFragment` ahora compara y selecciona idioma usando el locale activo de `AppCompatDelegate`, con fallback a preferencias.
 
-## 2026-05-29
+## 29/05/2026
 - Se migran textos hardcoded a recursos traducibles en:
   - `activity_login.xml`
   - `activity_register.xml`
@@ -945,12 +957,12 @@ En cada avance relevante anadir:
   - `values/strings.xml` (ES base)
   - `values-en/strings.xml` (EN)
 
-## 2026-05-29
+## 29/05/2026
 - Tipo: Correccion de build Android por recurso i18n EN
 - Se corrige `register_terms_content` en `values-en/strings.xml` para evitar un escape conflictivo durante mergeDebugResources (Invalid unicode escape sequence).
 - Se revisan escapes en el archivo y se deja en UTF-8 sin BOM.
 
-## 2026-05-31
+## 31/05/2026
   - en API `>= 29` se mantiene `MediaStore.Downloads`,
   - en API `< 29` se usa fallback a almacenamiento externo de la app (`getExternalFilesDir`) para evitar acceso a APIs no disponibles.
 - Se elimina `firebase-analytics` de `app/build.gradle`:
@@ -960,7 +972,7 @@ En cada avance relevante anadir:
 - Nota:
   - `lintDebug` sigue fallando por incidencias previas del proyecto no relacionadas con este ajuste (por ejemplo `UseAppTint` en layouts).
 
-## 2026-05-31
+## 31/05/2026
 - Tipo: Cierre de calidad (lint en verde)
 - Se resuelven errores bloqueantes de lint:
   - `UseAppTint` en layouts de perfil y fila de pisos.
@@ -970,7 +982,7 @@ En cada avance relevante anadir:
   - `lintDebug`: OK.
   - `assembleDebug`: OK.
 
-## 2026-05-31
+## 31/05/2026
 - Tipo: Estandarizacion de fechas UI (`DD/MM/AAAA`)
 - Se unifica el formato de fecha visible en la app a `DD/MM/AAAA`:
   - Gastos/pagos/recordatorios (workspace y calendario).
@@ -980,7 +992,7 @@ En cada avance relevante anadir:
   - Nueva utilidad compartida: `DateInputUtils`.
   - Textos y hints en layouts/strings para reflejar `DD/MM/AAAA`.
 
-## 2026-05-31
+## 31/05/2026
   - `Cobros`
   - `Incidencias`
   - `Documentos`
@@ -989,35 +1001,35 @@ En cada avance relevante anadir:
   - `Reglas push`
   - `assembleDebug` en verde tras el cambio.
 
-## 2026-05-31
+## 31/05/2026
 - Se renombra el acceso visible `Gestion` a `Cobros y soporte` para describir mejor su contenido.
 - En la pantalla de `RentalManagementFragment`:
 - Objetivo del ajuste:
 
-## 2026-06-01
+## 01/06/2026
   - `ProfileFragment` normaliza `birthDate` al cargar desde Firestore (`DateInputUtils.normalizeToDisplay`).
 - Ajuste de texto UI:
-  - En `dialog_edit_profile.xml`, el hint pasa de `Ejemplo: 1999-05-14` a `Ejemplo: 14/05/1999`.
+  - En `dialog_edit_profile.xml`, el hint pasa de `Ejemplo: 14/05/1999` a `Ejemplo: 14/05/1999`.
 
-## 2026-06-01
+## 01/06/2026
 - Se corrigen textos corruptos en:
   - `ExpensesFragment.java`
   - `RentalManagementFragment.java`
 - Resultado:
 - Ajuste puntual adicional:
 
-## 2026-06-01
+## 01/06/2026
 - Motivo:
   - `fragment_expenses.xml`: se retira `addRoomQuickBtn` y el spinner pasa a ocupar todo el ancho.
 
-## 2026-06-01
+## 01/06/2026
 - Reglas Firebase:
 - UX de detalle:
 
-## 2026-06-01
+## 01/06/2026
   - `Inquilino` en el desplegable de cobro pasa a formato visible `Nombre - email`.
 
-## 2026-06-01
+## 01/06/2026
 - Flujo nuevo:
   - El usuario selecciona un archivo con el selector del sistema (OpenDocument).
   - La app sube el archivo a Firebase Storage en group_documents/{groupId}/....
@@ -1025,94 +1037,94 @@ En cada avance relevante anadir:
 - Compatibilidad:
   - Se mantiene la entrada manual de Referencia/URL (opcional) para casos sin adjunto.
 
-## 2026-06-01
+## 01/06/2026
 
-## 2026-06-01
+## 01/06/2026
 - Tipo: Limpieza de archivos obsoletos/locales
 - Se corrige .gitignore para ignorar firebase-debug.log y .android-home/.
 
-## 2026-06-01
+## 01/06/2026
 
-## 2026-06-01
+## 01/06/2026
 
-## 2026-06-01
+## 01/06/2026
 - Tipo: Endurecimiento de reglas Firebase para habitaciones
 ooms_groups para eliminar la auto-salida/cambio directo del inquilino (isSelfRoomLeaveUpdate).
 
-## 2026-06-01
+## 01/06/2026
 - Se corrige rebindeo de Spinner en ExpensesFragment (paymentMembersContainer / paymentRoomsContainer).
 
-## 2026-06-01
+## 01/06/2026
 - Tipo: Asignacion obligatoria de habitacion al entrar en piso
 - Se refuerza GroupsFragment para que, al abrir un piso como inquilino, primero verifique si el usuario ya pertenece a una habitacion de rooms_groups.
 - Si no tiene habitacion, se muestra selector obligatorio y no se abre el workspace hasta completar la asignacion.
 - Si no hay habitaciones creadas o no hay plazas libres, no se permite entrar directamente; el propietario debe gestionar la asignacion.
 
 
-## 2026-06-01
+## 01/06/2026
 - Tipo: Control de acceso en union por QR/codigo
 - En GroupService.joinGroupByCode se valida primero si el usuario (uid/email) ya pertenece al piso.
 - Si ya es miembro, se bloquea la union y se muestra: 'Acceso denegado: ya estas en este piso'.
 
 
-## 2026-06-01
+## 01/06/2026
 - Tipo: Correccion de desplegables de miembros en Pagos y Recordatorios
 - Se elimina el rebindeo automatico al cambiar seleccion en lineas de destino para evitar que el Spinner se cierre o bloquee al desplegar.
 - Afecta a Registrar pago (miembros/habitaciones) y Nuevo recordatorio (miembros/habitaciones), mejorando la seleccion manual estable.
 
 
-## 2026-06-01
+## 01/06/2026
 - Tipo: Saneamiento global de codificacion
 - Se eliminan lineas historicas corruptas en diario para mantener UTF-8 legible.
 - Se normalizan archivos con BOM a UTF-8 sin BOM y se revisan textos visibles.
 
-## 2026-06-01
+## 01/06/2026
 - Tipo: Flujo de pagos pendiente->aceptado y limpieza de duplicados visuales
 - En Movimientos para inquilino se muestran solo pagos enviados por el propio inquilino; el resto de deudas se gestiona desde pagos pendientes para evitar duplicados/confusion.
 - Al tocar una deuda pendiente se abre Registrar pago con justificante obligatorio; al enviar pasa a estado pending.
 - La aceptacion ahora se permite cuando el pago esta en pending, tanto para propietario como para el acreedor (toEmail).
 
 
-## 2026-06-01
+## 01/06/2026
 - Tipo: Permisos compartidos de pagos (creador + propietario)
 - Se actualiza firestore.rules para que el creador del pago (fromEmail) y el propietario del piso puedan gestionar pagos del grupo.
 - Ambos pueden aceptar un pago pendiente (pending -> confirmed) y eliminar pagos.
 - Se habilita actualizacion de pagos por creador/propietario manteniendo invariantes de groupId y fromEmail.
 
 
-## 2026-06-01
+## 01/06/2026
 - Tipo: Nuevo pago habilitado para todos en ambos modelos de alquiler
 - En Nueva accion, Registrar pago queda disponible para todos los miembros (fijo y variable).
 - Si el inquilino tiene deudas pendientes, aparece ademas acceso rapido Pagar pendiente.
 - En detalle de pago pendiente, el boton de accion muestra texto Aceptar pago.
 
 
-## 2026-06-01
+## 01/06/2026
 - Tipo: Correccion de desplegables en Nuevo gasto
 - Se refuerza el manejo tactil de Spinner en el dialogo de gasto (tipo de reparto, repartir por y filas de miembro/habitacion).
 - Se evita que el ScrollView intercepte el toque y bloquee la apertura del desplegable en algunos dispositivos.
 
 
-## 2026-06-01
+## 01/06/2026
 - Tipo: Correccion de union por codigo con permisos de lectura restringidos
 - GroupService.joinGroupByCode ahora, si falla la lectura de groups/{groupId} por PERMISSION_DENIED, hace fallback a alta directa con arrayUnion.
 - Resultado: el no-miembro puede unirse por codigo sin error de permisos insuficientes.
 
 
-## 2026-06-01
+## 01/06/2026
 - Tipo: Correccion de duplicados en listado de Movimientos
 - Se añade control de version de carga en ExpensesFragment (expensesLoadVersion) para ignorar respuestas async antiguas.
 - Resultado: al recargar en paralelo no se agregan filas duplicadas de pagos/gastos.
 
 
-## 2026-06-01
+## 01/06/2026
 - Tipo: Saneamiento global de codigo y despliegue Firebase
 - Limpieza de imports duplicados en todos los archivos Java (especialmente Toast repetido), manteniendo UTF-8 sin BOM.
 - Se agrega configuracion de proyecto Firebase en repo: firebase.json y firestore.indexes.json.
 - Resultado: despliegue de reglas disponible desde la raiz del proyecto con firebase deploy --only firestore:rules.
 
 
-## 2026-06-01
+## 01/06/2026
 - Tipo: Refactor y saneamiento tecnico (fase TFG)
 - Se extrae politica de permisos de pagos a servicio dedicado: PaymentAccessPolicy.
 - ExpensesFragment reduce logica de autorizacion en metodos de pago usando servicio externo.
@@ -1120,7 +1132,7 @@ ooms_groups para eliminar la auto-salida/cambio directo del inquilino (isSelfRoo
 - Se agrega TEST_CHECKLIST_TFG.md con pruebas funcionales y de seguridad para validacion final.
 
 
-## 2026-06-01
+## 01/06/2026
 - Tipo: Refactor incremental de fragmentos gigantes (fase 2 TFG)
 - Se extrae catalogo de provincias/ciudades de GroupsFragment a ProvinceCityCatalog.
 - Se extrae formateo de etiquetas de miembro a MemberLabelFormatter para reutilizar en ExpensesFragment y RentalManagementFragment.
@@ -1128,128 +1140,128 @@ ooms_groups para eliminar la auto-salida/cambio directo del inquilino (isSelfRoo
 - Se actualiza TEST_CHECKLIST_TFG.md con bloque de regresion por refactor.
 
 
-## 2026-06-01
+## 01/06/2026
 - Tipo: Guia de validacion final en 10 minutos
 - Se agrega validacion10minutos.md con checklist cronometrado para cierre pre-entrega (union, habitaciones, gastos, pagos, duplicados y smoke final).
 
 
-## 2026-06-04
+## 04/06/2026
 - Tipo: Validacion de ticket obligatoria en Nuevo gasto
 - El alta de gastos nuevos exige adjuntar ticket antes de guardar y el boton `Guardar` queda bloqueado hasta que exista justificante.
 - La edicion de gastos ya existentes conserva su ticket previo y no obliga a volver a subirlo si solo se cambian otros campos.
 
-## 2026-06-04
+## 04/06/2026
 - Tipo: Horarios solo gestionables por el propietario
 - El modulo `Horarios` queda en modo solo lectura para miembros que no sean propietarios del piso.
 - Solo el propietario puede crear, editar y eliminar horarios, y se añade accion visible de `Eliminar horario` en la gestion.
 - Firestore se alinea para que `group_schedules` permita lectura a miembros, pero escritura y borrado solo al propietario.
 
-## 2026-06-04
+## 04/06/2026
 - Tipo: Correccion de deteccion de propietario en Gestion
 - RentalManagementFragment pasa a reconocer tambien el rol `admin` del grupo al decidir si el usuario puede gestionar `Reglas` y `Horarios`.
 - Resultado: el propietario legitimo deja de quedar bloqueado al intentar crear reglas del piso.
 
-## 2026-06-04
+## 04/06/2026
 - Tipo: Filtro de habitacion extendido a Recordatorios y Gestion
 - El filtro interno del piso pasa a aplicarse tambien sobre `reminders`, `maintenance_tickets`, `house_rules` y `group_schedules`.
 - Los elementos ligados a otra habitacion dejan de mostrarse cuando se selecciona una distinta, y en objetivos por persona se usa la composicion real de la habitacion filtrada.
 
-## 2026-06-04
+## 04/06/2026
 - Tipo: Reparto exacto del coste mensual por habitacion
 - Se centraliza el calculo del alquiler de habitacion por residentes en `RoomRentShareCalculator`.
 - Si la habitacion tiene un unico residente, absorbe el 100 % del coste mensual; si tiene varios, se reparte segun configuracion.
 - El reparto se cierra a centimos y se reutiliza igual en balance, resumen rapido y pagos por habitacion para evitar discrepancias.
 
-## 2026-06-04
+## 04/06/2026
 - Tipo: Cobro mensual de habitacion visible en Movimientos
 - El coste mensual por residente de una habitacion se sincroniza en `rent_collections` del mes actual como `room_charge`.
 - `Movimientos` pasa a mostrar esas deudas como una fila mas de tipo `Gasto habitación`.
 - Si cambian residentes o importe de la habitacion, el cobro mensual del mes se recalcula y se actualiza para reflejar la nueva parte de cada persona.
 
-## 2026-06-04
+## 04/06/2026
 - Tipo: Resincronizacion de la siguiente mensualidad de habitacion
 - La sincronizacion de `room_charge` se amplía para recalcular no solo el mes actual, sino tambien la siguiente mensualidad pendiente.
 - Si cambia el coste de la habitacion o sus residentes antes del siguiente vencimiento, ese cobro mensual futuro tambien actualiza su importe y sus deudores.
 
-## 2026-06-04
+## 04/06/2026
 - Tipo: Solicitud automatica de gasto de habitacion al entrar
 - El balance de habitacion deja de quedar desacoplado de `Movimientos`: al entrar en el piso se genera automaticamente la fila `Gasto habitación` si falta.
 - La solicitud queda marcada como pedida por el propietario, con inicio el mismo dia y vencimiento a 30 dias.
 - La resincronizacion se permite tambien cuando quien entra primero es un inquilino, manteniendo restringidos el resto de `rent_collections`.
 
-## 2026-06-04
+## 04/06/2026
 - Tipo: Guardado de coste final en incidencias
 - El formulario de `Incidencias` pasa a aceptar importes con coma decimal ademas de con punto.
 - Esto evita que `Coste final` falle al guardar cuando el usuario escribe valores como `17,66`.
 
-## 2026-06-04
+## 04/06/2026
 - Tipo: Scroll en modales de detalle
 - El contenedor base de `DialogUtils` envuelve el contenido en un `ScrollView` con altura maxima cuando el modal no lo trae ya preparado.
 - Asi se puede deslizar arriba y abajo en detalles largos como `Gasto habitación` y otras ventanas con muchos campos.
 
-## 2026-06-04
+## 04/06/2026
 - Tipo: Normalizacion de horas en horarios
 - El formulario de `Horarios` normaliza las horas a `HH:MM` para recoger bien casos exactos como `17:00` o `18:00`.
 - Tambien se corrige el calculo de `endAt` para que use la hora de fin real y no repita la hora de inicio.
 
-## 2026-06-04
+## 04/06/2026
 - Tipo: Mejora visual de terminos y condiciones
 - El texto legal del registro deja de mostrarse como un bloque plano de sistema y pasa a un dialogo con introduccion, secciones separadas y scroll mas comodo.
 - El cambio es visual y de legibilidad; no modifica la logica de aceptacion.
 
-## 2026-06-04
+## 04/06/2026
 - Tipo: Correccion de puntuacion en recuperacion de contraseña
 - Se añaden los signos de cierre que faltaban en `¿Olvidaste tu contraseña?` y `¿Olvidaste la contraseña?`.
 
-## 2026-06-04
+## 04/06/2026
 - Tipo: Saneado de textos corruptos en recursos
 - Se rehacen los recursos `values/strings.xml` y `values-es/strings.xml` para eliminar mojibake visible en ajustes, login, registro, verificación y balance.
 
-## 2026-06-04
+## 04/06/2026
 - Tipo: Recuperacion del flujo de justificante en gastos dirigidos
 - Los gastos dirigidos a un inquilino vuelven a abrir el flujo de justificante incluso en casos legacy donde la deteccion por `customSplit` no bastaba por si sola.
 - Si el gasto no va realmente dirigido al usuario, el modal vuelve a quedarse en solo lectura y ya no intenta recrear una deuda incorrecta.
 
-## 2026-06-04
+## 04/06/2026
 - Tipo: Visor ampliado de justificantes
 - La vista previa del justificante deja de quedarse tan limitada en altura y ahora puede abrirse en un visor ampliado.
 - La carga sigue haciendose con muestreo para evitar picos de memoria en el movil.
 
-## 2026-06-04
+## 04/06/2026
 - Tipo: Gasto mensual de habitacion en balance temporal
 - El balance por tiempo incorpora tambien los documentos `room_charge` de `rent_collections` del inquilino actual.
 - Con ello, el gasto mensual de habitacion ya no se pierde en la grafica temporal aunque exista como movimiento generado aparte.
-## 2026-06-04
+## 04/06/2026
 - Tipo: Altura adaptativa en dialogos
 - El contenedor base de `DialogUtils` deja de forzar una altura fija para todas las ventanas.
 - Los dialogos pequenos vuelven a ajustarse al contenido y los largos mantienen scroll con una altura maxima razonable.
 
-## 2026-06-04
+## 04/06/2026
 - Tipo: Ticket del gasto visible en pagos solicitados
 - El detalle de `Pago solicitado` y confirmaciones enlazadas carga tambien el ticket original del gasto cuando existe un `sourceId`.
 - Se evita duplicar la imagen si el justificante del pago y el ticket del gasto apuntan al mismo archivo.
 
-## 2026-06-04
+## 04/06/2026
 - Tipo: Retirada visual del flujo antiguo de pagos
 - `ExpensesFragment` y `CalendarFragment` dejan de mostrar deudas y movimientos de `payment` que no esten respaldados por un gasto (`sourceType = expense`).
 - Se limpia asi la UI de etiquetas heredadas como `Pago pendiente`, manteniendo solo confirmaciones y pendientes del flujo actual de gastos.
 
-## 2026-06-04
+## 04/06/2026
 - Tipo: Nuevo gasto por personas y tarjetas mas legibles
 - El formulario de gastos oculta el reparto por habitaciones y mantiene el alta centrada en personas, mostrando la habitacion junto a cada nombre.
 - Las tarjetas de movimientos y gestion se reorganizan para enseñar mejor quien solicita, a quien afecta y las fechas clave sin depender de subtitulos demasiado compactos.
 
-## 2026-06-04
+## 04/06/2026
 - Tipo: Reajuste de firestore.rules para gastos
 - Se endurecen las reglas de `expenses` para que solo puedan editarse o borrarse en estado `requested`.
 - La gestion queda restringida al pagador del gasto o al propietario del piso, y en update se preservan `groupId`, `payerId` y `payerEmail`.
 
-## 2026-06-04
+## 04/06/2026
 - Tipo: Recuperacion del detalle de gasto dirigido
 - El modal de un gasto solicitado dirigido al deudor vuelve a enseñar el ticket original del gasto con scroll y visor ampliado.
 - El boton `Subir justificante` vuelve a aparecer tambien cuando la deuda enlazada conservaba estado `requested` por compatibilidad con datos anteriores.
 
-## 2026-06-04
+## 04/06/2026
 - Tipo: Limpieza final de habitacion y etiquetas legacy
 - El guardado de gastos por personas deja de marcar por defecto `Todas las habitaciones` y deriva las habitaciones desde los deudores reales.
 - La UI de movimientos elimina tambien los ultimos titulos visibles de `Pago solicitado` que no pertenecian al flujo vigente.

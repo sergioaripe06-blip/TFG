@@ -3,189 +3,175 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Manual de Uso - FlatShare</title>
+  <title>Manual de uso - FlatShare</title>
   <style>
     :root {
       --paper: #ffffff;
       --ink: #111111;
-      --muted: #555555;
-      --accent: #111111;
-      --accent-soft: #d9d9d9;
-      --line: #bfbfbf;
-      --ok: #2f855a;
-      --warn: #b7791f;
-      --danger: #c53030;
+      --muted: #5a5a5a;
+      --line: #cfcfcf;
+      --soft: #f7f7f7;
     }
+
     * { box-sizing: border-box; }
+
     body {
       margin: 0;
       background: #ffffff;
       color: var(--ink);
-      font: 12pt/1.5 "Times New Roman", Times, serif;
+      font: 12pt/1.6 "Times New Roman", Times, serif;
     }
+
     .document {
-      max-width: 850px;
+      max-width: 860px;
       margin: 0 auto;
       background: var(--paper);
-      border: none;
-      overflow: hidden;
     }
+
     .sheet {
-      padding: 32px 42px;
-      border-bottom: none;
+      padding: 34px 44px;
+      page-break-after: always;
     }
+
+    .sheet:last-child {
+      page-break-after: auto;
+    }
+
     .cover {
-      min-height: 92vh;
+      min-height: 94vh;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      background: #ffffff;
     }
-    .cover-top {
-      display: flex;
-      justify-content: space-between;
+
+    .cover-top,
+    .cover-bottom {
       color: var(--muted);
       font-size: 11pt;
     }
-    .cover-center {
-      text-align: center;
-      padding: 72px 0;
+
+    .cover-top {
+      display: flex;
+      justify-content: space-between;
     }
+
+    .cover-center {
+      padding: 84px 0;
+      text-align: center;
+    }
+
     .cover-kicker {
-      display: block;
       margin-bottom: 18px;
-      padding: 0;
-      color: var(--ink);
-      font: 700 12pt/1.2 "Times New Roman", Times, serif;
+      font-size: 12pt;
+      font-weight: 700;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
     }
+
     h1 {
       margin: 0 0 14px;
-      font-size: 24pt;
+      font-size: 26pt;
       line-height: 1.15;
-      color: var(--ink);
     }
+
     .cover-subtitle {
-      max-width: 720px;
-      margin: 0 auto;
-      font-size: 12pt;
+      max-width: 700px;
+      margin: 0 auto 28px;
       color: var(--muted);
     }
+
     .cover-meta {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 14px;
-      margin-top: 34px;
       text-align: left;
     }
+
     .meta-card {
       padding: 12px 14px;
       border: 1px solid var(--line);
       background: #ffffff;
     }
+
     .meta-label {
       display: block;
       margin-bottom: 6px;
       color: var(--muted);
-      font: 700 10pt/1.2 "Times New Roman", Times, serif;
+      font-size: 10pt;
+      font-weight: 700;
       text-transform: uppercase;
     }
-    .cover-footer {
-      padding-top: 28px;
-      border-top: 1px solid var(--line);
-      color: var(--muted);
-      text-align: center;
-      font-size: 11pt;
-    }
+
     h2 {
       margin: 0 0 14px;
       padding-bottom: 8px;
       border-bottom: 1px solid var(--line);
       font-size: 18pt;
-      color: var(--ink);
     }
+
     h3 {
-      margin: 26px 0 10px;
+      margin: 28px 0 10px;
       font-size: 14pt;
     }
-    h4 {
-      margin: 18px 0 8px;
-      font-size: 12pt;
+
+    p {
+      margin: 0 0 12px;
     }
-    p { margin: 0 0 12px; }
-    ul, ol { margin: 8px 0 16px 24px; }
-    li { margin: 4px 0; }
+
+    ul, ol {
+      margin: 8px 0 16px 24px;
+    }
+
+    li {
+      margin: 4px 0;
+    }
+
     .toc {
       padding: 16px 18px;
       border: 1px solid var(--line);
       background: #ffffff;
     }
+
     .toc ol {
       margin: 0 0 0 22px;
     }
-    .toc li {
-      padding: 3px 0;
+
+    .capture-box {
+      margin: 18px 0 22px;
+      padding: 18px;
+      border: 1px dashed var(--line);
+      background: var(--soft);
     }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 16px 0 22px;
+
+    .capture-box strong {
+      display: block;
+      margin-bottom: 8px;
     }
-    th, td {
-      border: 1px solid var(--line);
-      padding: 8px 10px;
-      text-align: left;
-      vertical-align: top;
-    }
-    th {
-      background: #f2f2f2;
-      color: var(--ink);
-      font: 700 11pt/1.4 "Times New Roman", Times, serif;
-    }
-    .callout {
-      margin: 16px 0 20px;
+
+    .hint {
+      margin: 14px 0 18px;
       padding: 12px 14px;
       border: 1px solid var(--line);
       background: #ffffff;
     }
-    .state-ok { color: var(--ok); font-weight: 700; }
-    .state-warn { color: var(--warn); font-weight: 700; }
-    .state-danger { color: var(--danger); font-weight: 700; }
-    .footer {
-      margin-top: 28px;
-      padding-top: 14px;
-      border-top: 1px solid var(--line);
-      color: var(--muted);
-      font-size: 14px;
-    }
+
     .page-number {
-      margin-top: 18px;
+      margin-top: 24px;
       color: var(--muted);
       text-align: right;
       font-size: 10pt;
-      font-family: "Times New Roman", Times, serif;
     }
+
     code {
-      padding: 0;
-      background: transparent;
       font-family: Consolas, "Courier New", monospace;
       font-size: 0.94em;
     }
+
     @media print {
-      body { background: #fff; }
+      body { background: #ffffff; }
       .document {
-        margin: 0;
         max-width: none;
-        border: none;
-        border-radius: 0;
-        box-shadow: none;
-      }
-      .sheet {
-        min-height: 100vh;
-        page-break-after: always;
-      }
-      .sheet:last-child {
-        page-break-after: auto;
+        margin: 0;
       }
     }
   </style>
@@ -197,10 +183,12 @@
         <span>Trabajo Fin de Grado</span>
         <span>FlatShare</span>
       </div>
+
       <div class="cover-center">
-        <div class="cover-kicker">Manual de usuario</div>
+        <div class="cover-kicker">Manual de uso</div>
         <h1>FlatShare</h1>
-        <p class="cover-subtitle">Documento funcional de uso de la aplicación para la gestión de pisos compartidos, gastos, pagos, recordatorios, calendario, balance y convivencia.</p>
+        <p class="cover-subtitle">Documento de apoyo para explicar de forma sencilla cómo se usa la aplicación, qué hace cada pestaña y dónde conviene insertar capturas en la entrega final.</p>
+
         <div class="cover-meta">
           <div class="meta-card">
             <span class="meta-label">Aplicación</span>
@@ -216,22 +204,15 @@
             <strong>Sergio Ariño Pérez</strong>
           </div>
           <div class="meta-card">
-            <span class="meta-label">Titulación</span>
-            <strong>DAM Superior</strong><br>
-            Segundo año
-          </div>
-          <div class="meta-card">
-            <span class="meta-label">Tipo de documento</span>
-            Manual formal de uso
-          </div>
-          <div class="meta-card">
-            <span class="meta-label">Fecha</span>
-            04/06/2026
+            <span class="meta-label">Finalidad</span>
+            <strong>Manual de uso</strong><br>
+            Preparado para añadir capturas
           </div>
         </div>
       </div>
-      <div class="cover-footer">
-        Documento preparado para entrega académica, defensa o importación en Microsoft Word y Google Docs.
+
+      <div class="cover-bottom">
+        Documento pensado para acompañar la memoria y poder exportarse con facilidad a Word o PDF.
       </div>
     </section>
 
@@ -239,21 +220,22 @@
       <h2>Índice</h2>
       <div class="toc">
         <ol>
-          <li>Objetivo de la aplicación</li>
-          <li>Qué puede hacer el usuario</li>
-          <li>Requisitos de uso</li>
-          <li>Inicio de sesión y alta de usuario</li>
-          <li>Navegación general</li>
-          <li>Gestión de pisos</li>
-          <li>Gestión de habitaciones</li>
-          <li>Workspace del piso</li>
-          <li>Balance</li>
-          <li>Calendario</li>
-          <li>Perfil</li>
+          <li>Objetivo de este documento</li>
+          <li>Cómo usar este manual</li>
+          <li>Índice de capturas recomendadas</li>
+          <li>Acceso a la aplicación</li>
+          <li>Vista general de la aplicación</li>
+          <li>Pestaña Pisos</li>
+          <li>Dentro de un piso</li>
+          <li>Subpestaña Movimientos</li>
+          <li>Subpestaña Recordatorios</li>
+          <li>Subpestaña Gestión</li>
+          <li>Pestaña Balance</li>
+          <li>Pestaña Calendario</li>
+          <li>Pestaña Perfil</li>
           <li>Ajustes</li>
-          <li>Roles y permisos</li>
-          <li>Buenas prácticas de uso</li>
-          <li>Incidencias habituales y resolución</li>
+          <li>Consejos para preparar capturas</li>
+          <li>Formato recomendado para cada figura</li>
           <li>Resumen final</li>
         </ol>
       </div>
@@ -261,388 +243,173 @@
     </section>
 
     <section class="sheet">
-      <h2>1. Objetivo de la aplicación</h2>
-      <p>FlatShare es una aplicación móvil para Android orientada a la gestión integral de pisos compartidos. Su finalidad es centralizar la organización económica y operativa de la vivienda en una única herramienta, permitiendo controlar miembros, habitaciones, gastos, pagos, recordatorios, calendario, balance y reglas de convivencia.</p>
+      <h2>1. Objetivo de este documento</h2>
+      <p>Este manual de uso explica la aplicación de forma sencilla, pensando en una persona que no conoce el proyecto de antemano.</p>
+      <p>Su función es ayudar a entender qué hace cada pantalla, qué opciones tiene el usuario y dónde conviene insertar capturas para apoyar la explicación.</p>
 
-      <h2>2. Qué puede hacer el usuario</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Área</th>
-            <th>Funcionalidades principales</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Autenticación</td>
-            <td>Registrarse, iniciar sesión, verificar correo y recuperar contraseña.</td>
-          </tr>
-          <tr>
-            <td>Pisos</td>
-            <td>Crear piso, unirse por código o QR, ver miembros y compartir acceso.</td>
-          </tr>
-          <tr>
-            <td>Habitaciones</td>
-            <td>Crear habitaciones, asignar residentes y definir repartos internos.</td>
-          </tr>
-          <tr>
-            <td>Movimientos</td>
-            <td>Gestionar gastos, pagos, justificantes, estados y vencimientos.</td>
-          </tr>
-          <tr>
-            <td>Recordatorios</td>
-            <td>Programar avisos únicos o recurrentes por personas, habitaciones o todos los inquilinos.</td>
-          </tr>
-          <tr>
-            <td>Gestión</td>
-            <td>Registrar incidencias, reglas de la casa y horarios recurrentes.</td>
-          </tr>
-          <tr>
-            <td>Balance</td>
-            <td>Visualizar gráficos por categorías y por tiempo.</td>
-          </tr>
-          <tr>
-            <td>Calendario</td>
-            <td>Consultar eventos económicos y horarios por fecha.</td>
-          </tr>
-          <tr>
-            <td>Perfil y ajustes</td>
-            <td>Editar datos personales, cambiar idioma, tema, notificaciones, cerrar sesión y borrar cuenta.</td>
-          </tr>
-        </tbody>
-      </table>
+      <h2>2. Cómo usar este manual</h2>
+      <p>Lo más recomendable es leerlo siguiendo el flujo natural de uso de la app: acceso, pisos, espacio interno del piso, balance, calendario, perfil y ajustes.</p>
+      <p>Cada apartado incluye una explicación clara, una lista de acciones del usuario y un hueco preparado para colocar la captura correspondiente.</p>
 
-      <h2>3. Requisitos de uso</h2>
-      <ul>
-        <li>Dispositivo Android compatible.</li>
-        <li>Conexión a Internet para operar con Firebase.</li>
-        <li>Cuenta registrada y correo electrónico verificado.</li>
-        <li>Permiso de cámara si se desea usar el escaneo de QR.</li>
-        <li>Permiso de notificaciones si se quieren recibir avisos del sistema.</li>
-      </ul>
+      <h2>3. Índice de capturas recomendadas</h2>
+      <ol>
+        <li>Pantalla de login.</li>
+        <li>Pantalla de registro.</li>
+        <li>Pantalla de verificación de correo.</li>
+        <li>Pantalla principal de <code>Pisos</code>.</li>
+        <li>Detalle de un piso.</li>
+        <li>Pantalla <code>Movimientos</code>.</li>
+        <li>Diálogo <code>Nuevo gasto</code>.</li>
+        <li>Pantalla <code>Recordatorios</code>.</li>
+        <li>Pantalla <code>Gestión</code>.</li>
+        <li>Pantalla <code>Balance</code>.</li>
+        <li>Pantalla <code>Calendario</code>.</li>
+        <li>Pantalla <code>Perfil</code>.</li>
+        <li>Pantalla <code>Ajustes</code>.</li>
+      </ol>
       <div class="page-number">Página 2</div>
     </section>
 
     <section class="sheet">
-      <h2>4. Inicio de sesión y alta de usuario</h2>
-      <h3>4.1 Registro</h3>
-      <p>El alta de usuario se realiza desde la pantalla de registro, donde se solicitan nombre completo, correo electrónico, teléfono, fecha de nacimiento y contraseña. Tras enviar el formulario, la aplicación crea la cuenta en Firebase Authentication y remite un correo de verificación.</p>
-      <p>Mientras el correo no se haya validado, el acceso a la aplicación permanece bloqueado.</p>
+      <h2>4. Acceso a la aplicación</h2>
 
-      <h3>4.2 Inicio de sesión</h3>
-      <p>El inicio de sesión se realiza mediante correo y contraseña. Si el correo sigue sin estar verificado, la aplicación redirige a la pantalla de verificación y no permite continuar.</p>
+      <h3>4.1 Pantalla de login</h3>
+      <p>Es la pantalla de entrada para personas que ya tienen cuenta creada.</p>
+      <p>Aquí se muestran el correo, la contraseña, la opción <code>Recordarme</code>, el acceso al registro y la recuperación de contraseña.</p>
+      <div class="capture-box">
+        <strong>Figura 1. Pantalla de login de FlatShare.</strong>
+        Insertar aquí la captura de la pantalla de login.
+      </div>
 
-      <h3>4.3 Recuperación de contraseña</h3>
-      <p>Desde la pantalla de login el usuario puede solicitar el restablecimiento de contraseña mediante un correo electrónico de recuperación.</p>
+      <h3>4.2 Pantalla de registro</h3>
+      <p>Sirve para crear una cuenta nueva introduciendo nombre, correo, teléfono, fecha de nacimiento, contraseña y aceptación de términos.</p>
+      <p>Conviene explicar que la cuenta no queda lista del todo hasta verificar el correo electrónico.</p>
+      <div class="capture-box">
+        <strong>Figura 2. Pantalla de registro de una nueva cuenta.</strong>
+        Insertar aquí la captura de la pantalla de registro.
+      </div>
 
-      <h2>5. Navegación general</h2>
-      <p>Una vez autenticado, el usuario accede a una navegación inferior compuesta por cuatro secciones principales:</p>
-      <ul>
-        <li><strong>Pisos:</strong> acceso al listado de pisos y a los espacios de trabajo de cada uno.</li>
-        <li><strong>Balance:</strong> visualización analítica de los gastos.</li>
-        <li><strong>Calendario:</strong> agenda de pagos, recordatorios y horarios.</li>
-        <li><strong>Perfil:</strong> información personal y acceso a ajustes.</li>
-      </ul>
-
-      <h2>6. Gestión de pisos</h2>
-      <h3>6.1 Crear piso</h3>
-      <p>La creación de un piso se realiza mediante un flujo por pasos:</p>
-      <ol>
-        <li>Introducir nombre y dirección del piso.</li>
-        <li>Seleccionar ciudad y provincia.</li>
-        <li>Elegir modelo de alquiler: fijo o variable.</li>
-        <li>Definir número de habitaciones iniciales.</li>
-        <li>Completar el alta de las habitaciones.</li>
-      </ol>
-
-      <h3>6.2 Unirse a un piso</h3>
-      <p>La unión a un piso puede realizarse mediante código compartido por el propietario o mediante escaneo de QR. Si existen habitaciones con plazas disponibles, la aplicación obliga a seleccionar habitación antes de finalizar el alta.</p>
-
-      <h3>6.3 Detalle de piso</h3>
-      <p>Al abrir el detalle de un piso se muestran sus datos básicos, miembros y acciones disponibles según el rol del usuario.</p>
-      <table>
-        <thead>
-          <tr>
-            <th>Acción</th>
-            <th>Descripción</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Editar</td>
-            <td>Solo propietario. Permite modificar nombre, descripción y configuración del modelo de alquiler.</td>
-          </tr>
-          <tr>
-            <td>Añadir</td>
-            <td>Comparte el acceso al piso mediante código o QR.</td>
-          </tr>
-          <tr>
-            <td>Gestionar habitaciones</td>
-            <td>Solo propietario. Abre la pantalla de habitaciones.</td>
-          </tr>
-          <tr>
-            <td>Eliminar piso</td>
-            <td>Solo propietario. Borra el piso y su contenido asociado si se confirma la acción.</td>
-          </tr>
-        </tbody>
-      </table>
+      <h3>4.3 Pantalla de verificación de correo</h3>
+      <p>Después del registro, la app muestra una pantalla para reenviar el correo, comprobar si ya se ha validado y continuar cuando la cuenta está verificada.</p>
+      <div class="capture-box">
+        <strong>Figura 3. Pantalla de verificación de correo.</strong>
+        Insertar aquí la captura de la verificación.
+      </div>
       <div class="page-number">Página 3</div>
     </section>
 
     <section class="sheet">
-      <h2>7. Gestión de habitaciones</h2>
-      <p>La gestión de habitaciones está orientada principalmente al propietario del piso. Permite:</p>
-      <ul>
-        <li>Crear habitaciones.</li>
-        <li>Renombrarlas.</li>
-        <li>Eliminar habitaciones vacías.</li>
-        <li>Asignar residentes por plaza.</li>
-        <li>Configurar reparto interno del alquiler fijo.</li>
-        <li>Consultar los datos de ocupación.</li>
-      </ul>
+      <h2>5. Vista general de la aplicación</h2>
+      <p>Una vez dentro, la navegación principal se organiza desde la barra inferior. Las pestañas más importantes son <code>Pisos</code>, <code>Balance</code>, <code>Calendario</code> y <code>Perfil</code>.</p>
+      <p>Cada una cumple una función concreta y permite separar la parte económica, la parte organizativa y la información personal del usuario.</p>
 
-      <div class="callout">
-        <strong>Restricción importante:</strong> una habitación no puede eliminarse mientras tenga residentes asignados.
+      <h2>6. Pestaña Pisos</h2>
+      <p>Esta pantalla reúne todos los pisos a los que pertenece el usuario.</p>
+      <p>Desde aquí se puede crear un piso, unirse a uno existente y entrar al espacio de trabajo de cada vivienda.</p>
+      <div class="capture-box">
+        <strong>Figura 4. Pestaña Pisos con los pisos disponibles del usuario.</strong>
+        Insertar aquí la captura de la pestaña <code>Pisos</code>.
       </div>
 
-      <h2>8. Workspace del piso</h2>
-      <p>El workspace es la zona principal de trabajo del piso. Se estructura en tres pestañas: <strong>Movimientos</strong>, <strong>Recordatorios</strong> y <strong>Gestión</strong>.</p>
-
-      <h3>8.1 Movimientos</h3>
-      <p>Desde esta sección se gestionan gastos, pagos y pendientes derivados.</p>
-
-      <h4>8.1.1 Crear gasto</h4>
-      <p>Al crear un gasto se introducen:</p>
-      <ul>
-        <li>Concepto.</li>
-        <li>Importe.</li>
-        <li>Categoría.</li>
-        <li>Prioridad.</li>
-        <li>Fecha límite.</li>
-        <li>Reparto.</li>
-        <li>Destino por personas o habitaciones.</li>
-      </ul>
-      <p>La categoría es editable, pero la app sugiere categorías históricas del mismo piso.</p>
-
-      <h4>8.1.2 Reparto del gasto</h4>
-      <p>El reparto puede ser equitativo o por importes personalizados. Cuando hay varios deudores, el sistema crea un gasto independiente por cada uno con su importe concreto, evitando mezclar varios deudores dentro de un único documento funcional.</p>
-
-      <h4>8.1.3 Restricciones y validaciones</h4>
-      <ul>
-        <li>No se permite crear un gasto dirigido únicamente al propio pagador.</li>
-        <li>La suma del reparto debe coincidir con el importe total.</li>
-        <li>En alquiler fijo, el reparto por habitación depende de la configuración de ocupantes de cada habitación.</li>
-      </ul>
-
-      <h4>8.1.4 Estados de gasto y pago</h4>
-      <table>
-        <thead>
-          <tr>
-            <th>Estado</th>
-            <th>Descripción</th>
-            <th>Representación visual</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Solicitado</td>
-            <td>Movimiento recién creado, todavía sin validación final.</td>
-            <td><span class="state-danger">Rojo</span></td>
-          </tr>
-          <tr>
-            <td>Pendiente</td>
-            <td>Se ha enviado justificante y queda a la espera de revisión.</td>
-            <td><span class="state-warn">Naranja</span></td>
-          </tr>
-          <tr>
-            <td>Pagado</td>
-            <td>La operación ha sido aceptada o confirmada.</td>
-            <td><span class="state-ok">Verde</span></td>
-          </tr>
-        </tbody>
-      </table>
-      <p>La edición y el borrado solo se permiten mientras el estado siga siendo <strong>Solicitado</strong>.</p>
+      <h3>6.1 Detalle de un piso</h3>
+      <p>Al pulsar sobre un piso se puede acceder a su detalle o directamente a su espacio interno. En esta parte conviene enseñar el nombre del piso, sus miembros y las acciones principales disponibles.</p>
+      <div class="capture-box">
+        <strong>Figura 5. Vista de detalle de un piso y sus acciones principales.</strong>
+        Insertar aquí la captura del detalle de un piso.
+      </div>
       <div class="page-number">Página 4</div>
     </section>
 
     <section class="sheet">
-      <h3>8.1.5 Justificantes y pendientes</h3>
-      <ul>
-        <li>Si el usuario tiene una deuda asignada, aparece la acción <strong>Confirmar pendiente</strong>.</li>
-        <li>Para enviar la confirmación es obligatorio adjuntar una foto del justificante.</li>
-        <li>El formulario bloquea los campos precargados y deja editable solo el adjunto.</li>
-        <li>Una vez enviado el justificante, la deuda pasa a revisión.</li>
-        <li>En estado <strong>En revisión</strong> se muestra la imagen subida para que pueda validarse visualmente.</li>
-      </ul>
+      <h2>7. Dentro de un piso</h2>
+      <p>Cuando se entra en un piso, la aplicación cambia a un espacio interno con varias subpestañas propias. Las más relevantes son <code>Movimientos</code>, <code>Recordatorios</code> y <code>Gestión</code>.</p>
 
-      <h3>8.1.6 OCR de tickets</h3>
-      <p>La aplicación integra reconocimiento de texto para detectar importes en tickets y justificantes. El OCR ayuda a rellenar información, pero no puede modificar importes bloqueados cuando el movimiento proviene de una deuda pendiente.</p>
+      <h2>8. Subpestaña Movimientos</h2>
+      <p>Es la zona económica principal del piso. Aquí se gestionan gastos, estados, justificantes, vencimientos y reparto entre personas.</p>
+      <p>En la parte superior aparecen filtros rápidos por estado y el botón <code>Filtros</code>. Debajo se muestran las tarjetas de movimientos.</p>
+      <p>En las tarjetas conviene explicar los campos <code>Solicitado por</code>, <code>Para</code>, <code>Fecha del gasto</code>, <code>Día límite</code>, importe y estado.</p>
+      <div class="capture-box">
+        <strong>Figura 6. Pantalla Movimientos con filtros rápidos y listado de gastos.</strong>
+        Insertar aquí la captura de la subpestaña <code>Movimientos</code>.
+      </div>
 
-      <h3>8.1.7 Exportación PDF</h3>
-      <p>El usuario puede exportar un resumen mensual en PDF. El documento generado presenta diseño visual con cabecera, tarjetas por movimiento, colores por estado y paginación.</p>
-
-      <h2>8.2 Recordatorios</h2>
-      <p>Los recordatorios son avisos manuales del piso.</p>
-      <ul>
-        <li>Pueden ser únicos, diarios, semanales, mensuales o personalizados.</li>
-        <li>Pueden dirigirse a personas concretas, habitaciones concretas o a todos los inquilinos.</li>
-        <li>Permiten fijar una fecha de inicio y otra final opcional.</li>
-        <li>La fecha final limita también su presencia en calendario.</li>
-      </ul>
-
-      <h2>8.3 Gestión</h2>
-      <p>La pestaña Gestión reúne herramientas de convivencia y organización interna del piso.</p>
-
-      <h3>8.3.1 Incidencias</h3>
-      <p>Permiten registrar problemas o averías con título, zona, responsable, estado, costes y descripción.</p>
-
-      <h3>8.3.2 Reglas</h3>
-      <p>Las reglas sirven para establecer normas para todo el piso, una persona concreta o una habitación concreta.</p>
-
-      <h3>8.3.3 Horarios</h3>
-      <p>Los horarios permiten reservar usos recurrentes de zonas o recursos. Ejemplo: “Baño principal, diario, de 17:00 a 19:00, para Sergio”.</p>
-      <ul>
-        <li>Frecuencia diaria, semanal o mensual.</li>
-        <li>Rango de fechas.</li>
-        <li>Hora de inicio y de fin.</li>
-        <li>Aplicación general, por persona o por habitación.</li>
-      </ul>
+      <h3>8.1 Crear un gasto</h3>
+      <p>Desde esta parte se abre el diálogo <code>Nuevo gasto</code>, que permite registrar concepto, importe, categoría, prioridad, fecha límite, reparto y ticket.</p>
+      <p>Es importante explicar que el ticket es obligatorio y que la persona pagadora no aparece como destinataria en el reparto por personas.</p>
+      <div class="capture-box">
+        <strong>Figura 7. Diálogo de Nuevo gasto.</strong>
+        Insertar aquí la captura del diálogo <code>Nuevo gasto</code>.
+      </div>
       <div class="page-number">Página 5</div>
     </section>
 
     <section class="sheet">
-      <h2>9. Balance</h2>
-      <p>La pantalla de balance ofrece una lectura visual del comportamiento económico del piso.</p>
-      <ul>
-        <li><strong>Balance de gastos:</strong> gráfico principal por categorías.</li>
-        <li><strong>Balance por tiempo:</strong> gráfico temporal por meses o rangos amplios.</li>
-        <li>Las categorías se normalizan para agrupar correctamente valores equivalentes.</li>
-      </ul>
+      <h2>9. Subpestaña Recordatorios</h2>
+      <p>Esta sección se usa para organizar tareas, avisos y acciones repetitivas dentro del piso.</p>
+      <p>Conviene mostrar una captura donde se vea la lista de recordatorios, la información básica de cada uno y la acción para crear un nuevo aviso.</p>
+      <div class="capture-box">
+        <strong>Figura 8. Pantalla de Recordatorios del piso.</strong>
+        Insertar aquí la captura de la subpestaña <code>Recordatorios</code>.
+      </div>
 
-      <h2>10. Calendario</h2>
-      <p>El calendario muestra la actividad asociada a la fecha seleccionada.</p>
-      <ul>
-        <li>Pagos y vencimientos.</li>
-        <li>Recordatorios.</li>
-        <li>Horarios recurrentes del piso.</li>
-      </ul>
-      <p>Los horarios se representan con un color específico para diferenciarlos visualmente del resto de eventos.</p>
-
-      <h2>11. Perfil</h2>
-      <p>Desde la pestaña Perfil el usuario puede:</p>
-      <ul>
-        <li>Ver su foto o iniciales.</li>
-        <li>Consultar nombre, teléfono, correo y fecha de nacimiento.</li>
-        <li>Cambiar la imagen de perfil.</li>
-        <li>Editar sus datos personales.</li>
-        <li>Abrir la pantalla de ajustes.</li>
-      </ul>
-
-      <h2>12. Ajustes</h2>
-      <ul>
-        <li>Activar o desactivar el modo oscuro.</li>
-        <li>Activar o desactivar notificaciones.</li>
-        <li>Cambiar el idioma entre español e inglés.</li>
-        <li>Cerrar sesión.</li>
-        <li>Borrar cuenta.</li>
-      </ul>
-      <p>El borrado de cuenta exige reautenticación con correo y contraseña, elimina el documento del usuario y lo retira de grupos e invitaciones, pero conserva el histórico de movimientos ya generados.</p>
-
-      <h2>13. Roles y permisos</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Operación</th>
-            <th>Miembro</th>
-            <th>Propietario</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Crear gastos</td>
-            <td>Sí</td>
-            <td>Sí</td>
-          </tr>
-          <tr>
-            <td>Editar o borrar movimientos solicitados</td>
-            <td>Sí, si tiene permiso funcional</td>
-            <td>Sí</td>
-          </tr>
-          <tr>
-            <td>Aceptar justificantes pendientes</td>
-            <td>Solo si es acreedor</td>
-            <td>Sí</td>
-          </tr>
-          <tr>
-            <td>Gestionar habitaciones</td>
-            <td>No</td>
-            <td>Sí</td>
-          </tr>
-          <tr>
-            <td>Gestionar reglas de la casa</td>
-            <td>Lectura</td>
-            <td>Sí</td>
-          </tr>
-        </tbody>
-      </table>
+      <h2>10. Subpestaña Gestión</h2>
+      <p>En esta parte se concentran herramientas de organización interna del piso, como incidencias, reglas y horarios.</p>
+      <p>Es buena idea explicar cada bloque por separado para que se entienda que no todo en la aplicación es dinero: también hay convivencia y seguimiento del día a día.</p>
+      <div class="capture-box">
+        <strong>Figura 9. Pantalla Gestión con incidencias, reglas y horarios.</strong>
+        Insertar aquí la captura de la subpestaña <code>Gestión</code>.
+      </div>
       <div class="page-number">Página 6</div>
     </section>
 
     <section class="sheet">
-      <h2>14. Buenas prácticas de uso</h2>
-      <ul>
-        <li>Verificar el correo antes del primer acceso.</li>
-        <li>Utilizar categorías consistentes para mejorar el balance.</li>
-        <li>Adjuntar justificantes nítidos y legibles.</li>
-        <li>Comprobar el estado del movimiento antes de intentar modificarlo.</li>
-        <li>Aprovechar recordatorios y horarios para reducir conflictos de convivencia.</li>
-      </ul>
+      <h2>11. Pestaña Balance</h2>
+      <p>La pestaña <code>Balance</code> resume la situación económica del usuario. Sirve para entender qué cantidades están pendientes, cómo evoluciona el saldo y qué tendencia se observa por periodos.</p>
+      <div class="capture-box">
+        <strong>Figura 10. Pantalla Balance con el resumen económico del usuario.</strong>
+        Insertar aquí la captura de la pestaña <code>Balance</code>.
+      </div>
 
-      <h2>15. Incidencias habituales y resolución</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Problema</th>
-            <th>Causa habitual</th>
-            <th>Solución</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>No puedo entrar en la app</td>
-            <td>Correo no verificado</td>
-            <td>Validar el correo recibido y volver a iniciar sesión.</td>
-          </tr>
-          <tr>
-            <td>No puedo editar un gasto</td>
-            <td>El estado ya no es solicitado</td>
-            <td>Revisar si el movimiento está pendiente o pagado; en esos estados queda bloqueado.</td>
-          </tr>
-          <tr>
-            <td>No puedo confirmar un pago</td>
-            <td>Falta justificante</td>
-            <td>Adjuntar la imagen del comprobante antes de enviar.</td>
-          </tr>
-          <tr>
-            <td>No veo un recordatorio en calendario</td>
-            <td>La fecha final ya expiró</td>
-            <td>Revisar el rango de fechas y la frecuencia configurada.</td>
-          </tr>
-          <tr>
-            <td>No puedo unirme a un piso</td>
-            <td>Código no válido o sin plazas</td>
-            <td>Solicitar un código correcto y comprobar disponibilidad de habitaciones.</td>
-          </tr>
-        </tbody>
-      </table>
+      <h2>12. Pestaña Calendario</h2>
+      <p>En <code>Calendario</code> se visualizan recordatorios, eventos relevantes y fechas importantes para la convivencia o los pagos.</p>
+      <div class="capture-box">
+        <strong>Figura 11. Pantalla Calendario con eventos y recordatorios.</strong>
+        Insertar aquí la captura de la pestaña <code>Calendario</code>.
+      </div>
 
-      <h2>16. Resumen final</h2>
-      <p>FlatShare ofrece una solución unificada para la gestión de la vida diaria en pisos compartidos, combinando control económico, comunicación interna, seguimiento de pagos y herramientas de convivencia. Su diseño funcional está orientado a reducir errores, mejorar la trazabilidad y facilitar la organización entre residentes.</p>
-
-      <div class="footer">
-        Manual de uso elaborado a partir de la implementación real del proyecto y preparado para defensa, memoria o entrega formal.
+      <h2>13. Pestaña Perfil</h2>
+      <p>El perfil muestra los datos personales de la cuenta y permite revisarlos o editarlos. Es útil enseñar aquí nombre, correo, teléfono y fecha de nacimiento.</p>
+      <div class="capture-box">
+        <strong>Figura 12. Pantalla Perfil del usuario.</strong>
+        Insertar aquí la captura de la pestaña <code>Perfil</code>.
       </div>
       <div class="page-number">Página 7</div>
+    </section>
+
+    <section class="sheet">
+      <h2>14. Ajustes</h2>
+      <p>La parte de <code>Ajustes</code> reúne las opciones generales de la cuenta y de la aplicación. Aquí se pueden explicar preferencias como tema, idioma o notificaciones si están disponibles en la versión entregada.</p>
+      <div class="capture-box">
+        <strong>Figura 13. Pantalla de Ajustes de FlatShare.</strong>
+        Insertar aquí la captura de la pantalla <code>Ajustes</code>.
+      </div>
+
+      <h2>15. Consejos para preparar capturas</h2>
+      <ul>
+        <li>Usar datos de ejemplo claros y fáciles de entender.</li>
+        <li>Evitar correos o teléfonos reales si el documento se comparte.</li>
+        <li>Capturar pantallas con contenido representativo y bien visible.</li>
+        <li>Mantener siempre el mismo tamaño o proporción cuando sea posible.</li>
+      </ul>
+
+      <h2>16. Formato recomendado para cada figura</h2>
+      <div class="hint">
+        <p><strong>Modelo sugerido:</strong> Figura X. Nombre de la pantalla y breve explicación de lo que se ve o de la acción principal que puede realizar el usuario.</p>
+      </div>
+
+      <h2>17. Resumen final</h2>
+      <p>Este documento queda preparado como base del manual de uso de FlatShare. Su estructura está pensada para explicar cada pestaña con claridad y para poder insertar capturas de forma ordenada en la versión final de la entrega.</p>
+      <div class="page-number">Página 8</div>
     </section>
   </main>
 </body>

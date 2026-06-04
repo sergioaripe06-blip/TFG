@@ -421,6 +421,19 @@ public class RentalManagementFragment extends Fragment {
         });
     }
 
+    @NonNull
+    private String formatMaintenanceStatusLabel(@Nullable String rawStatus) {
+        String normalized = safe(rawStatus).toLowerCase(Locale.ROOT);
+        if (normalized.isEmpty()) return "Abierta";
+        return switch (normalized) {
+            case "en_progreso" -> "En progreso";
+            case "resuelta" -> "Resuelta";
+            case "cancelada" -> "Cancelada";
+            case "abierta" -> "Abierta";
+            default -> normalized.replace('_', ' ');
+        };
+    }
+
     private void requestScheduleDeletion(@NonNull ManagementRow row) {
         if (!currentUserIsGroupOwner) {
             NoticeUtils.show(requireContext(), "Solo el propietario puede eliminar horarios");
@@ -529,7 +542,7 @@ public class RentalManagementFragment extends Fragment {
                         if (!matchesManagementRoomFilter(doc, room, responsible, "")) continue;
                         String subtitle = (room.isEmpty() ? "Sin habitación" : room)
                                 + "\nResponsable:\n" + (responsible.isEmpty() ? "Sin asignar" : formatMemberTwoLines(responsible));
-                        String detail = "Estado: " + (status.isEmpty() ? "abierta" : status)
+                        String detail = "Estado: " + formatMaintenanceStatusLabel(status)
                                 + " · Coste: " + moneyFormat.format(cost) + " EUR";
                         rows.add(new ManagementRow(MODULE_MAINTENANCE, doc.getId(), title.isEmpty() ? "Incidencia" : title, subtitle, detail, doc, "Incidencia"));
                     }

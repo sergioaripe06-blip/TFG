@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diario de proyecto - FlatShare</title>
+  <style>
+    :root {
+      --paper: #ffffff;
+      --ink: #111111;
+      --muted: #5d5d5d;
+      --line: #cfcfcf;
+      --soft: #f7f7f7;
+      --soft-2: #f2f2f2;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #ffffff;
+      color: var(--ink);
+      font: 12pt/1.6 "Times New Roman", Times, serif;
+    }
+
+    .document {
+      max-width: 880px;
+      margin: 0 auto;
+      background: var(--paper);
+    }
+
+    .sheet {
+      padding: 34px 44px;
+      page-break-after: always;
+    }
+
+    .sheet:last-child {
+      page-break-after: auto;
+    }
+
+    .cover {
+      min-height: 94vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .cover-top,
+    .cover-bottom {
+      color: var(--muted);
+      font-size: 11pt;
+    }
+
+    .cover-top {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .cover-center {
+      padding: 84px 0;
+      text-align: center;
+    }
+
+    .cover-kicker {
+      margin-bottom: 18px;
+      font-size: 12pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    h1 {
+      margin: 0 0 14px;
+      font-size: 27pt;
+      line-height: 1.15;
+    }
+
+    .cover-subtitle {
+      max-width: 720px;
+      margin: 0 auto 28px;
+      color: var(--muted);
+    }
+
+    .cover-meta {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      text-align: left;
+    }
+
+    .meta-card {
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+    }
+
+    .meta-label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 10pt;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+      font-size: 18pt;
+    }
+
+    h3 {
+      margin: 26px 0 10px;
+      font-size: 14pt;
+    }
+
+    p {
+      margin: 0 0 12px;
+      text-align: justify;
+    }
+
+    ul {
+      margin: 8px 0 16px 24px;
+    }
+
+    li {
+      margin: 4px 0;
+    }
+
+    .toc,
+    .note,
+    .entry {
+      border: 1px solid var(--line);
+      background: #ffffff;
+    }
+
+    .toc,
+    .note {
+      padding: 14px 16px;
+      margin: 16px 0 20px;
+    }
+
+    .toc ol {
+      margin: 0 0 0 22px;
+    }
+
+    .note strong {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .entry {
+      margin: 18px 0 22px;
+      overflow: hidden;
+    }
+
+    .entry-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      background: var(--soft);
+    }
+
+    .entry-date {
+      font-weight: 700;
+    }
+
+    .entry-type {
+      color: var(--muted);
+      font-size: 10.5pt;
+      text-align: right;
+    }
+
+    .entry-body {
+      padding: 14px 16px 6px;
+    }
+
+    .mini-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0 22px;
+    }
+
+    .mini-table th,
+    .mini-table td {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .mini-table th {
+      background: var(--soft-2);
+      font-weight: 700;
+    }
+
+    .page-number {
+      margin-top: 24px;
+      color: var(--muted);
+      text-align: right;
+      font-size: 10pt;
+    }
+
+    code {
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 0.94em;
+    }
+
+    @media print {
+      body { background: #ffffff; }
+      .document {
+        max-width: none;
+        margin: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="document">
+    <section class="sheet cover">
+      <div class="cover-top">
+        <span>Trabajo Fin de Grado</span>
+        <span>FlatShare</span>
+      </div>
+
+      <div class="cover-center">
+        <div class="cover-kicker">Diario de proyecto</div>
+        <h1>FlatShare</h1>
+        <p class="cover-subtitle">Registro cronológico del desarrollo técnico y funcional del proyecto, preparado para entrega académica y alineado con el estado real del repositorio y de la documentación viva.</p>
+
+        <div class="cover-meta">
+          <div class="meta-card">
+            <span class="meta-label">Aplicación</span>
+            <strong>FlatShare</strong><br>
+            Android nativo
+          </div>
+          <div class="meta-card">
+            <span class="meta-label">Documento</span>
+            <strong>Diario técnico</strong><br>
+            Evolución del proyecto
+          </div>
+          <div class="meta-card">
+            <span class="meta-label">Autor</span>
+            <strong>Sergio Ariño Pérez</strong>
+          </div>
+          <div class="meta-card">
+            <span class="meta-label">Uso</span>
+            <strong>Seguimiento y trazabilidad</strong><br>
+            Para memoria y defensa
+          </div>
+        </div>
+      </div>
+
+      <div class="cover-bottom">
+        Este documento distingue entre historial Git real y avance reconstruido, con el objetivo de no inventar trazas que no existan en el repositorio.
+      </div>
+    </section>
+
+    <section class="sheet">
+      <h2>1. Alcance y criterio de veracidad</h2>
+      <p>Este diario recoge la evolución del proyecto <strong>FlatShare</strong> desde la definición inicial del alcance hasta las iteraciones finales de mejora funcional, visual y documental. Su finalidad no es sustituir a la memoria técnica, sino aportar una trazabilidad cronológica clara sobre qué se trabajó, cuándo se hizo y qué impacto tuvo cada bloque de cambios.</p>
+      <div class="note">
+        <strong>Criterio seguido</strong>
+        <ul>
+          <li>No se inventan commits ni identificadores de control de versiones.</li>
+          <li>Los commits reales solo se citan cuando pueden trazarse en el historial Git del repositorio.</li>
+          <li>Las fechas sin commit asociado se documentan como avance reconstruido a partir del trabajo realizado, el contexto técnico y la documentación viva del proyecto.</li>
+        </ul>
+      </div>
+
+      <h2>2. Convención de lectura</h2>
+      <table class="mini-table">
+        <thead>
+          <tr>
+            <th>Tipo de entrada</th>
+            <th>Significado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>Historial Git</code></td>
+            <td>Entrada respaldada por un commit existente en el repositorio.</td>
+          </tr>
+          <tr>
+            <td><code>Avance reconstruido</code></td>
+            <td>Trabajo realizado o consolidado en una fecha concreta aunque no figure como commit aislado.</td>
+          </tr>
+          <tr>
+            <td><code>Ajuste técnico de control de versiones</code></td>
+            <td>Cambio de soporte orientado a limpieza, control del repositorio o mantenimiento del entorno.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="toc">
+        <strong>Resumen de etapas</strong>
+        <ol>
+          <li>Diseño inicial del proyecto: marzo y abril de 2026.</li>
+          <li>Consolidación del repositorio y modularización: mayo de 2026.</li>
+          <li>Endurecimiento de seguridad, pagos y alquiler: segunda mitad de mayo.</li>
+          <li>Refinamiento funcional, pruebas y documentación final: junio de 2026.</li>
+        </ol>
+      </div>
+      <div class="page-number">Página 1</div>
+    </section>
+
+    <section class="sheet">
+      <h2>3. Línea temporal del proyecto</h2>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">03/03/2026</div>
+          <div class="entry-type">Avance reconstruido</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Inicio formal del tramo documentado del TFG.</li>
+            <li>Definición del alcance general: app Android para gestión de pisos compartidos.</li>
+            <li>Identificación de los casos de uso principales: autenticación, pisos, gastos, pagos, recordatorios y perfil.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">07/03/2026</div>
+          <div class="entry-type">Avance reconstruido</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Diseño inicial del modelo de datos en Firestore para usuarios, pisos, membresía, gastos y pagos.</li>
+            <li>Decisión de emplear Firebase Authentication con flujo <code>Email/Password</code>.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">11/03/2026</div>
+          <div class="entry-type">Avance reconstruido</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Boceto de la navegación principal con flujo <code>Splash - Login - Main</code>.</li>
+            <li>Definición del patrón visual base para las pantallas de negocio.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">15/03/2026</div>
+          <div class="entry-type">Avance reconstruido</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Especificación funcional del módulo <code>Pisos</code>.</li>
+            <li>Se fijan operaciones de crear piso, unirse por código o QR, mostrar miembros y gestionar habitaciones.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">19/03/2026</div>
+          <div class="entry-type">Avance reconstruido</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Diseño del módulo <code>Workspace</code>.</li>
+            <li>Se definen lista de movimientos, creación de gastos, creación de pagos y estados asociados.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">23/03/2026</div>
+          <div class="entry-type">Avance reconstruido</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Diseño de la lógica de balances.</li>
+            <li>Se estudia el reparto equitativo, el reparto personalizado y el efecto de pagos sobre el saldo neto.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">27/03/2026</div>
+          <div class="entry-type">Avance reconstruido</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Definición de recordatorios y calendario.</li>
+            <li>Se fijan vencimientos de pago, recordatorios manuales y estructura de visualización por fecha.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">31/03/2026</div>
+          <div class="entry-type">Avance reconstruido</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Planificación del módulo de perfil y ajustes.</li>
+            <li>Se contemplan edición de datos personales, idioma, tema y notificaciones.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="page-number">Página 2</div>
+    </section>
+
+    <section class="sheet">
+      <h2>4. Diseño técnico inicial y preparación del proyecto</h2>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">04/04/2026</div>
+          <div class="entry-type">Avance reconstruido</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Decisión de modularización por capas y dominio.</li>
+            <li>Se adoptan las áreas <code>features</code>, <code>core</code> y <code>shared</code> como base estructural.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">08/04/2026</div>
+          <div class="entry-type">Avance reconstruido</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Preparación del entorno Android y Firebase para desarrollo continuo.</li>
+            <li>Organización preliminar de paquetes, recursos y pantallas.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">12/04/2026</div>
+          <div class="entry-type">Avance reconstruido</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Prototipado de formularios para alta de gastos y pagos.</li>
+            <li>Definición de validaciones mínimas de importe, fecha y destinatarios.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">16/04/2026</div>
+          <div class="entry-type">Avance reconstruido</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Diseño de seguridad por pertenencia a grupo.</li>
+            <li>Borrador de reglas Firestore orientadas a permisos <code>owner/member</code>.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">20/04/2026</div>
+          <div class="entry-type">Avance reconstruido</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Preparación de flujos de invitación y códigos de acceso a piso.</li>
+            <li>Definición de estados de invitación pendientes, aceptadas y rechazadas.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">24/04/2026</div>
+          <div class="entry-type">Avance reconstruido</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Definición del flujo de alta inicial de habitaciones tras crear un piso.</li>
+            <li>Se ajusta el comportamiento para impedir pisos incompletos.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">28/04/2026</div>
+          <div class="entry-type">Avance reconstruido</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Diseño del soporte para gestión de alquiler.</li>
+            <li>Se prevén contratos, cobros, incidencias, documentos, auditoría y automatizaciones.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">02/05/2026</div>
+          <div class="entry-type">Avance reconstruido</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Revisión de consistencia general de la arquitectura.</li>
+            <li>Preparación de la subida del proyecto a repositorio.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="page-number">Página 3</div>
+    </section>
+
+    <section class="sheet">
+      <h2>5. Consolidación del repositorio y base funcional</h2>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">05/05/2026</div>
+          <div class="entry-type">Historial Git</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Commit real <code>f960593</code> - <code>first commit</code>.</li>
+            <li>Alta inicial del repositorio y base del proyecto.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">07/05/2026</div>
+          <div class="entry-type">Historial Git</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Commit real <code>d54ef8a</code> - <code>upgrades</code>.</li>
+            <li>Primeras mejoras iterativas sobre la base inicial.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">08/05/2026</div>
+          <div class="entry-type">Historial Git</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Commit real <code>448b7fa</code> - <code>upgrade</code>.</li>
+            <li>Evolución incremental del código y los recursos visuales.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">10/05/2026</div>
+          <div class="entry-type">Historial Git</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Commit real <code>d9aff05</code> - <code>rooms</code>.</li>
+            <li>Avance centrado en la gestión de habitaciones.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">11/05/2026</div>
+          <div class="entry-type">Historial Git</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Commit real <code>26b97ff</code> - <code>upgrades</code>.</li>
+            <li>Ajustes funcionales y de estabilidad.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">12/05/2026</div>
+          <div class="entry-type">Historial Git</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Commit real <code>fd199e9</code>: refactor de UI/UX en pisos y balances y mejora de formularios por pasos.</li>
+            <li>Commit real <code>8020ad5</code>: cierre rápido en pisos y obligatoriedad del alta inicial de habitaciones.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">13/05/2026</div>
+          <div class="entry-type">Historial Git</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Commit real <code>d182ec1</code>: estructura base del proyecto por módulos y capas.</li>
+            <li>Commit real <code>85fc8dd</code>: componentes UI, diálogos y navegación de funcionalidades principales.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">14/05/2026</div>
+          <div class="entry-type">Historial Git</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Commit real <code>22d74b5</code>.</li>
+            <li>Se incorpora herramienta de debug para seed, mejoras de interfaz y ampliación de tablas y colecciones.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="page-number">Página 4</div>
+    </section>
+
+    <section class="sheet">
+      <h2>6. Expansión funcional y refactor de mayo</h2>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">18/05/2026</div>
+          <div class="entry-type">Avance reconstruido</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Ajustes recientes de compilación y flujo de autenticación.</li>
+            <li>Recuperación de contraseña por correo y mejoras visuales en login.</li>
+            <li>Ampliación del seeder Firebase con usuarios, pisos, habitaciones, gastos, pagos, vencimientos y recordatorios.</li>
+            <li>Arranque de la documentación viva con <code>diary.md</code> y <code>MANUAL_USUARIO.md</code>.</li>
+            <li>Ajuste de alcance para entorno sin coste, manteniendo invitación interna por Firestore sin envío SMTP automático.</li>
+            <li>Mejora de invitaciones internas con opciones directas de <code>Unirme</code> o <code>Rechazar</code>.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">21/05/2026</div>
+          <div class="entry-type">Avance reconstruido</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Mejoras UX en el diálogo de registro de pagos.</li>
+            <li>La categoría pasa a ser texto libre con autocompletado histórico por piso en alquiler variable.</li>
+            <li>Actualización del balance personal para soportar categorías dinámicas con color estable.</li>
+            <li>Nuevo buscador en <code>Pisos</code> con filtrado en tiempo real.</li>
+            <li>Endurecimiento de reglas Firestore en cobros, incidencias y documentos.</li>
+            <li>Refuerzo de permisos UI para edición y borrado de piso solo para propietarios.</li>
+            <li>Refactor incremental para extraer lógica a servicios como <code>GroupService</code>, <code>PaymentService</code>, <code>ExpenseService</code>, <code>ReminderService</code>, <code>ContractsService</code> y <code>CollectionsService</code>.</li>
+            <li>Validación técnica con compilación <code>assembleDebug</code> satisfactoria.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">21/05/2026</div>
+          <div class="entry-type">Ajuste técnico de control de versiones</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Refuerzo de <code>.gitignore</code> para excluir artefactos locales y de build.</li>
+            <li>Limpieza del índice Git para evitar commits masivos con miles de archivos temporales.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">22/05/2026</div>
+          <div class="entry-type">Avance reconstruido</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Alta de permisos de red en Android Manifest: <code>INTERNET</code> y <code>ACCESS_NETWORK_STATE</code>.</li>
+            <li>Se restablece la conectividad de login, lecturas y escrituras contra Firebase.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="page-number">Página 5</div>
+    </section>
+
+    <section class="sheet">
+      <h2>7. Seguridad, pagos y refinamiento del flujo económico</h2>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">25/05/2026</div>
+          <div class="entry-type">Avance reconstruido</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Se bloquea el acceso para usuarios con <code>emailVerified = false</code>.</li>
+            <li>Las reglas Firestore pasan a requerir usuario autenticado y correo verificado.</li>
+            <li>Se implementa el borrado funcional de cuenta y la salida de grupos, con transferencia de propiedad si procede.</li>
+            <li>Se refinan ajustes de interfaz en pagos, ajustes y pantalla principal.</li>
+            <li>Se endurece la seguridad del borrado de cuenta exigiendo coincidencia de correo antes de reautenticar.</li>
+            <li>Se incorporan sonidos de feedback para acciones clave mediante <code>AppSoundFx</code>.</li>
+            <li>Se simplifican bloques de ajustes que aportaban ruido funcional, como el control de volumen.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">25/05/2026</div>
+          <div class="entry-type">Avance reconstruido</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Flujo de pagos pendientes para inquilino en alquiler variable.</li>
+            <li>Listado de pendientes propios desde <code>payment_deadlines</code> con acceso directo al pago.</li>
+            <li>Prellenado de importe, concepto, fecha y destino en pagos ligados a deuda.</li>
+            <li>Justificante fotográfico obligatorio y transición del pendiente original a estado <code>submitted</code>.</li>
+            <li>No fue posible ejecutar compilación local en ese momento por incompatibilidad con JVM 8 y requisito de JVM 17.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">25/05/2026</div>
+          <div class="entry-type">Avance reconstruido</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Persistencia de nuevos campos en <code>rooms_groups</code>: <code>rentSplitMode</code>, <code>rentSplitPercentages</code> y <code>rentSplitOrder</code>.</li>
+            <li>Mejora del encabezado del workspace y de la pantalla <code>Pisos</code>.</li>
+            <li>Posibilidad de elegir reparto equitativo o porcentual cuando hay dos o más inquilinos.</li>
+            <li>Conservación del reparto anterior en pagos no ligados a alquiler fijo para evitar regresiones.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="page-number">Página 6</div>
+    </section>
+
+    <section class="sheet">
+      <h2>8. Iteración final de junio: estabilidad, UX y documentación de entrega</h2>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">02/06/2026</div>
+          <div class="entry-type">Avance reconstruido</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Se afina la semántica de deudas nacidas desde gastos.</li>
+            <li>Se refuerza <code>payment_deadlines</code> como deuda individual por deudor según <code>customSplit</code>.</li>
+            <li>Se ajustan permisos para aceptar pagos pendientes por parte del propietario o acreedor del pago.</li>
+            <li>Se unifica la acción principal del workspace alrededor de <code>Nuevo gasto</code>.</li>
+            <li>Los saldos de alquiler fijo pasan a incorporar también gastos compartidos.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">03/06/2026</div>
+          <div class="entry-type">Avance reconstruido</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Corrección de recordatorios recurrentes en calendario y de su programación local.</li>
+            <li>Reestructuración del balance para dejar solo dos bloques principales.</li>
+            <li>Reorientación de la pestaña de gestión hacia <code>Incidencias</code>, <code>Reglas</code> y <code>Horarios</code>.</li>
+            <li>Alta de nuevas colecciones como <code>house_rules</code> y <code>group_schedules</code>.</li>
+            <li>Mejora del PDF de movimientos y de la revisión visual de justificantes.</li>
+            <li>Reconstrucción de deudas antiguas mal enlazadas y endurecimiento de permisos sobre pagos.</li>
+            <li>Validación con <code>assembleDebug</code> tras cambios de reparto compartido.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="entry-header">
+          <div class="entry-date">04/06/2026</div>
+          <div class="entry-type">Avance reconstruido</div>
+        </div>
+        <div class="entry-body">
+          <ul>
+            <li>Rehecho el HTML del manual de uso y reescrita la memoria técnica HTML para la entrega.</li>
+            <li>Refinada la experiencia de <code>Movimientos</code> con tarjetas más limpias, filtros rápidos por estado y mejor semántica visual.</li>
+            <li>Eliminado el propio pagador del reparto por personas y añadido <code>Fecha del gasto</code> visible.</li>
+            <li>Unificación completa del formato de fechas a <code>DD/MM/AAAA</code>, incluidos gastos, balance y gestión.</li>
+            <li>Mejora de la carga del perfil para cuentas nuevas a partir de Firebase Auth y datos pendientes locales.</li>
+            <li>Ajuste de <code>Recordarme</code> y unificación del tema entre splash, login, registro, verificación y main.</li>
+            <li>Correcciones de pagos pendientes, reconstrucción de deuda técnica y mejora del saldo desde la perspectiva del usuario.</li>
+            <li>Añadido aviso automático por vencimiento de deudas y normalización de horarios a <code>HH:MM</code>.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="page-number">Página 7</div>
+    </section>
+
+    <section class="sheet">
+      <h2>9. Resumen técnico final del diario</h2>
+      <p>La evolución del proyecto muestra un patrón claro: se partió de una idea funcional razonablemente acotada y se fue incrementando su profundidad técnica a través de iteraciones centradas en seguridad, coherencia del modelo de datos, claridad visual y robustez del flujo económico. A medida que el sistema creció, la necesidad de separar responsabilidades condujo a una extracción gradual de servicios y utilidades que mejoró la mantenibilidad del código.</p>
+      <p>El diario también refleja que la parte más compleja del producto no ha sido la interfaz aislada, sino la lógica de estados y permisos alrededor de gastos, deudas y confirmaciones. La convivencia entre <code>expenses</code>, <code>payments</code> y <code>payment_deadlines</code> se consolidó mediante sucesivos ajustes hasta alcanzar una representación más fiel del problema real del piso compartido.</p>
+
+      <table class="mini-table">
+        <thead>
+          <tr>
+            <th>Etapa</th>
+            <th>Foco principal</th>
+            <th>Resultado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Marzo 2026</td>
+            <td>Definición del problema y alcance</td>
+            <td>Modelo inicial de funcionalidades y navegación</td>
+          </tr>
+          <tr>
+            <td>Abril 2026</td>
+            <td>Diseño técnico y estructura</td>
+            <td>Arquitectura modular y reglas de seguridad base</td>
+          </tr>
+          <tr>
+            <td>Mayo 2026</td>
+            <td>Implementación funcional intensa</td>
+            <td>Grupos, habitaciones, pagos, alquiler y refactor</td>
+          </tr>
+          <tr>
+            <td>Junio 2026</td>
+            <td>Estabilidad, UX y documentación final</td>
+            <td>Entrega técnica más madura y defendible</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="note">
+        <strong>Observación final</strong>
+        Este diario debe leerse como un complemento de trazabilidad y no como sustituto de la memoria técnica. Su valor principal reside en mostrar la progresión real del proyecto, las decisiones adoptadas y el impacto acumulado de cada iteración.
+      </div>
+      <div class="page-number">Página 8</div>
+    </section>
+  </main>
+</body>
+</html>

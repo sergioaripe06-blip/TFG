@@ -3,175 +3,208 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Memoria - FlatShare</title>
+  <title>Memoria técnica - FlatShare</title>
   <style>
     :root {
       --paper: #ffffff;
       --ink: #111111;
-      --muted: #555555;
-      --accent: #111111;
-      --accent-soft: #d9d9d9;
-      --line: #bfbfbf;
+      --muted: #5a5a5a;
+      --line: #cfcfcf;
+      --soft: #f7f7f7;
+      --soft-2: #f1f1f1;
     }
+
     * { box-sizing: border-box; }
+
     body {
       margin: 0;
       background: #ffffff;
       color: var(--ink);
-      font: 12pt/1.5 "Times New Roman", Times, serif;
+      font: 12pt/1.62 "Times New Roman", Times, serif;
     }
+
     .document {
-      max-width: 850px;
+      max-width: 900px;
       margin: 0 auto;
       background: var(--paper);
-      border: none;
-      overflow: hidden;
     }
+
     .sheet {
-      padding: 32px 42px;
-      border-bottom: none;
+      padding: 34px 44px;
+      page-break-after: always;
     }
+
+    .sheet:last-child {
+      page-break-after: auto;
+    }
+
     .cover {
-      min-height: 92vh;
+      min-height: 94vh;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      background: #ffffff;
     }
-    .cover-top {
-      display: flex;
-      justify-content: space-between;
+
+    .cover-top,
+    .cover-bottom {
       color: var(--muted);
       font-size: 11pt;
     }
+
+    .cover-top {
+      display: flex;
+      justify-content: space-between;
+    }
+
     .cover-center {
+      padding: 84px 0;
       text-align: center;
-      padding: 72px 0;
     }
+
     .cover-kicker {
-      display: block;
       margin-bottom: 18px;
-      padding: 0;
-      color: var(--ink);
-      font: 700 12pt/1.2 "Times New Roman", Times, serif;
+      font-size: 12pt;
+      font-weight: 700;
       text-transform: uppercase;
+      letter-spacing: 0.06em;
     }
+
     h1 {
       margin: 0 0 14px;
-      font-size: 24pt;
+      font-size: 27pt;
       line-height: 1.15;
-      color: var(--ink);
     }
+
     .cover-subtitle {
       max-width: 740px;
-      margin: 0 auto;
-      font-size: 12pt;
+      margin: 0 auto 28px;
       color: var(--muted);
     }
+
     .cover-meta {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 14px;
-      margin-top: 34px;
       text-align: left;
     }
+
     .meta-card {
       padding: 12px 14px;
       border: 1px solid var(--line);
       background: #ffffff;
     }
+
     .meta-label {
       display: block;
       margin-bottom: 6px;
       color: var(--muted);
-      font: 700 10pt/1.2 "Times New Roman", Times, serif;
+      font-size: 10pt;
+      font-weight: 700;
       text-transform: uppercase;
     }
-    .cover-footer {
-      padding-top: 28px;
-      border-top: 1px solid var(--line);
-      color: var(--muted);
-      text-align: center;
-      font-size: 11pt;
-    }
+
     h2 {
       margin: 0 0 14px;
       padding-bottom: 8px;
       border-bottom: 1px solid var(--line);
       font-size: 18pt;
-      color: var(--ink);
     }
+
     h3 {
       margin: 26px 0 10px;
       font-size: 14pt;
     }
-    p { margin: 0 0 12px; }
-    ul, ol { margin: 8px 0 16px 24px; }
-    li { margin: 4px 0; }
-    .toc {
-      padding: 16px 18px;
+
+    h4 {
+      margin: 18px 0 8px;
+      font-size: 12pt;
+    }
+
+    p {
+      margin: 0 0 12px;
+      text-align: justify;
+    }
+
+    ul, ol {
+      margin: 8px 0 16px 24px;
+    }
+
+    li {
+      margin: 4px 0;
+    }
+
+    .toc,
+    .note,
+    .placeholder {
+      padding: 14px 16px;
+      margin: 16px 0 20px;
       border: 1px solid var(--line);
       background: #ffffff;
     }
-    .toc ol { margin: 0 0 0 22px; }
-    .toc li { padding: 3px 0; }
+
+    .toc ol {
+      margin: 0 0 0 22px;
+    }
+
+    .note {
+      background: var(--soft);
+    }
+
+    .placeholder {
+      background: var(--soft-2);
+    }
+
+    .note strong,
+    .placeholder strong {
+      display: block;
+      margin-bottom: 6px;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
       margin: 16px 0 22px;
     }
+
     th, td {
       border: 1px solid var(--line);
       padding: 8px 10px;
       text-align: left;
       vertical-align: top;
     }
+
     th {
-      background: #f2f2f2;
-      color: var(--ink);
-      font: 700 11pt/1.4 "Times New Roman", Times, serif;
+      background: var(--soft-2);
+      font-weight: 700;
     }
-    .callout {
+
+    pre {
       margin: 16px 0 20px;
-      padding: 12px 14px;
+      padding: 14px 16px;
+      overflow-x: auto;
       border: 1px solid var(--line);
-      background: #ffffff;
+      background: #fcfcfc;
+      font: 10.5pt/1.45 Consolas, "Courier New", monospace;
+      white-space: pre-wrap;
     }
+
     code {
-      padding: 0;
-      background: transparent;
       font-family: Consolas, "Courier New", monospace;
       font-size: 0.94em;
     }
-    .footer {
-      margin-top: 28px;
-      padding-top: 14px;
-      border-top: 1px solid var(--line);
-      color: var(--muted);
-      font-size: 14px;
-    }
+
     .page-number {
-      margin-top: 18px;
+      margin-top: 24px;
       color: var(--muted);
       text-align: right;
       font-size: 10pt;
-      font-family: "Times New Roman", Times, serif;
     }
+
     @media print {
-      body { background: #fff; }
+      body { background: #ffffff; }
       .document {
-        margin: 0;
         max-width: none;
-        border: none;
-        border-radius: 0;
-        box-shadow: none;
-      }
-      .sheet {
-        min-height: 100vh;
-        page-break-after: always;
-      }
-      .sheet:last-child {
-        page-break-after: auto;
+        margin: 0;
       }
     }
   </style>
@@ -183,41 +216,37 @@
         <span>Trabajo Fin de Grado</span>
         <span>FlatShare</span>
       </div>
+
       <div class="cover-center">
-        <div class="cover-kicker">Memoria</div>
+        <div class="cover-kicker">Memoria técnica</div>
         <h1>FlatShare</h1>
-        <p class="cover-subtitle">Memoria descriptiva del desarrollo de una aplicación Android para la gestión de pisos compartidos, con control económico, organización interna y soporte de Firebase.</p>
+        <p class="cover-subtitle">Desarrollo de una aplicación Android nativa orientada a la gestión integral de pisos compartidos, con soporte para autenticación, gestión de grupos, habitaciones, movimientos económicos, recordatorios, balance y explotación sobre servicios Firebase.</p>
+
         <div class="cover-meta">
           <div class="meta-card">
             <span class="meta-label">Aplicación</span>
             <strong>FlatShare</strong><br>
-            Android nativo
+            Cliente Android nativo
           </div>
           <div class="meta-card">
-            <span class="meta-label">Paquete</span>
-            <strong><code>com.sergio.flatshare</code></strong>
+            <span class="meta-label">Base tecnológica</span>
+            <strong>Java 17 + Android SDK</strong><br>
+            Firebase como BaaS
           </div>
           <div class="meta-card">
             <span class="meta-label">Autor</span>
             <strong>Sergio Ariño Pérez</strong>
           </div>
           <div class="meta-card">
-            <span class="meta-label">Titulación</span>
-            <strong>DAM Superior</strong><br>
-            Segundo año
-          </div>
-          <div class="meta-card">
-            <span class="meta-label">Tipo de documento</span>
-            Memoria de proyecto
-          </div>
-          <div class="meta-card">
-            <span class="meta-label">Fecha</span>
-            04/06/2026
+            <span class="meta-label">Naturaleza del documento</span>
+            <strong>Memoria técnica final</strong><br>
+            Sin manuales ni diario
           </div>
         </div>
       </div>
-      <div class="cover-footer">
-        Documento elaborado a partir del estado real del proyecto, su documentación viva y su evolución funcional y técnica.
+
+      <div class="cover-bottom">
+        Documento orientado a defensa académica, análisis técnico riguroso y justificación de decisiones de arquitectura, desarrollo, pruebas y resultados.
       </div>
     </section>
 
@@ -225,308 +254,884 @@
       <h2>Índice</h2>
       <div class="toc">
         <ol>
-          <li>Introducción</li>
-          <li>Objetivos del proyecto</li>
-          <li>Alcance funcional</li>
-          <li>Stack tecnológico</li>
-          <li>Arquitectura de la aplicación</li>
-          <li>Modelo de datos y Firebase</li>
-          <li>Funcionalidades implementadas</li>
-          <li>Seguridad y control de acceso</li>
-          <li>Evolución del proyecto</li>
-          <li>Validación y pruebas</li>
-          <li>Problemas encontrados y soluciones aplicadas</li>
-          <li>Resultado final</li>
-          <li>Líneas de mejora futura</li>
-          <li>Conclusión</li>
+          <li>Resumen ejecutivo</li>
+          <li>Introducción y justificación del proyecto</li>
+          <li>Objetivos, alcance y limitaciones iniciales</li>
+          <li>Requisitos del sistema</li>
+          <li>Metodología de desarrollo</li>
+          <li>Justificación tecnológica</li>
+          <li>Arquitectura y diseño del sistema</li>
+          <li>Modelo de datos, persistencia y seguridad</li>
+          <li>Desarrollo funcional por módulos</li>
+          <li>Plan de pruebas completo</li>
+          <li>Resultados obtenidos</li>
+          <li>Limitaciones actuales del sistema</li>
+          <li>Conclusiones y trabajo futuro</li>
+          <li>Información pendiente de completar por el autor</li>
+          <li>Bibliografía técnica</li>
         </ol>
+      </div>
+
+      <div class="note">
+        <strong>Observación de alcance documental</strong>
+        Esta memoria excluye deliberadamente el manual de uso, el manual de instalación y el diario de desarrollo, al tratarse de piezas documentales independientes dentro de la entrega.
       </div>
       <div class="page-number">Página 1</div>
     </section>
 
     <section class="sheet">
-      <h2>1. Introducción</h2>
-      <p>FlatShare es una aplicación Android desarrollada con el objetivo de facilitar la gestión diaria de pisos compartidos. El proyecto surge de la necesidad de unificar en una sola herramienta las tareas habituales de convivencia y organización económica: alta de miembros, reparto de habitaciones, registro de gastos, control de pagos, recordatorios, calendario, balance y gestión interna del piso.</p>
-      <p>La aplicación se apoya en Firebase como backend y está planteada como una solución nativa para Android, buscando una experiencia fluida, clara y adaptada al uso cotidiano desde dispositivos móviles.</p>
-
-      <h2>2. Objetivos del proyecto</h2>
-      <h3>2.1 Objetivo general</h3>
-      <p>Diseñar e implementar una aplicación móvil para Android que permita gestionar de forma práctica y centralizada la economía y la organización de un piso compartido.</p>
-
-      <h3>2.2 Objetivos específicos</h3>
-      <ul>
-        <li>Permitir autenticación segura mediante correo y contraseña.</li>
-        <li>Gestionar pisos, miembros y habitaciones.</li>
-        <li>Registrar gastos y pagos con trazabilidad por usuario.</li>
-        <li>Incorporar un sistema de deudas pendientes con justificantes.</li>
-        <li>Programar recordatorios y mostrarlos en calendario.</li>
-        <li>Visualizar balances mediante gráficos.</li>
-        <li>Añadir utilidades de convivencia como incidencias, reglas y horarios.</li>
-        <li>Aplicar control de acceso basado en reglas de Firestore.</li>
-      </ul>
+      <h2>1. Resumen ejecutivo</h2>
+      <p>El proyecto <strong>FlatShare</strong> surge de la necesidad de ofrecer una herramienta móvil especializada para la gestión cotidiana de pisos compartidos. El problema abordado no se limita al reparto de gastos, sino que engloba un conjunto de tareas habituales de convivencia: registro de miembros, asignación de habitaciones, seguimiento de pagos, generación de recordatorios, control de incidencias y lectura del balance económico desde la perspectiva de cada inquilino.</p>
+      <p>La solución desarrollada adopta la forma de una aplicación Android nativa implementada en Java y apoyada en Firebase para autenticación, almacenamiento documental y persistencia de ficheros. El sistema permite crear pisos, unirse mediante código o QR, registrar gastos con justificante, generar deudas individuales, tramitar confirmaciones de pago, programar recordatorios y visualizar balances temporales. El producto final no es una maqueta conceptual, sino un sistema funcional con persistencia real y flujos de negocio encadenados.</p>
+      <p>Desde una perspectiva de ingeniería del software, la propuesta se articula como un monolito modular en cliente con separación por dominios funcionales y capas transversales. Se evita una complejidad excesiva propia de arquitecturas distribuidas innecesarias para el alcance del TFG, pero se mantiene una organización suficiente para defender decisiones sobre mantenibilidad, testabilidad, seguridad y evolución futura.</p>
+      <p>La validación del sistema se ha basado en compilación reproducible, checklist funcional, regresión manual, revisión de reglas Firestore y pruebas de humo sobre flujos críticos. Aunque la automatización de pruebas unitarias aún es limitada, el proyecto alcanza un grado de madurez adecuado para su defensa académica y deja claramente definidas las líneas de mejora necesarias para evolucionar hacia una solución más industrializada.</p>
+      <div class="placeholder">
+        <strong>[Insertar Figura 1]</strong>
+        Vista general del producto o collage de pantallas principales.
+      </div>
       <div class="page-number">Página 2</div>
     </section>
 
     <section class="sheet">
-      <h2>3. Alcance funcional</h2>
-      <p>El proyecto cubre las siguientes áreas funcionales:</p>
-      <table>
-        <thead>
-          <tr>
-            <th>Módulo</th>
-            <th>Alcance</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Autenticación</td>
-            <td>Registro, login, verificación de correo y recuperación de contraseña.</td>
-          </tr>
-          <tr>
-            <td>Pisos</td>
-            <td>Creación de grupo, unión por código o QR, consulta de miembros.</td>
-          </tr>
-          <tr>
-            <td>Habitaciones</td>
-            <td>Alta, edición, reparto y ocupación por inquilinos.</td>
-          </tr>
-          <tr>
-            <td>Movimientos</td>
-            <td>Gastos, pagos, pendientes, justificantes, OCR y exportación PDF.</td>
-          </tr>
-          <tr>
-            <td>Recordatorios</td>
-            <td>Creación de avisos manuales y recurrentes.</td>
-          </tr>
-          <tr>
-            <td>Gestión</td>
-            <td>Incidencias, reglas de la casa y horarios.</td>
-          </tr>
-          <tr>
-            <td>Balance</td>
-            <td>Gráficos por categorías y por tiempo.</td>
-          </tr>
-          <tr>
-            <td>Calendario</td>
-            <td>Consulta de eventos económicos y horarios por fecha.</td>
-          </tr>
-          <tr>
-            <td>Perfil y ajustes</td>
-            <td>Edición de perfil, idioma, tema, notificaciones y borrado de cuenta.</td>
-          </tr>
-        </tbody>
-      </table>
+      <h2>2. Introducción y justificación del proyecto</h2>
+      <h3>2.1 Contexto del problema</h3>
+      <p>La convivencia en pisos compartidos genera una casuística rica y propensa a errores organizativos. En la práctica, la información suele dispersarse entre conversaciones de mensajería, notas personales, hojas de cálculo y recordatorios informales. Esa fragmentación hace difícil responder con precisión a preguntas cotidianas: quién pertenece realmente al piso, quién ocupa cada habitación, qué deudas siguen abiertas, qué justificantes se han enviado, qué gastos vencen próximamente o qué saldo tiene cada miembro en un periodo dado.</p>
+      <p>El dominio de los pisos compartidos presenta además una particularidad relevante: combina coordinación económica y coordinación social. Un producto centrado exclusivamente en gastos resulta insuficiente si no contempla también la estructura del grupo, la organización temporal, la gestión de habitaciones y un mínimo de herramientas operativas para el día a día.</p>
 
-      <h2>4. Stack tecnológico</h2>
+      <h3>2.2 Motivación del desarrollo</h3>
+      <p>La motivación principal del proyecto es construir una solución unificada, orientada a móvil y comprensible por el usuario final, que permita centralizar la operativa del piso compartido en un único entorno. Desde el punto de vista académico, el proyecto resulta especialmente interesante porque obliga a tomar decisiones sobre interfaz, persistencia, reglas de acceso, formato de datos, desacoplamiento de lógica, mantenimiento de estado y trazabilidad documental.</p>
+
+      <h3>2.3 Oportunidad técnica y académica</h3>
+      <p>El proyecto no se limita a implementar pantallas. La propuesta incorpora autenticación real, modelo de datos propio, seguridad declarativa, widgets gráficos, integración OCR, lectura QR, notificaciones locales y documentación técnica viva. Esto permite defender el trabajo no solo como una aplicación útil, sino como un caso de estudio donde se cruzan varios ámbitos de la ingeniería del software aplicada.</p>
+
+      <h3>2.4 Razones para considerar el proyecto adecuado para un TFG</h3>
       <ul>
-        <li><strong>Lenguaje:</strong> Java.</li>
-        <li><strong>Plataforma:</strong> Android nativo.</li>
-        <li><strong>SDK objetivo:</strong> compileSdk 35, targetSdk 35, minSdk 24.</li>
-        <li><strong>Build system:</strong> Gradle 9.0.0 con Android Gradle Plugin 8.5.2.</li>
-        <li><strong>Backend:</strong> Firebase Authentication, Cloud Firestore y Firebase Storage.</li>
-        <li><strong>Librerías destacadas:</strong> Material Components, ML Kit Text Recognition, ZXing y libphonenumber.</li>
+        <li>Aborda un problema realista y fácilmente defendible ante tribunal.</li>
+        <li>Integra interfaz, lógica de negocio, persistencia y seguridad.</li>
+        <li>Permite justificar decisiones tecnológicas y arquitectónicas con claridad.</li>
+        <li>Admite crecimiento futuro sin quedar cerrado sobre una demo rígida.</li>
       </ul>
       <div class="page-number">Página 3</div>
     </section>
 
     <section class="sheet">
-      <h2>5. Arquitectura de la aplicación</h2>
-      <p>La arquitectura del proyecto está organizada por capas y por dominios funcionales para mantener el código estructurado y facilitar su evolución.</p>
+      <h2>3. Objetivos, alcance y limitaciones iniciales</h2>
+      <h3>3.1 Objetivo general</h3>
+      <p>Diseñar, desarrollar y validar una aplicación Android que permita gestionar de forma centralizada la organización y economía de un piso compartido mediante una interfaz móvil, un modelo de datos consistente y un sistema de permisos alineado con los roles reales del dominio.</p>
 
-      <h3>5.1 Organización principal</h3>
+      <h3>3.2 Objetivos específicos</h3>
       <ul>
-        <li><code>features/</code>: módulos funcionales de la app.</li>
-        <li><code>core/</code>: sesión, ajustes, sincronización y notificaciones.</li>
-        <li><code>shared/</code>: utilidades de interfaz y componentes reutilizables.</li>
+        <li>Implementar autenticación con verificación obligatoria de correo electrónico.</li>
+        <li>Permitir crear pisos, unirse a ellos y gestionar su membresía básica.</li>
+        <li>Soportar asignación de miembros a habitaciones y cálculo de renta por reparto.</li>
+        <li>Registrar gastos con concepto, categoría, prioridad, justificante y fecha límite.</li>
+        <li>Representar deudas individuales y su ciclo de confirmación.</li>
+        <li>Generar recordatorios y visualizarlos también en calendario.</li>
+        <li>Ofrecer balance agregado y balance temporal con apoyo gráfico.</li>
+        <li>Garantizar seguridad por pertenencia a grupo y por rol de propietario.</li>
       </ul>
 
-      <h3>5.2 Módulos destacados</h3>
-      <ul>
-        <li><strong>features/auth</strong>: login, registro y verificación de correo.</li>
-        <li><strong>features/groups</strong>: gestión de pisos y habitaciones.</li>
-        <li><strong>features/workspace</strong>: gastos, pagos, recordatorios, balance, calendario y gestión.</li>
-        <li><strong>features/profile</strong> y <strong>features/settings</strong>: perfil y ajustes.</li>
-        <li><strong>core/notifications</strong>: planificación de recordatorios locales.</li>
-      </ul>
+      <h3>3.3 Alcance funcional finalmente implementado</h3>
+      <p>El producto final cubre autenticación, perfil, grupos, habitaciones, movimientos, deudas, pagos, recordatorios, calendario, balance, gestión de alquiler, incidencias, reglas y horarios. También incorpora soporte técnico para OCR de tickets, lectura de QR y almacenamiento de justificantes en Firebase Storage.</p>
 
-      <h2>6. Modelo de datos y Firebase</h2>
-      <p>La aplicación utiliza Firebase Authentication para el acceso, Firestore como base de datos documental y Firebase Storage para archivos subidos por el usuario.</p>
+      <h3>3.4 Alcance deliberadamente excluido</h3>
+      <p>No se ha abordado una estrategia offline avanzada, una API backend propia desacoplada de Firebase, sincronización compleja multi-dispositivo fuera de los mecanismos estándar del BaaS, compatibilidad iOS, ni telemetría completa con observabilidad centralizada.</p>
 
-      <h3>6.1 Colecciones principales</h3>
+      <h3>3.5 Restricciones reales del proyecto</h3>
       <ul>
-        <li><code>users</code></li>
-        <li><code>groups</code></li>
-        <li><code>group_codes</code></li>
-        <li><code>rooms_groups</code></li>
-        <li><code>expenses</code></li>
-        <li><code>payments</code></li>
-        <li><code>payment_deadlines</code></li>
-        <li><code>reminders</code></li>
-        <li><code>activity_logs</code></li>
-        <li><code>maintenance_tickets</code></li>
-        <li><code>house_rules</code></li>
-        <li><code>group_schedules</code></li>
-        <li><code>audit_events</code></li>
-        <li><code>invitations</code></li>
+        <li>Desarrollo individual y tiempo acotado de TFG.</li>
+        <li>Necesidad de priorizar viabilidad frente a sobrediseño.</li>
+        <li>Dependencia de un entorno Android nativo y de servicios Firebase.</li>
+        <li>Equilibrio entre profundidad técnica y esfuerzo de documentación.</li>
       </ul>
       <div class="page-number">Página 4</div>
     </section>
 
     <section class="sheet">
-      <h3>6.2 Diseño del flujo económico</h3>
-      <p>Uno de los puntos más relevantes del proyecto es la separación entre el documento origen del gasto y las deudas derivadas de dicho gasto. Para ello se mantiene el gasto como entidad principal y se generan vencimientos individuales en <code>payment_deadlines</code> para cada deudor.</p>
-      <p>Cuando un usuario envía justificante, el flujo queda registrado sin necesidad de duplicar el gasto original en la interfaz del deudor, reduciendo inconsistencias visuales y de estado entre cuentas.</p>
-
-      <h3>6.3 Uso de Storage</h3>
-      <p>Firebase Storage se utiliza para documentos y justificantes de pago. La app sube archivos y guarda después la URL final en Firestore para enlazarlos desde la UI.</p>
-
-      <h2>7. Funcionalidades implementadas</h2>
-      <h3>7.1 Autenticación</h3>
-      <ul>
-        <li>Registro de usuarios.</li>
-        <li>Login con control de correo verificado.</li>
-        <li>Recuperación de contraseña.</li>
-      </ul>
-
-      <h3>7.2 Gestión de pisos y habitaciones</h3>
-      <ul>
-        <li>Creación de pisos con configuración inicial.</li>
-        <li>Unión mediante código o QR.</li>
-        <li>Asignación de habitaciones con control de plazas.</li>
-        <li>Gestión diferenciada para propietario e inquilinos.</li>
-      </ul>
-
-      <h3>7.3 Movimientos económicos</h3>
-      <ul>
-        <li>Creación de gastos y pagos.</li>
-        <li>Reparto equitativo y personalizado.</li>
-        <li>Bloqueo de edición y borrado según estado.</li>
-        <li>Justificantes con foto y OCR.</li>
-        <li>Exportación PDF de resumen mensual.</li>
-      </ul>
-      <div class="page-number">Página 5</div>
-    </section>
-
-    <section class="sheet">
-      <h3>7.4 Recordatorios y calendario</h3>
-      <ul>
-        <li>Recordatorios únicos o recurrentes.</li>
-        <li>Destino por miembros, habitaciones o todos los inquilinos.</li>
-        <li>Integración con calendario mensual.</li>
-        <li>Respeto real de fecha de inicio y fin.</li>
-      </ul>
-
-      <h3>7.5 Gestión del piso</h3>
-      <ul>
-        <li>Incidencias con responsable, estado y costes.</li>
-        <li>Reglas de la casa por ámbito general, persona o habitación.</li>
-        <li>Horarios recurrentes visibles también en calendario.</li>
-      </ul>
-
-      <h3>7.6 Balance y visualización</h3>
-      <ul>
-        <li>Balance de gastos por categorías.</li>
-        <li>Balance por tiempo con distintos rangos temporales.</li>
-        <li>Mejora visual del modo claro con paleta crema y acentos morados.</li>
-      </ul>
-
-      <h2>8. Seguridad y control de acceso</h2>
-      <p>La seguridad se resuelve principalmente mediante reglas de Firestore, alineadas con la lógica de la aplicación. Entre los puntos clave destacan:</p>
-      <ul>
-        <li>Acceso restringido a usuarios autenticados y con correo verificado.</li>
-        <li>Lectura de pisos limitada a sus miembros.</li>
-        <li>Control de aceptación de pagos por acreedor o propietario.</li>
-        <li>Gestión de reglas del piso reservada al propietario.</li>
-        <li>Permisos explícitos para incidencias y horarios de miembros del grupo.</li>
-      </ul>
-      <div class="page-number">Página 6</div>
-    </section>
-
-    <section class="sheet">
-      <h2>9. Evolución del proyecto</h2>
-      <p>La evolución del proyecto ha quedado documentada en el diario técnico y puede resumirse en tres grandes etapas:</p>
-
-      <h3>9.1 Definición y diseño inicial</h3>
-      <p>Entre marzo y abril de 2026 se definieron el alcance, la arquitectura, los casos de uso principales y el modelo de datos sobre Firestore. En esta fase se fijó también la navegación general y la separación en capas <code>features</code>, <code>core</code> y <code>shared</code>.</p>
-
-      <h3>9.2 Construcción funcional</h3>
-      <p>Durante mayo de 2026 se consolidó la base del proyecto: autenticación, pisos, habitaciones, gastos, pagos, recordatorios y perfil. Paralelamente se desarrollaron flujos de unión por código y QR, control de habitaciones y ajustes de seguridad.</p>
-
-      <h3>9.3 Refinamiento, sincronización y gestión avanzada</h3>
-      <p>En junio de 2026 el foco se desplazó hacia la robustez del flujo económico, la corrección de duplicados e inconsistencias entre cuentas, la integración de justificantes, la mejora visual del modo claro y la ampliación del módulo de gestión con incidencias, reglas y horarios.</p>
-
-      <h2>10. Validación y pruebas</h2>
-      <p>La validación del proyecto se ha apoyado en:</p>
-      <ul>
-        <li>Compilación continua mediante <code>assembleDebug</code>.</li>
-        <li>Pruebas de smoke sobre navegación principal.</li>
-        <li>Checklist funcional de autenticación, pisos, habitaciones, gastos, pagos, recordatorios y seguridad.</li>
-        <li>Pruebas multiusuario con cuentas seed reales mediante Firebase Admin.</li>
-      </ul>
-      <div class="page-number">Página 7</div>
-    </section>
-
-    <section class="sheet">
-      <h2>11. Problemas encontrados y soluciones aplicadas</h2>
+      <h2>4. Requisitos del sistema</h2>
+      <h3>4.1 Requisitos funcionales</h3>
       <table>
         <thead>
           <tr>
-            <th>Problema</th>
-            <th>Solución aplicada</th>
+            <th>ID</th>
+            <th>Requisito funcional</th>
+            <th>Descripción resumida</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td>Duplicados entre gastos y confirmaciones</td>
-            <td>Recalcular estado efectivo desde <code>payment_deadlines</code> y ocultar la fila original cuando ya existe confirmación ligada.</td>
+            <td>RF-01</td>
+            <td>Registro y acceso</td>
+            <td>El sistema debe permitir registro, verificación de correo e inicio de sesión.</td>
           </tr>
           <tr>
-            <td>Propietario tratado siempre como editor del gasto</td>
-            <td>Priorizar el flujo de deudor cuando el gasto está dirigido al propio propietario como destinatario.</td>
+            <td>RF-02</td>
+            <td>Creación y unión a pisos</td>
+            <td>El usuario debe poder crear un piso o unirse por código/QR.</td>
           </tr>
           <tr>
-            <td>Recordatorios recurrentes mostrados fuera de rango</td>
-            <td>Aplicar correctamente la fecha final en calendario y en la programación local.</td>
+            <td>RF-03</td>
+            <td>Gestión de habitaciones</td>
+            <td>El propietario debe poder crear, editar, asignar y eliminar habitaciones vacías.</td>
           </tr>
           <tr>
-            <td>Cierres y lentitud al abrir justificantes</td>
-            <td>Cargar la imagen reducida, en segundo plano y dentro de una vista desplazable.</td>
+            <td>RF-04</td>
+            <td>Registro de gastos</td>
+            <td>Se deben crear gastos con reparto por personas o habitaciones y justificante asociado.</td>
           </tr>
           <tr>
-            <td>Inconsistencias visuales en modo claro</td>
-            <td>Rehacer la paleta, contrastes, barra inferior, inputs y tarjetas.</td>
+            <td>RF-05</td>
+            <td>Pagos y deudas</td>
+            <td>El sistema debe representar deudas individuales y permitir su confirmación.</td>
           </tr>
           <tr>
-            <td>Bloqueos al guardar incidencias y horarios</td>
-            <td>Alinear reglas de Firestore con la lógica real de la UI.</td>
+            <td>RF-06</td>
+            <td>Recordatorios</td>
+            <td>Se deben crear recordatorios manuales y recurrentes para miembros o habitaciones.</td>
+          </tr>
+          <tr>
+            <td>RF-07</td>
+            <td>Calendario</td>
+            <td>Los recordatorios y eventos relevantes deben visualizarse en calendario.</td>
+          </tr>
+          <tr>
+            <td>RF-08</td>
+            <td>Balance</td>
+            <td>El sistema debe mostrar balance económico global y temporal.</td>
           </tr>
         </tbody>
       </table>
 
-      <h2>12. Resultado final</h2>
-      <p>El proyecto culmina en una aplicación Android funcional que cubre la gestión diaria de un piso compartido desde una perspectiva tanto económica como organizativa. El sistema no solo registra información, sino que estructura la responsabilidad de cada miembro, incorpora validación de pagos mediante justificantes y añade herramientas de convivencia que amplían el alcance del producto más allá del simple control de gastos.</p>
+      <h3>4.2 Requisitos no funcionales</h3>
+      <ul>
+        <li><strong>RNF-01. Seguridad:</strong> acceso restringido por autenticación, verificación de correo y pertenencia a grupo.</li>
+        <li><strong>RNF-02. Usabilidad:</strong> interfaz legible, flujos guiados y formatos visuales adaptados al usuario final.</li>
+        <li><strong>RNF-03. Mantenibilidad:</strong> organización modular por dominios y extracción gradual de servicios.</li>
+        <li><strong>RNF-04. Portabilidad acotada:</strong> ejecución sobre Android con <code>minSdk 24</code>.</li>
+        <li><strong>RNF-05. Consistencia:</strong> uniformidad de estados, fechas y semántica del dominio.</li>
+      </ul>
+
+      <h3>4.3 Criterios de aceptación de alto nivel</h3>
+      <p>Se considera que el sistema satisface el alcance básico si un usuario puede registrarse, verificar su cuenta, crear o unirse a un piso, generar una habitación, registrar un gasto con justificante, producir una deuda asociada, enviar una confirmación y observar el impacto de la operación en el balance.</p>
+      <div class="page-number">Página 5</div>
+    </section>
+
+    <section class="sheet">
+      <h2>5. Metodología de desarrollo</h2>
+      <p>El desarrollo del proyecto se ha llevado a cabo mediante un enfoque iterativo e incremental. No se ha seguido un modelo en cascada rígido, sino una dinámica de construcción progresiva en la que cada módulo se ha consolidado a través de pequeñas entregas funcionales, validación visual y corrección posterior sobre el comportamiento real observado.</p>
+      <p>Este enfoque ha resultado adecuado para un producto donde la interfaz, la semántica de estados y las reglas de acceso evolucionan a medida que aparecen nuevos casos de uso. El historial funcional del proyecto muestra claramente este patrón: primero se construyen flujos base; después se detectan ambigüedades; a continuación se extraen servicios, se refinan permisos y se ajusta la representación visual de los datos.</p>
+
+      <h3>5.1 Ciclo de iteración aplicado</h3>
+      <pre>
+Diagrama 1. Ciclo de trabajo iterativo empleado
+
+flowchart LR
+    A[Detección de necesidad o error] --> B[Análisis funcional y técnico]
+    B --> C[Implementación o refactor]
+    C --> D[Actualización de reglas y documentación]
+    D --> E[Validación por compilación y prueba manual]
+    E --> F[Corrección fina de UX y consistencia]
+      </pre>
+
+      <h3>5.2 Ventajas del enfoque seguido</h3>
+      <ul>
+        <li>Permite adaptar el sistema a necesidades emergentes sin bloquear la entrega.</li>
+        <li>Favorece la revisión continua de la experiencia de usuario.</li>
+        <li>Hace visible la evolución del modelo de dominio y de los permisos.</li>
+        <li>Encaja con un TFG individual donde no tiene sentido sobredimensionar la gestión formal.</li>
+      </ul>
+
+      <h3>5.3 Costes o inconvenientes de este enfoque</h3>
+      <p>La principal desventaja es que la lógica puede concentrarse inicialmente en pantallas o fragmentos antes de extraerse a servicios, lo que obliga a realizar refactor posterior. Asimismo, este patrón puede retrasar la automatización de pruebas unitarias si el foco inicial se sitúa en cerrar flujos completos de producto.</p>
+
+      <div class="placeholder">
+        <strong>[Insertar Figura 2]</strong>
+        Línea temporal de hitos del proyecto basada en el diario técnico.
+      </div>
+      <div class="page-number">Página 6</div>
+    </section>
+
+    <section class="sheet">
+      <h2>6. Justificación tecnológica</h2>
+      <p>La selección tecnológica del proyecto responde a un criterio de equilibrio entre viabilidad, tiempo de desarrollo, madurez del ecosistema y claridad de defensa. No se ha buscado maximizar el número de tecnologías empleadas, sino construir una solución coherente con un stack acotado y bien integrado.</p>
+
+      <h3>6.1 Cliente Android nativo con Java 17</h3>
+      <p>La aplicación se implementa como cliente Android nativo en Java 17. Esta elección se justifica por continuidad con el código existente, estabilidad del ecosistema y trazabilidad técnica clara de actividades, fragmentos, vistas, layouts y recursos. La principal alternativa habría sido Kotlin, que ofrece una sintaxis más moderna y expresiva. Sin embargo, en este proyecto se ha priorizado la consistencia del desarrollo y la reducción del riesgo de mezclar estilos o introducir migraciones parciales innecesarias.</p>
+
+      <h3>6.2 Android SDK y librerías base de interfaz</h3>
+      <p>El cliente se apoya en <code>AppCompat</code>, <code>Material Components</code>, <code>ConstraintLayout</code>, <code>RecyclerView</code> y <code>SwipeRefreshLayout</code>. Estas dependencias cubren la práctica totalidad de las necesidades de interfaz del proyecto y permiten un equilibrio razonable entre productividad y control fino del comportamiento.</p>
+
+      <h3>6.3 Sistema de build y compilación</h3>
+      <p>El proyecto utiliza Gradle y Android Gradle Plugin 8.5.2. La aplicación declara <code>compileSdk 35</code>, <code>targetSdk 35</code>, <code>minSdk 24</code> y compatibilidad con Java 17. Esta configuración ofrece acceso a APIs modernas y un rango de compatibilidad adecuado con terminales Android que siguen siendo razonables en un contexto de usuario real.</p>
+
+      <h3>6.4 Firebase Authentication</h3>
+      <p>Firebase Authentication se utiliza para resolver el alta, acceso y verificación de usuarios por correo electrónico. Se elige frente a una implementación propia por motivos de seguridad, tiempo de desarrollo e integración directa con el resto del stack. La existencia de verificación de correo añade una capa importante de fiabilidad en la identidad de los miembros del piso.</p>
+
+      <h3>6.5 Cloud Firestore</h3>
+      <p>Cloud Firestore actúa como persistencia principal. Su modelo documental encaja con entidades como grupos, habitaciones, gastos, recordatorios e incidencias, donde la flexibilidad estructural es valiosa. La posibilidad de expresar reglas de acceso directamente en el backend gestionado resulta especialmente útil en un TFG donde el cliente interactúa de forma directa con la base de datos.</p>
+
+      <h3>6.6 Firebase Storage</h3>
+      <p>Firebase Storage se emplea para albergar justificantes y archivos binarios. Esta decisión evita almacenar datos pesados dentro de Firestore y mantiene la solución dentro del mismo ecosistema, simplificando despliegue, mantenimiento y trazabilidad.</p>
+
+      <h3>6.7 ML Kit para OCR</h3>
+      <p>La dependencia <code>com.google.mlkit:text-recognition</code> se incorpora para asistir en la lectura de tickets. Su valor no radica en sustituir completamente la entrada manual, sino en reducir fricción y aportar una funcionalidad diferencial ligada al dominio del producto.</p>
+
+      <h3>6.8 ZXing para lectura de QR</h3>
+      <p>ZXing permite integrar lectura de códigos QR para el flujo de unión a pisos. Frente a introducir un código manual, el uso de QR mejora la experiencia de incorporación y reduce errores de entrada.</p>
+
+      <h3>6.9 Libphonenumber</h3>
+      <p>La librería <code>libphonenumber</code> se utiliza para validar y normalizar teléfonos en el perfil de usuario, evitando reglas manuales frágiles y mejorando la calidad de los datos.</p>
+
+      <h3>6.10 Razones para no implementar una API REST propia</h3>
+      <p>Una API backend propia habría permitido concentrar reglas de negocio complejas, ganar testabilidad y separar por completo el cliente de la persistencia. Sin embargo, su coste operativo habría sido elevado para el alcance del proyecto: despliegue, mantenimiento, observabilidad, autenticación y diseño de contratos. Por ello se adopta un enfoque BaaS, sacrificando cierta pureza arquitectónica a cambio de viabilidad realista y cierre funcional del TFG.</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Tecnología</th>
+            <th>Papel en el sistema</th>
+            <th>Motivo principal de elección</th>
+            <th>Alternativa principal descartada</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Java 17</td>
+            <td>Lógica del cliente Android</td>
+            <td>Continuidad, estabilidad y claridad técnica</td>
+            <td>Kotlin</td>
+          </tr>
+          <tr>
+            <td>Android SDK + Material</td>
+            <td>Interfaz, navegación y widgets</td>
+            <td>Ecosistema estándar y buen equilibrio de productividad</td>
+            <td>Jetpack Compose</td>
+          </tr>
+          <tr>
+            <td>Firebase Authentication</td>
+            <td>Registro y login</td>
+            <td>Integración nativa y reducción de complejidad</td>
+            <td>Backend propio con JWT</td>
+          </tr>
+          <tr>
+            <td>Cloud Firestore</td>
+            <td>Persistencia principal</td>
+            <td>Modelo flexible y reglas declarativas</td>
+            <td>PostgreSQL + API</td>
+          </tr>
+          <tr>
+            <td>Firebase Storage</td>
+            <td>Justificantes y binarios</td>
+            <td>Separación entre metadatos y archivos</td>
+            <td>Servidor de ficheros propio</td>
+          </tr>
+          <tr>
+            <td>ML Kit</td>
+            <td>OCR de tickets</td>
+            <td>Mejora de UX con integración móvil directa</td>
+            <td>Tesseract</td>
+          </tr>
+          <tr>
+            <td>ZXing</td>
+            <td>Lectura de QR</td>
+            <td>Madurez y uso extendido</td>
+            <td>Implementación propia</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="page-number">Página 7</div>
+    </section>
+
+    <section class="sheet">
+      <h2>7. Arquitectura y diseño del sistema</h2>
+      <h3>7.1 Estilo arquitectónico adoptado</h3>
+      <p>FlatShare se comporta como un <strong>monolito modular en cliente</strong>. No existen microservicios ni API propia separada del cliente. La lógica principal reside en la aplicación Android, apoyándose en Firebase como proveedor de autenticación, persistencia y almacenamiento. Esta decisión se considera adecuada para el tamaño del sistema y para el contexto académico del TFG.</p>
+
+      <h3>7.2 Organización del código por capas y dominios</h3>
+      <p>La estructura principal del código se divide en tres áreas: <code>features</code>, <code>core</code> y <code>shared</code>. La carpeta <code>features</code> reúne los casos de uso funcionales; <code>core</code> agrupa servicios base de la aplicación; y <code>shared</code> recoge utilidades y componentes reutilizables. Esta separación no equivale a una implementación formal de Clean Architecture, pero sí evidencia un esfuerzo claro por contener el acoplamiento y mejorar la mantenibilidad.</p>
+
+      <pre>
+Diagrama 2. Organización lógica del código
+
+flowchart TD
+    A[features] --> A1[auth]
+    A --> A2[groups]
+    A --> A3[workspace]
+    A --> A4[profile]
+    A --> A5[settings]
+    A --> A6[shell]
+
+    B[core] --> B1[session]
+    B --> B2[settings]
+    B --> B3[notifications]
+    B --> B4[sync]
+
+    C[shared] --> C1[ui]
+    C --> C2[widgets]
+      </pre>
+
+      <h3>7.3 Arquitectura funcional de alto nivel</h3>
+      <pre>
+Diagrama 3. Arquitectura general de la solución
+
+flowchart TD
+    U[Usuario] --> A[Aplicación Android FlatShare]
+
+    A --> AUTH[Módulo de autenticación]
+    A --> G[Pisos y habitaciones]
+    A --> W[Workspace del piso]
+    A --> B[Balance]
+    A --> C[Calendario]
+    A --> P[Perfil y ajustes]
+
+    AUTH --> FA[Firebase Authentication]
+    G --> FS[Cloud Firestore]
+    W --> FS
+    B --> FS
+    C --> FS
+    P --> FS
+
+    W --> ST[Firebase Storage]
+    W --> OCR[ML Kit OCR]
+    G --> QR[ZXing QR]
+      </pre>
+
+      <h3>7.4 Componentes principales del sistema</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Componente</th>
+            <th>Responsabilidad</th>
+            <th>Elementos representativos</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Autenticación</td>
+            <td>Registro, login, verificación y persistencia de sesión</td>
+            <td><code>LoginActivity</code>, <code>RegisterActivity</code>, <code>VerifyEmailActivity</code>, <code>SplashActivity</code></td>
+          </tr>
+          <tr>
+            <td>Gestión de pisos</td>
+            <td>Creación, unión y administración básica del grupo</td>
+            <td><code>GroupsFragment</code>, <code>GroupService</code>, <code>InvitationService</code></td>
+          </tr>
+          <tr>
+            <td>Habitaciones</td>
+            <td>Asignación, capacidad, residentes y reparto de renta</td>
+            <td><code>OwnerRoomsActivity</code>, <code>InitialRoomsSetupFlow</code></td>
+          </tr>
+          <tr>
+            <td>Workspace</td>
+            <td>Movimientos, recordatorios, gestión e interacción principal del piso</td>
+            <td><code>ExpensesFragment</code>, <code>RentalManagementFragment</code>, <code>CalendarFragment</code></td>
+          </tr>
+          <tr>
+            <td>Balance</td>
+            <td>Análisis económico agregado y temporal</td>
+            <td><code>BalancesFragment</code>, <code>PersonalBalanceFragment</code>, widgets gráficos</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>7.5 Patrones y principios aplicados</h3>
+      <ul>
+        <li><strong>Service Layer:</strong> clases de servicio para aislar lógica de negocio de la interfaz.</li>
+        <li><strong>Utility Pattern:</strong> utilidades compartidas para fechas, diálogos, formateo y mensajes.</li>
+        <li><strong>Policy Object:</strong> encapsulación de permisos específicos en <code>PaymentAccessPolicy</code>.</li>
+        <li><strong>Monolito modular:</strong> separación fuerte por dominios sin desplegar servicios independientes.</li>
+      </ul>
+
+      <h3>7.6 Flujo general de una interacción de negocio</h3>
+      <pre>
+Diagrama 4. Flujo cliente - servicio - Firebase
+
+sequenceDiagram
+    participant U as Usuario
+    participant UI as Actividad/Fragmento
+    participant S as Servicio de dominio
+    participant F as Firebase
+
+    U->>UI: Ejecuta acción
+    UI->>S: Solicita operación
+    S->>F: Lee o escribe documentos
+    F-->>S: Devuelve resultado o error
+    S-->>UI: Traduce resultado a estado visible
+    UI-->>U: Actualiza interfaz
+      </pre>
+
+      <h3>7.7 Atributos de calidad perseguidos</h3>
+      <p>La arquitectura no se ha diseñado únicamente para que la aplicación funcione, sino también para satisfacer atributos de calidad relevantes para un producto de este tipo. La seguridad se ha tratado como una prioridad estructural, dado que el sistema expone datos personales, pertenencia a grupos y movimientos económicos. La usabilidad se ha trabajado a través de una representación visual coherente, estados comprensibles y formatos de fecha homogéneos. La mantenibilidad se ha perseguido mediante la organización por dominios y la extracción progresiva de lógica de negocio a servicios especializados. Finalmente, la trazabilidad del sistema se ha reforzado separando de forma explícita gasto, deuda y confirmación.</p>
+
+      <h3>7.8 Decisiones de diseño con mayor impacto</h3>
+      <p>Entre las decisiones de diseño con más impacto cabe destacar el uso de un backend gestionado en lugar de una API propia, la separación entre documento económico origen y obligación individual, y la combinación de persistencia remota con contexto local de sesión. Estas decisiones reducen complejidad operativa, mejoran la representación del dominio y permiten sostener el producto dentro de un equilibrio razonable entre alcance académico y robustez técnica.</p>
       <div class="page-number">Página 8</div>
     </section>
 
     <section class="sheet">
-      <h2>13. Líneas de mejora futura</h2>
+      <h2>8. Modelo de datos, persistencia y seguridad</h2>
+      <h3>8.1 Enfoque de modelado en Firestore</h3>
+      <p>El sistema se apoya en un modelo documental NoSQL. Cada agregado relevante del dominio se representa como colección propia: usuarios, grupos, habitaciones, gastos, pagos, vencimientos, recordatorios y entidades de gestión de alquiler. Se acepta redundancia controlada en campos como nombres, correos o contadores cuando ello mejora la consulta, la visualización o el aislamiento de documentos.</p>
+
+      <h3>8.2 Colecciones principales</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Colección</th>
+            <th>Finalidad</th>
+            <th>Campos clave</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>users</code></td>
+            <td>Perfil de usuario</td>
+            <td>nombre, email, teléfono, fecha de nacimiento</td>
+          </tr>
+          <tr>
+            <td><code>groups</code></td>
+            <td>Piso o grupo compartido</td>
+            <td>ownerId, members, memberEmails, roles, billingModel</td>
+          </tr>
+          <tr>
+            <td><code>rooms_groups</code></td>
+            <td>Habitaciones y ocupación</td>
+            <td>capacity, memberEmails, monthlyCost, rentSplitMode</td>
+          </tr>
+          <tr>
+            <td><code>expenses</code></td>
+            <td>Gastos registrados</td>
+            <td>payerId, amount, concept, customSplit, dueAt, ticketUri</td>
+          </tr>
+          <tr>
+            <td><code>payments</code></td>
+            <td>Pagos y confirmaciones</td>
+            <td>fromEmail, toEmail, amount, status, sourceDebtId</td>
+          </tr>
+          <tr>
+            <td><code>payment_deadlines</code></td>
+            <td>Deudas individuales</td>
+            <td>debtorEmail, creditorEmail, amount, status, dueAt</td>
+          </tr>
+          <tr>
+            <td><code>reminders</code></td>
+            <td>Recordatorios</td>
+            <td>interval, targetType, targetEmails, reminderCode</td>
+          </tr>
+          <tr>
+            <td><code>rental_contracts</code>, <code>rent_collections</code>, <code>maintenance_tickets</code></td>
+            <td>Gestión de alquiler</td>
+            <td>contratos, cobros, incidencias</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>8.3 Modelo conceptual del dominio</h3>
+      <pre>
+Diagrama 5. Modelo entidad-relación conceptual simplificado
+
+erDiagram
+    USERS ||--o{ GROUPS : pertenece
+    GROUPS ||--o{ ROOMS_GROUPS : contiene
+    GROUPS ||--o{ EXPENSES : registra
+    GROUPS ||--o{ PAYMENTS : contiene
+    GROUPS ||--o{ PAYMENT_DEADLINES : genera
+    GROUPS ||--o{ REMINDERS : programa
+    GROUPS ||--o{ RENTAL_CONTRACTS : define
+    GROUPS ||--o{ RENT_COLLECTIONS : liquida
+    GROUPS ||--o{ MAINTENANCE_TICKETS : gestiona
+
+    EXPENSES ||--o{ PAYMENT_DEADLINES : origina
+    PAYMENT_DEADLINES ||--o| PAYMENTS : puede_saldarse_con
+    ROOMS_GROUPS }o--o{ USERS : asigna
+      </pre>
+
+      <div class="placeholder">
+        <strong>[Insertar Figura 3]</strong>
+        Diagrama E-R maquetado y exportado como imagen en la versión final.
+      </div>
+
+      <h3>8.4 Persistencia local y estado de sesión</h3>
+      <p>Además de la persistencia remota, el sistema mantiene información de sesión y contexto en <code>SharedPreferences</code> a través de <code>SessionStore</code>. Se almacenan, entre otros, el grupo actual, la habitación activa, la preferencia de recordar sesión y un perfil pendiente durante el registro. Esta capa local mejora la continuidad de uso y permite reconstruir parcialmente el contexto cuando la sincronización remota aún no se ha consolidado.</p>
+
+      <h3>8.5 Seguridad y control de acceso</h3>
+      <p>Las reglas Firestore aplican autenticación, verificación de correo y pertenencia a grupo como condiciones básicas de acceso. Sobre esa base, se construyen políticas más finas: solo el propietario puede borrar un piso, una habitación solo puede eliminarse si está vacía, determinados pagos solo pueden confirmarse por el acreedor o el propietario, y tanto gastos como pagos únicamente pueden editarse en ciertos estados.</p>
+
+      <pre>
+Diagrama 6. Esquema simplificado de permisos
+
+flowchart TD
+    A[Usuario autenticado y verificado] --> B{Pertenece al grupo}
+    B -- No --> C[Acceso denegado]
+    B -- Sí --> D{Es propietario}
+    D -- Sí --> E[Operaciones administrativas]
+    D -- No --> F[Operaciones de miembro]
+    F --> G[Lectura del grupo]
+    F --> H[Creación de gastos propios]
+    F --> I[Envío de justificantes]
+      </pre>
+
+      <h3>8.6 Trade-offs del modelo adoptado</h3>
+      <p>La principal ventaja del modelo es su rapidez de implementación y su cercanía directa al dominio. Su principal coste es la necesidad de sincronizar cuidadosamente campos redundantes y de vigilar que la lógica del cliente no entre en conflicto con la semántica de las reglas del backend. Esta tensión se ha gestionado mediante refactor progresivo y documentación viva.</p>
+
+      <h3>8.7 Razonamiento sobre la estructura de colecciones</h3>
+      <p>La colección <code>groups</code> funciona como agregado raíz del dominio. Desde ella se establece la identidad del piso, su propietario, los miembros y el modo general de facturación. A partir de esta raíz se despliegan entidades subordinadas como habitaciones, gastos, cobros, incidencias y recordatorios. Esta estructura permite que la mayoría de consultas relevantes puedan formularse con referencia directa al grupo, reduciendo ambigüedades y simplificando la navegación de datos.</p>
+      <p>La colección <code>rooms_groups</code> incorpora un matiz importante: no solo describe un espacio físico, sino que también modela ocupación, coste y reparto. Esto amplía la semántica del producto y evita que las habitaciones sean un simple atributo decorativo del piso. Del mismo modo, la coexistencia de <code>expenses</code>, <code>payments</code> y <code>payment_deadlines</code> responde a una necesidad real de distinguir entre el hecho económico que origina la deuda, la obligación individual que de él se deriva y la operación posterior que documenta o confirma su resolución.</p>
+
+      <h3>8.8 Redundancia controlada y consistencia funcional</h3>
+      <p>El modelo acepta redundancia deliberada en campos como nombres de grupo, nombres de habitación, listas de correos y contadores derivados. Esta decisión no obedece a descuido, sino a un criterio de eficiencia práctica en un contexto documental. Disponer de datos listos para lectura simplifica la interfaz y reduce el número de consultas complementarias. El coste asociado es la necesidad de mantener sincronización entre documentos relacionados, lo que a su vez obliga a reforzar tanto la lógica del cliente como las reglas del backend.</p>
+      <p>En este contexto, la consistencia perseguida no es una consistencia transaccional compleja de tipo relacional, sino una consistencia funcional adecuada al dominio del problema. El objetivo no es que todos los documentos cambien de manera absolutamente atómica en cualquier escenario, sino que el sistema preserve significado, permisos y trazabilidad de forma razonable y defendible.</p>
+
+      <h3>8.9 Gestión semántica de fechas y formatos</h3>
+      <p>El tratamiento de fechas ha sido una preocupación técnica y de experiencia de usuario al mismo tiempo. La persistencia histórica y algunos flujos internos podían convivir con formatos de origen técnico, pero la interfaz final se ha normalizado a <code>DD/MM/AAAA</code>. Esta decisión reduce ambigüedad, mejora la comprensión inmediata y refuerza la coherencia visual del sistema. Aunque pueda parecer un ajuste menor, su impacto sobre la percepción de acabado del producto es alto.</p>
+
+      <h3>8.10 Consultas, índices y límites operativos de Firestore</h3>
+      <p>El diseño del modelo también ha estado condicionado por la naturaleza de Firestore. Las consultas principales se apoyan en filtros por grupo, email, estado o pertenencia, evitando patrones excesivamente relacionales. Este enfoque mantiene el sistema dentro de un rango razonable de complejidad para un proyecto académico. No obstante, a medida que el producto creciera en volumen o sofisticación, sería necesario revisar índices, coste de lecturas y posible traslado de ciertas operaciones a backend selectivo.</p>
+      <div class="page-number">Página 9</div>
+    </section>
+
+    <section class="sheet">
+      <h2>9. Desarrollo funcional por módulos</h2>
+      <h3>9.1 Módulo de autenticación</h3>
+      <p>Este módulo gestiona alta de cuenta, inicio de sesión, recuperación de contraseña, persistencia opcional de sesión y verificación de correo. Una de las mejoras más relevantes del estado final es la recuperación del perfil para cuentas nuevas incluso cuando el documento Firestore aún no está completamente disponible, apoyándose en Firebase Auth y en datos temporales locales.</p>
+
+      <h3>9.2 Módulo de pisos y membresía</h3>
+      <p>La gestión de grupos constituye el eje estructural del producto. Un usuario puede crear un piso, generar un código de unión y admitir miembros de forma controlada. La incorporación por QR o código compartido reduce fricción, mientras que la obligación de asignar habitación cuando existen plazas introduce una semántica más fiel al dominio real.</p>
+
+      <h3>9.3 Módulo de habitaciones</h3>
+      <p>Las habitaciones no se limitan a un número o nombre. También modelan ocupación, capacidad, coste mensual y modo de reparto de la renta. Esta ampliación permite que el sistema no se comporte solo como gestor de gastos, sino también como herramienta de gestión habitacional dentro del piso.</p>
+
+      <h3>9.4 Módulo de movimientos económicos</h3>
+      <p>El módulo <code>Movimientos</code> es el núcleo del valor funcional. Aquí se registran gastos, se seleccionan objetivos del reparto, se adjuntan tickets y se exponen estados visibles de cada operación. El diseño final ha mejorado en dos dimensiones: por un lado, evita incoherencias como incluir al propio pagador como destinatario de pago; por otro, clarifica la lectura mediante estados, fechas, tarjetas simplificadas y filtros rápidos por estado.</p>
+
+      <h3>9.5 Modelo de deuda individual</h3>
+      <p>Una de las decisiones más sólidas del proyecto ha sido distinguir entre el documento de gasto origen y la deuda específica de cada deudor. Para ello se utilizan <code>payment_deadlines</code>, que representan pendientes independientes con su propio estado. Este diseño facilita la trazabilidad del flujo y evita ambigüedades cuando un gasto afecta a múltiples personas.</p>
+
+      <pre>
+Diagrama 7. Flujo simplificado de gasto y deuda
+
+flowchart LR
+    A[Usuario crea gasto] --> B[Se guarda en expenses]
+    B --> C[Se generan payment_deadlines]
+    C --> D[Deudor sube justificante]
+    D --> E[Se crea o actualiza payment]
+    E --> F[Acreedor o propietario valida]
+    F --> G[Deuda confirmada]
+      </pre>
+
+      <h3>9.6 Recordatorios y calendario</h3>
+      <p>Los recordatorios aportan una capa organizativa complementaria al plano económico. Se pueden dirigir a miembros concretos, habitaciones o a todos los inquilinos. Además, el calendario ofrece una visualización agregada de dichos eventos, con soporte para recurrencia y límites temporales.</p>
+
+      <h3>9.7 Balance y widgets gráficos</h3>
+      <p>La parte de balance va más allá de una cifra simple. Se apoya en componentes reutilizables como <code>PieChartView</code> y <code>MonthlyBarChartView</code> para ofrecer una lectura visual del comportamiento económico. Esto refuerza el carácter analítico del sistema y mejora la comprensión por parte del usuario.</p>
+
+      <h3>9.8 Gestión de alquiler</h3>
+      <p>La evolución del proyecto incorpora contratos, cobros, incidencias, reglas y horarios. Aunque estos submódulos presentan distinta madurez relativa, su integración demuestra que la aplicación puede crecer desde un gestor de gastos hacia una plataforma de convivencia más completa.</p>
+      <div class="page-number">Página 10</div>
+    </section>
+
+    <section class="sheet">
+      <h2>9. Desarrollo funcional por módulos (continuación)</h2>
+      <h3>9.9 Perfil, ajustes y persistencia de preferencias</h3>
+      <p>El módulo de perfil cumple una doble función: por un lado, ofrece al usuario un espacio para revisar y editar sus datos; por otro, actúa como punto de sincronización entre Firebase Authentication, Firestore y la persistencia local del dispositivo. La solución implementada para cuentas nuevas, donde el perfil puede reconstruirse a partir de Auth y de un estado pendiente almacenado en <code>SessionStore</code>, constituye un ejemplo claro de robustez orientada al uso real.</p>
+      <p>La parte de ajustes, aun siendo secundaria en apariencia, concentra decisiones significativas del comportamiento global. La preferencia de recordar sesión, la gestión del tema visual y las operaciones de salida o borrado de cuenta impactan directamente tanto en seguridad como en percepción de fiabilidad del producto.</p>
+
+      <h3>9.10 Notificaciones y comportamiento temporal</h3>
+      <p>La incorporación de <code>ReminderScheduler</code> y <code>ReminderReceiver</code> demuestra que el sistema no se limita a actuar como repositorio pasivo de información. También incorpora comportamiento temporal: capacidad para lanzar recordatorios, avisar de vencimientos y apoyar la organización del piso más allá del momento de la consulta manual. Esta dimensión temporal añade valor funcional y aproxima el producto a una herramienta de uso continuado.</p>
+
+      <h3>9.11 Decisiones de experiencia de usuario</h3>
+      <p>La interfaz ha evolucionado de manera visible a lo largo del proyecto. Se han simplificado tarjetas, homogeneizado fechas, traducido estados técnicos a expresiones entendibles y reforzado la jerarquía visual de campos relevantes. La introducción de filtros rápidos por estado, la mejora del protagonismo de etiquetas como <code>Solicitado por</code> y <code>Para</code>, y la reducción de repeticiones innecesarias de correos o nombres persiguen un mismo objetivo: que la pantalla explique el estado del negocio sin exigir al usuario una interpretación compleja.</p>
+      <p>Esta línea de trabajo demuestra que la calidad del producto no depende solo de que las operaciones sean correctas, sino también de que su representación resulte intuitiva. En aplicaciones de negocio ligero, la claridad visual reduce errores, acelera el uso y mejora la confianza del usuario.</p>
+
+      <h3>9.12 Accesibilidad, legibilidad y consistencia</h3>
+      <p>Aunque no se ha llevado a cabo una auditoría formal completa de accesibilidad, sí se han incorporado decisiones que la favorecen: mejora del contraste en determinadas pantallas, estados expresados no solo por color sino también por texto, simplificación de bloques visuales y reducción de ruido. Se trata de una base positiva sobre la que podría construirse una evolución futura más profunda en materia de accesibilidad formal.</p>
+
+      <h3>9.13 Feedback sonoro y sensación de respuesta</h3>
+      <p>La integración de un helper de sonido para determinadas acciones pone de manifiesto una sensibilidad adicional hacia la respuesta del sistema. Aunque este punto no sea crítico para la lógica de negocio, sí contribuye a la percepción de cierre y confirmación de operaciones, especialmente en contextos móviles donde el feedback inmediato mejora la sensación de control.</p>
+      <div class="page-number">Página 11</div>
+    </section>
+
+    <section class="sheet">
+      <h2>10. Plan de pruebas completo</h2>
+      <h3>10.1 Estrategia general de validación</h3>
+      <p>La validación del sistema se ha organizado en torno a distintos niveles: compilación, verificación funcional manual, regresión sobre módulos modificados, revisión de seguridad y comprobaciones de calidad técnica. Esta estructura se recoge en el documento <code>TEST_CHECKLIST_TFG.md</code>, que agrupa <strong>45 comprobaciones</strong> distribuidas en nueve bloques.</p>
+
+      <h3>10.2 Pruebas unitarias</h3>
+      <p>La automatización unitaria del proyecto es aún reducida. El sistema se encuentra preparado a nivel de build con <code>AndroidJUnitRunner</code>, pero no se dispone todavía de una batería amplia de clases <code>@Test</code> consolidada en <code>src/test</code> o <code>src/androidTest</code>. Esta situación se documenta de forma expresa porque condiciona la cobertura cuantitativa disponible.</p>
+      <p>Aun así, sí existen piezas de lógica ya suficientemente desacopladas como para ser candidatas claras a test unitario en una siguiente fase: <code>PaymentAccessPolicy</code>, formateadores de fechas, normalizadores de correo, cálculo de reparto de renta, políticas de acceso y utilidades de UI con lógica verificable.</p>
+
+      <div class="placeholder">
+        <strong>[Insertar gráfico de cobertura aquí]</strong>
+        En el estado actual no se dispone de un porcentaje de cobertura automatizada representativo, por ausencia de suite unitaria consolidada.
+      </div>
+
+      <h3>10.3 Pruebas de integración</h3>
+      <p>Las pruebas de integración verifican el comportamiento conjunto de interfaz, servicios, sesión local y persistencia Firestore. Resultan especialmente importantes en flujos como la creación de grupos, el alta de habitaciones, el registro de gastos, la generación de deudas individuales o la reconstrucción de perfil a partir de Firebase Auth y datos pendientes locales.</p>
+
+      <h3>10.4 Pruebas de sistema o end-to-end</h3>
+      <p>Las pruebas de sistema se han planteado como recorridos completos de usuario: registro, verificación, entrada, creación o unión a un piso, alta de habitación, registro de gasto, envío de justificante, aceptación del movimiento y observación del balance final. En este nivel se ha prestado especial atención a la semántica visible: etiquetas, estados, fechas, bloqueo de acciones y mensajes de error.</p>
+
+      <h3>10.5 Pruebas de seguridad</h3>
+      <p>Se han revisado escenarios negativos relacionados con lectura de grupos por usuarios no miembros, confirmación de pagos por actores no autorizados, edición de documentos fuera del estado permitido y operaciones administrativas reservadas al propietario. En un sistema apoyado en BaaS, este bloque de pruebas resulta crítico.</p>
+
+      <h3>10.6 Pruebas de rendimiento y carga</h3>
+      <p>No se ha realizado una campaña formal de carga masiva con métricas de throughput, percentiles de latencia o saturación de infraestructura. Ello se debe a dos motivos: el producto no está desplegado sobre una API propia donde ese tipo de medida sea especialmente natural, y el alcance del TFG ha priorizado funcionalidad, consistencia y seguridad frente a la explotación intensiva. Se considera, por tanto, que el análisis de rendimiento ha sido principalmente cualitativo.</p>
+
+      <h3>10.7 Resumen cuantitativo del checklist</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Bloque</th>
+            <th>Número de comprobaciones</th>
+            <th>Propósito</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Autenticación y acceso</td>
+            <td>4</td>
+            <td>Validar alta, verificación y login</td>
+          </tr>
+          <tr>
+            <td>Pisos y unión</td>
+            <td>6</td>
+            <td>Comprobar creación y adhesión a grupos</td>
+          </tr>
+          <tr>
+            <td>Habitaciones</td>
+            <td>4</td>
+            <td>Verificar gestión del propietario</td>
+          </tr>
+          <tr>
+            <td>Gastos</td>
+            <td>4</td>
+            <td>Comprobar formularios y repartos</td>
+          </tr>
+          <tr>
+            <td>Pagos</td>
+            <td>8</td>
+            <td>Validar justificantes, estados y permisos</td>
+          </tr>
+          <tr>
+            <td>Recordatorios</td>
+            <td>5</td>
+            <td>Comprobar targeting y borrado</td>
+          </tr>
+          <tr>
+            <td>Seguridad Firestore</td>
+            <td>5</td>
+            <td>Verificar restricciones de acceso</td>
+          </tr>
+          <tr>
+            <td>Calidad técnica</td>
+            <td>4</td>
+            <td>Compilación, encoding y smoke testing</td>
+          </tr>
+          <tr>
+            <td>Regresión por refactor</td>
+            <td>5</td>
+            <td>Evitar rupturas sobre cambios recientes</td>
+          </tr>
+        </tbody>
+      </table>
+      <h3>10.8 Matriz de riesgos y pruebas asociadas</h3>
+      <p>Las pruebas ejecutadas responden a riesgos concretos del dominio. El riesgo de acceso no autorizado se cubre mediante pruebas de reglas Firestore; el riesgo de semántica económica incoherente se aborda con pruebas de movimientos, deudas y justificantes; el riesgo de deterioro visual o semántico tras refactor se mitiga con bloques específicos de regresión. De este modo, el plan de pruebas no es una colección arbitraria de pasos, sino una respuesta razonada a puntos de fallo potenciales.</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Riesgo</th>
+            <th>Impacto</th>
+            <th>Bloque de validación asociado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Acceso de un usuario ajeno a datos del piso</td>
+            <td>Alto</td>
+            <td>Reglas Firestore</td>
+          </tr>
+          <tr>
+            <td>Confirmación de pago por actor no autorizado</td>
+            <td>Alto</td>
+            <td>Pagos + seguridad</td>
+          </tr>
+          <tr>
+            <td>Reparto económico incoherente</td>
+            <td>Alto</td>
+            <td>Gastos + regresión</td>
+          </tr>
+          <tr>
+            <td>Perfil incompleto tras alta reciente</td>
+            <td>Medio</td>
+            <td>Autenticación + smoke testing</td>
+          </tr>
+          <tr>
+            <td>Recurrencia incorrecta en recordatorios</td>
+            <td>Medio</td>
+            <td>Recordatorios + calendario</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>10.9 Criterios de salida de la fase de pruebas</h3>
+      <p>Se considera que el sistema alcanza un estado suficiente para entrega cuando compila correctamente, los flujos principales pueden ejecutarse sin bloqueos graves, las reglas de acceso críticas se mantienen coherentes y la interfaz no presenta inconsistencias severas en operaciones habituales. Este criterio no sustituye a un aseguramiento de calidad industrial, pero sí define un umbral razonable y defendible para un TFG de estas características.</p>
+
+      <h3>10.10 Validaciones futuras deseables</h3>
       <ul>
-        <li>Panel web administrativo complementario.</li>
-        <li>Sincronización avanzada y métricas más completas de balance.</li>
-        <li>Notificaciones push remotas integradas con Firebase Cloud Messaging.</li>
-        <li>Mayor internacionalización de la interfaz y correos de sistema.</li>
-        <li>Motor de reportes y exportaciones más amplio.</li>
-        <li>Automatización adicional de cobros y auditoría.</li>
+        <li>Tests unitarios sobre políticas de acceso, cálculo de reparto y utilidades de formateo.</li>
+        <li>Tests instrumentados para recorridos esenciales de autenticación y movimientos.</li>
+        <li>Pruebas de resiliencia frente a conectividad irregular.</li>
+        <li>Pruebas de accesibilidad básica y consistencia visual automatizable.</li>
+        <li>Ensayos de rendimiento con conjuntos de datos más amplios.</li>
+      </ul>
+      <div class="page-number">Página 12</div>
+    </section>
+
+    <section class="sheet">
+      <h2>11. Resultados obtenidos</h2>
+      <h3>11.1 Resultados funcionales</h3>
+      <p>El resultado principal del proyecto es la construcción de una aplicación funcional que cubre el flujo completo de un caso de uso real de convivencia en piso compartido. El usuario puede autenticarse, entrar en un grupo, ocupar una habitación, registrar un gasto, producir deudas, enviar un justificante, resolver un pendiente y observar cómo el sistema refleja esa evolución en la interfaz y en el balance.</p>
+
+      <h3>11.2 Resultados técnicos observables</h3>
+      <p>Durante la fase final del proyecto se ha validado repetidamente la compilación mediante <code>assembleDebug</code>, lo que permite afirmar que el código se encuentra en un estado construible y coherente con la configuración del entorno. Asimismo, el refactor progresivo hacia servicios especializados ha mejorado la legibilidad general del sistema y reduce el riesgo de degradación futura por acumulación de lógica en pantallas.</p>
+
+      <h3>11.3 Resultado cuantitativo parcial</h3>
+      <p>La única métrica cuantitativa consolidada e inferible con fiabilidad desde el repositorio es la existencia de 45 comprobaciones estructuradas en el checklist técnico-funcional. No puede afirmarse con rigor un porcentaje de cobertura ni un tiempo medio de respuesta sin disponer de instrumentación adicional, por lo que esta memoria evita atribuir al sistema métricas no respaldadas por evidencia real.</p>
+
+      <h3>11.4 Resultado cualitativo</h3>
+      <p>El producto muestra una mejora clara respecto al estado inicial en tres dimensiones: semántica del dominio, consistencia visual y robustez del flujo. Se ha avanzado desde una operativa de gastos más lineal hacia un modelo donde gasto, deuda individual y confirmación quedan conceptualmente diferenciados. Paralelamente, se han limpiado estados técnicos visibles, se ha homogeneizado el formato de fechas y se ha mejorado la lectura de tarjetas, filtros y etiquetas.</p>
+
+      <h3>11.5 Incidencias relevantes resueltas</h3>
+      <ul>
+        <li>Perfiles vacíos en cuentas nuevas por falta de sincronización inmediata.</li>
+        <li>Estados ambiguos o poco legibles en movimientos.</li>
+        <li>Duplicación o mala reconstrucción de deudas pendientes.</li>
+        <li>Repartos incoherentes incluyendo al propio pagador.</li>
+        <li>Fechas mostradas en formato no natural para el usuario final.</li>
       </ul>
 
-      <h2>14. Conclusión</h2>
-      <p>FlatShare resuelve un problema cotidiano real mediante una aplicación móvil que combina gestión económica, trazabilidad de pagos, coordinación interna del piso y organización de la convivencia. El proyecto ha evolucionado desde una base funcional inicial hasta una versión más sólida, cuidada visualmente y alineada con reglas de seguridad coherentes con su comportamiento real.</p>
-      <p>Desde el punto de vista académico y técnico, el resultado final demuestra integración entre frontend Android nativo, backend serverless con Firebase, modelado documental, control de acceso por reglas y una evolución iterativa guiada por pruebas, correcciones y refinamiento continuo.</p>
+      <h3>11.6 Cumplimiento de requisitos</h3>
+      <p>Atendiendo a los requisitos funcionales principales, el sistema puede considerarse satisfactoriamente cumplido. Las principales limitaciones no afectan tanto a la existencia del flujo, sino a la ausencia de mayor automatización de pruebas y observabilidad, aspectos que se detallan como mejoras futuras.</p>
 
-      <div class="footer">
-        Memoria elaborada a partir de la implementación real del proyecto, su documentación viva y el diario técnico de desarrollo.
+      <div class="placeholder">
+        <strong>[Insertar tabla o figura de evidencias aquí]</strong>
+        Compilaciones satisfactorias, capturas de ejecución del checklist y evidencias visuales de casos de prueba.
       </div>
-      <div class="page-number">Página 9</div>
+      <h3>11.7 Impacto del refactor en la calidad interna</h3>
+      <p>La extracción de lógica hacia servicios especializados mejora la legibilidad, delimita responsabilidades y reduce el riesgo de que fragmentos como <code>ExpensesFragment</code> o <code>GroupsFragment</code> se conviertan en piezas excesivamente monolíticas. Este avance es especialmente importante porque no solo mejora el estado presente del código, sino que crea mejores condiciones para su mantenimiento, prueba y extensión futuras.</p>
+
+      <h3>11.8 Grado de madurez alcanzado</h3>
+      <p>El producto puede calificarse como una versión funcional avanzada: dispone de flujo completo, persistencia real, control de acceso, representación económica coherente y refinamiento visual apreciable. No alcanza todavía el nivel de industrialización de una solución comercial madura, pero supera claramente el umbral de prototipo al incorporar comportamiento realista, reglas de negocio y una estructura de sistema defendible.</p>
+      <div class="page-number">Página 13</div>
+    </section>
+
+    <section class="sheet">
+      <h2>12. Limitaciones actuales del sistema</h2>
+      <p>La principal limitación del estado actual es la baja automatización de pruebas. Aunque el sistema funciona y el checklist manual está estructurado, no existe todavía una suite unitaria consolidada que permita medir cobertura o detectar regresiones internas de forma inmediata.</p>
+      <p>La segunda limitación es el peso de ciertas reglas de dominio en el cliente. Si bien se han extraído servicios y utilidades, aún existe margen para desacoplar más la lógica de negocio y hacerla más testeable y menos dependiente de la interfaz.</p>
+      <p>La tercera limitación afecta a observabilidad y métricas. No se dispone todavía de un sistema formal para registrar tasas de error, tiempos de operación, patrones de uso o degradación de rendimiento en producción.</p>
+      <p>Finalmente, la aplicación sigue siendo Android nativa y no aborda aún estrategias avanzadas de soporte multiplataforma, analítica compleja o modo offline con sincronización diferida robusta.</p>
+      <h3>12.1 Riesgos de mantenimiento</h3>
+      <p>Si el proyecto continuara creciendo sin profundizar en el desacoplamiento de lógica y en la automatización de pruebas, determinadas áreas podrían volverse progresivamente más frágiles. El principal riesgo no es tanto funcional como estructural: dificultad creciente para cambiar reglas, introducir nuevas variaciones del flujo económico o depurar defectos sin afectar a otras partes del sistema.</p>
+
+      <h3>12.2 Riesgos de escalado funcional</h3>
+      <p>El sistema actual está bien adaptado a grupos pequeños y uso cotidiano. Sin embargo, un aumento notable del volumen de datos, del número de usuarios o de la complejidad de las consultas obligaría a revisar índices, reparto de responsabilidades y posible migración de parte de la lógica crítica a backend selectivo. Esta limitación no invalida la arquitectura elegida, pero marca claramente su rango natural de uso.</p>
+
+      <h3>12.3 Límites de evidencia experimental</h3>
+      <p>La memoria describe con rigor la estructura, las decisiones y la validación realizada, pero no puede suplir con narrativa métricas que no se hayan medido. La ausencia de cobertura automática, pruebas de carga y telemetría detallada limita la capacidad de presentar resultados cuantitativos profundos, aunque aumenta la honestidad y credibilidad del documento.</p>
+      <div class="page-number">Página 14</div>
+    </section>
+
+    <section class="sheet">
+      <h2>13. Conclusiones y trabajo futuro</h2>
+      <h3>13.1 Conclusiones</h3>
+      <p>FlatShare demuestra que es viable construir, con alcance académico y recursos contenidos, una aplicación móvil coherente para resolver un problema real de convivencia y gestión económica. El sistema implementado no solo resuelve casos de uso básicos, sino que articula un modelo de dominio razonable, una política de seguridad significativa y una estructura de código que ya apunta hacia una evolución mantenible.</p>
+      <p>Desde una perspectiva de ingeniería, el mérito principal del proyecto radica en haber equilibrado pragmatismo y rigor. El uso de Firebase como BaaS, Java como lenguaje principal y un monolito modular como estructura central no responde a una voluntad de simplificación superficial, sino a una decisión consciente orientada a maximizar cierre funcional, coherencia técnica y capacidad real de defensa.</p>
+      <p>La experiencia obtenida confirma, además, que los problemas aparentemente sencillos del dominio pueden volverse complejos cuando se abordan con seriedad: la gestión de permisos, la semántica de estados, la representación de la deuda y la consistencia entre interfaz y backend requieren decisiones cuidadas y reiteradas validaciones.</p>
+
+      <h3>13.2 Trabajo futuro</h3>
+      <ul>
+        <li>Incorporar batería de pruebas unitarias e instrumentadas con cobertura medible.</li>
+        <li>Seguir desacoplando lógica de negocio fuera de pantallas y fragmentos.</li>
+        <li>Añadir telemetría, trazas técnicas y métricas de observabilidad.</li>
+        <li>Explorar funciones backend selectivas para operaciones especialmente sensibles.</li>
+        <li>Mejorar tratamiento offline y sincronización diferida.</li>
+        <li>Extender accesibilidad, internacionalización y refinamiento de UX.</li>
+        <li>Incorporar exportación avanzada de informes y paneles más completos de análisis.</li>
+      </ul>
+
+      <pre>
+Diagrama 8. Hoja de ruta evolutiva propuesta
+
+flowchart LR
+    A[Estado actual] --> B[Más test automatizado]
+    B --> C[Desacoplamiento adicional]
+    C --> D[Observabilidad]
+    D --> E[Servicios backend selectivos]
+    E --> F[Escalado funcional]
+      </pre>
+      <h3>13.3 Valor del proyecto en términos formativos</h3>
+      <p>El proyecto permite demostrar competencias en análisis del problema, estructuración modular, modelado de datos NoSQL, seguridad declarativa, desarrollo Android, integración de servicios externos y documentación técnica. También evidencia una competencia importante en iteración y refactor, ya que el sistema no se ha detenido en su primera versión funcional, sino que ha seguido madurando a través de revisiones de semántica, seguridad y experiencia de usuario.</p>
+
+      <h3>13.4 Proyección razonable a medio plazo</h3>
+      <p>La evolución natural del sistema puede plantearse en tres etapas: una primera fase de endurecimiento técnico con más tests y observabilidad; una segunda fase de traslado selectivo de operaciones críticas a backend; y una tercera fase de ampliación de producto con analítica, exportación avanzada o nuevas herramientas de convivencia. Esta proyección demuestra que la aplicación no está cerrada como demo estática, sino preparada para una maduración futura coherente.</p>
+      <div class="page-number">Página 15</div>
+    </section>
+
+    <section class="sheet">
+      <h2>14. Información pendiente de completar por el autor</h2>
+      <p>Aunque esta memoria ya puede funcionar como base técnica sólida, existen ciertos datos que no pueden inferirse con total fiabilidad solo a partir del repositorio. Para una versión final especialmente fuerte, conviene que el autor complete estos puntos:</p>
+      <ul>
+        <li>Nombre exacto de la titulación, centro y tutor/a académico/a.</li>
+        <li>Horas aproximadas dedicadas al proyecto o distribución temporal si se desea incluir.</li>
+        <li>Dispositivos o emuladores exactos utilizados para pruebas manuales.</li>
+        <li>Evidencias concretas de compilación y de ejecución del checklist.</li>
+        <li>Capturas finales de pantallas representativas para apoyar módulos clave.</li>
+        <li>Bibliografía con formato académico exacto exigido por el centro si se requiere APA, IEEE u otro estilo.</li>
+      </ul>
+
+      <div class="note">
+        <strong>Qué no se ha afirmado sin evidencia</strong>
+        En esta memoria no se han inventado métricas de cobertura, tiempos de respuesta, pruebas de carga ni porcentajes de éxito automáticos que no puedan respaldarse documentalmente a partir del estado real del proyecto.
+      </div>
+      <h3>14.1 Material gráfico recomendado</h3>
+      <ul>
+        <li>Captura de login, registro y verificación de correo.</li>
+        <li>Captura de la pestaña <code>Pisos</code> y del detalle de habitación.</li>
+        <li>Captura del diálogo <code>Nuevo gasto</code> y de un movimiento en revisión.</li>
+        <li>Captura del balance global y del gráfico temporal.</li>
+        <li>Captura de recordatorios, calendario y gestión de incidencias.</li>
+      </ul>
+
+      <h3>14.2 Evidencias experimentales recomendadas</h3>
+      <p>Para reforzar la solidez de la memoria convendría incorporar una tabla con ejecución del checklist, evidencias de compilación, alguna prueba de flujo resuelta paso a paso y capturas del comportamiento final de las pantallas más representativas. Estas incorporaciones no exigen modificar el código, pero sí mejoran mucho la calidad argumentativa de la entrega.</p>
+      <div class="page-number">Página 16</div>
+    </section>
+
+    <section class="sheet">
+      <h2>15. Bibliografía técnica</h2>
+      <ul>
+        <li>Documentación oficial de Android Developers.</li>
+        <li>Documentación oficial de Gradle y Android Gradle Plugin.</li>
+        <li>Documentación oficial de Firebase Authentication.</li>
+        <li>Documentación oficial de Cloud Firestore y Firestore Security Rules.</li>
+        <li>Documentación oficial de Firebase Storage.</li>
+        <li>Documentación oficial de Google ML Kit Text Recognition.</li>
+        <li>Documentación oficial de ZXing y JourneyApps Embedded Scanner.</li>
+        <li>Documentación de libphonenumber.</li>
+      </ul>
+
+      <div class="placeholder">
+        <strong>[Insertar bibliografía final formateada aquí]</strong>
+        Si el centro exige norma bibliográfica específica, conviene transformar esta lista base a APA, IEEE o el estilo solicitado.
+      </div>
+
+      <div class="note">
+        <strong>Observación final</strong>
+        Este documento queda preparado como base de memoria técnica extensa y defendible. Sobre él pueden añadirse capturas, tablas comparativas, diagramas exportados a imagen y anexos sin necesidad de rehacer la estructura principal.
+      </div>
+      <div class="page-number">Página 17</div>
     </section>
   </main>
 </body>

@@ -7060,17 +7060,33 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     }
 
     private void updateStatusFilterButtons() {
-        applyStatusFilterButtonStyle(filterRequestedBtn, STATUS_FILTER_REQUESTED.equals(filterStatusBucket));
-        applyStatusFilterButtonStyle(filterInReviewBtn, STATUS_FILTER_IN_REVIEW.equals(filterStatusBucket));
-        applyStatusFilterButtonStyle(filterPaidBtn, STATUS_FILTER_PAID.equals(filterStatusBucket));
+        applyStatusFilterButtonStyle(filterRequestedBtn, STATUS_FILTER_REQUESTED, STATUS_FILTER_REQUESTED.equals(filterStatusBucket));
+        applyStatusFilterButtonStyle(filterInReviewBtn, STATUS_FILTER_IN_REVIEW, STATUS_FILTER_IN_REVIEW.equals(filterStatusBucket));
+        applyStatusFilterButtonStyle(filterPaidBtn, STATUS_FILTER_PAID, STATUS_FILTER_PAID.equals(filterStatusBucket));
     }
 
-    private void applyStatusFilterButtonStyle(@Nullable Button button, boolean selected) {
+    private void applyStatusFilterButtonStyle(@Nullable Button button, @NonNull String bucket, boolean selected) {
         if (button == null) return;
-        button.setBackgroundResource(selected ? R.drawable.bg_tab_selected : R.drawable.bg_tab_default);
+        int accentColor = resolveStatusFilterAccentColor(bucket);
+        GradientDrawable background = new GradientDrawable();
+        background.setShape(GradientDrawable.RECTANGLE);
+        background.setCornerRadius(dp(16));
+        background.setStroke(dp(1), accentColor);
+        background.setColor(selected ? accentColor : ContextCompat.getColor(requireContext(), android.R.color.transparent));
+        button.setBackground(background);
         button.setTextColor(selected
                 ? ContextCompat.getColor(requireContext(), android.R.color.white)
-                : requireContext().getColor(R.color.text_muted));
+                : accentColor);
+    }
+
+    private int resolveStatusFilterAccentColor(@NonNull String bucket) {
+        if (STATUS_FILTER_PAID.equals(bucket)) {
+            return requireContext().getColor(R.color.status_success);
+        }
+        if (STATUS_FILTER_IN_REVIEW.equals(bucket)) {
+            return requireContext().getColor(R.color.status_warning);
+        }
+        return requireContext().getColor(R.color.status_danger);
     }
 
     private boolean matchesStatusFilter(@NonNull String normalizedStatus) {

@@ -25,12 +25,15 @@ import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
 import com.google.android.material.imageview.ShapeableImageView;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.UserProfileChangeRequest;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.firestore.SetOptions;
 import com.sergio.flatshare.R;
+import com.sergio.flatshare.core.session.SessionStore;
+import com.sergio.flatshare.core.sync.UserSync;
 import com.sergio.flatshare.features.settings.SettingsFragment;
 import com.sergio.flatshare.shared.ui.CountryPhoneUtils;
 import com.sergio.flatshare.shared.ui.DateInputUtils;
@@ -119,27 +122,89 @@ public class ProfileFragment extends Fragment {
     }
 
     private void loadProfileData() {
-        var user = FirebaseAuth.getInstance().getCurrentUser();
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user == null || user.getUid() == null) return;
 
         FirebaseFirestore.getInstance().collection("users").document(user.getUid()).get()
                 .addOnSuccessListener(doc -> {
                     if (!isAdded()) return;
-                    email = safe(doc.getString("email"), user.getEmail());
-                    fullName = safe(doc.getString("fullName"), "");
-                    phone = safe(doc.getString("phone"), "");
-                    birthDate = DateInputUtils.normalizeToDisplay(safe(doc.getString("birthDate"), ""));
-                    photoUri = safe(doc.getString("photoUri"), "");
+                    hydrateProfileState(doc, user);
                     renderProfileInfo();
+                    backfillProfileDocumentIfNeeded(user, doc);
                 })
                 .addOnFailureListener(e -> {
                     if (!isAdded()) return;
+                    hydrateProfileState(null, user);
+                    renderProfileInfo();
                     NoticeUtils.show(requireContext(), "Error cargando perfil");
                 });
     }
 
+    private void hydrateProfileState(@Nullable DocumentSnapshot doc, @NonNull FirebaseUser user) {
+        SessionStore.PendingRegistrationProfile pending = SessionStore.getPendingRegistrationProfile(requireContext());
+        String authEmail = safe(user.getEmail(), "").toLowerCase(Locale.ROOT);
+        boolean samePendingUser = !authEmail.isEmpty()
+                && authEmail.equals(safe(pending.email, "").toLowerCase(Locale.ROOT));
+
+        String pendingFullName = samePendingUser ? safe(pending.fullName, "") : "";
+        String pendingPhone = samePendingUser ? safe(pending.phone, "") : "";
+        String pendingBirthDate = samePendingUser ? safe(pending.birthDate, "") : "";
+
+        email = safe(doc == null ? null : doc.getString("email"), authEmail);
+        fullName = firstNonEmpty(
+                doc == null ? null : doc.getString("fullName"),
+                doc == null ? null : doc.getString("displayName"),
+                safe(user.getDisplayName(), ""),
+                pendingFullName
+        );
+        phone = firstNonEmpty(
+                doc == null ? null : doc.getString("phone"),
+                pendingPhone
+        );
+        birthDate = DateInputUtils.normalizeToDisplay(firstNonEmpty(
+                doc == null ? null : doc.getString("birthDate"),
+                pendingBirthDate
+        ));
+        photoUri = firstNonEmpty(
+                doc == null ? null : doc.getString("photoUri"),
+                user.getPhotoUrl() == null ? "" : user.getPhotoUrl().toString()
+        );
+    }
+
+    private void backfillProfileDocumentIfNeeded(@NonNull FirebaseUser user, @Nullable DocumentSnapshot doc) {
+        boolean missingDoc = doc == null || !doc.exists();
+        boolean missingName = doc == null || !hasMeaningfulValue(doc.getString("fullName"));
+        boolean missingEmail = doc == null || !hasMeaningfulValue(doc.getString("email"));
+        boolean missingPhone = doc == null || !hasMeaningfulValue(doc.getString("phone"));
+        boolean missingBirthDate = doc == null || !hasMeaningfulValue(doc.getString("birthDate"));
+
+        if (!missingDoc && !missingName && !missingEmail && !missingPhone && !missingBirthDate) {
+            return;
+        }
+
+        UserSync.ensureCurrentUserDocument();
+        if (!fullName.isEmpty() || !phone.isEmpty() || !birthDate.isEmpty()) {
+            UserSync.saveCurrentUserProfile(fullName, phone, birthDate);
+        }
+    }
+
     private String safe(@Nullable String value, @Nullable String fallback) {
         return value == null ? (fallback == null ? "" : fallback) : value;
+    }
+
+    @NonNull
+    private String firstNonEmpty(@Nullable String... values) {
+        if (values == null) return "";
+        for (String value : values) {
+            if (value != null && !value.trim().isEmpty()) {
+                return value.trim();
+            }
+        }
+        return "";
+    }
+
+    private boolean hasMeaningfulValue(@Nullable String value) {
+        return value != null && !value.trim().isEmpty();
     }
 
     private void renderProfileInfo() {
