@@ -22,6 +22,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseUser;
 import com.sergio.flatshare.R;
+import com.sergio.flatshare.core.settings.ThemeUtils;
 import com.sergio.flatshare.core.session.SessionStore;
 import com.sergio.flatshare.core.sync.UserSync;
 import com.sergio.flatshare.features.shell.MainActivity;
@@ -36,6 +37,7 @@ public class LoginActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        ThemeUtils.applyAppTheme(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
@@ -51,6 +53,7 @@ public class LoginActivity extends AppCompatActivity {
 
         boolean rememberEnabled = SessionStore.isRememberMeEnabled(this);
         rememberMeSwitch.setChecked(rememberEnabled);
+        SessionStore.clearReauthRequired(this);
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
         if (rememberEnabled && currentUser != null) {
             handleRememberedSession(currentUser);
@@ -129,6 +132,7 @@ public class LoginActivity extends AppCompatActivity {
                                 .addOnSuccessListener(tokenResult -> {
                                     UserSync.ensureCurrentUserDocument();
                                     SessionStore.setRememberMeEnabled(this, rememberMe);
+                                    SessionStore.clearReauthRequired(this);
                                     openMain();
                                 })
                                 .addOnFailureListener(e -> Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show());

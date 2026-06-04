@@ -7,8 +7,12 @@ import android.graphics.Paint;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.TypedValue;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -21,6 +25,7 @@ import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseAuthUserCollisionException;
 import com.google.firebase.auth.UserProfileChangeRequest;
 import com.sergio.flatshare.R;
+import com.sergio.flatshare.core.settings.ThemeUtils;
 import com.sergio.flatshare.core.session.SessionStore;
 import com.sergio.flatshare.shared.ui.CountryPhoneUtils;
 import com.sergio.flatshare.shared.ui.DateInputUtils;
@@ -34,6 +39,7 @@ import java.util.Locale;
 public class RegisterActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        ThemeUtils.applyAppTheme(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_register);
 
@@ -137,11 +143,99 @@ public class RegisterActivity extends AppCompatActivity {
     }
 
     private void showTermsDialog() {
-        new AlertDialog.Builder(this)
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setFillViewport(true);
+        scrollView.setVerticalScrollBarEnabled(false);
+
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        int padding = dp(20);
+        content.setPadding(padding, dp(8), padding, dp(8));
+
+        TextView introTv = buildTermsIntro();
+        content.addView(introTv);
+
+        String[] sections = getString(R.string.register_terms_content).split("\\n\\n");
+        for (String rawSection : sections) {
+            String section = rawSection == null ? "" : rawSection.trim();
+            if (section.isEmpty()) continue;
+            if (section.equalsIgnoreCase(getString(R.string.register_terms_title))
+                    || section.startsWith(getString(R.string.register_terms_title))) {
+                continue;
+            }
+            int newlineIndex = section.indexOf('\n');
+            if (newlineIndex > 0) {
+                String heading = section.substring(0, newlineIndex).trim();
+                String body = section.substring(newlineIndex + 1).trim();
+                content.addView(buildTermsHeading(heading));
+                content.addView(buildTermsBody(body));
+            } else {
+                content.addView(buildTermsBody(section));
+            }
+        }
+
+        scrollView.addView(content, new ScrollView.LayoutParams(
+                ScrollView.LayoutParams.MATCH_PARENT,
+                ScrollView.LayoutParams.WRAP_CONTENT
+        ));
+
+        new AlertDialog.Builder(this, R.style.ThemeOverlay_FlatShare_Dialog)
                 .setTitle(getString(R.string.register_terms_title))
-                .setMessage(getString(R.string.register_terms_content))
+                .setView(scrollView)
                 .setPositiveButton(getString(R.string.common_close), null)
                 .show();
+    }
+
+    private TextView buildTermsIntro() {
+        TextView textView = new TextView(this);
+        textView.setText("Lee este resumen antes de completar el registro. El objetivo es que el uso de FlatShare sea claro, seguro y ordenado para todas las personas del piso.");
+        textView.setTextColor(getColor(R.color.text_light));
+        textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        textView.setLineSpacing(0f, 1.2f);
+        textView.setBackgroundResource(R.drawable.bg_input_dark_round);
+        textView.setPadding(dp(14), dp(14), dp(14), dp(14));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        params.bottomMargin = dp(14);
+        textView.setLayoutParams(params);
+        return textView;
+    }
+
+    private TextView buildTermsHeading(String text) {
+        TextView textView = new TextView(this);
+        textView.setText(text);
+        textView.setTextColor(getColor(R.color.primary_green));
+        textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+        textView.setTypeface(textView.getTypeface(), android.graphics.Typeface.BOLD);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        params.topMargin = dp(6);
+        textView.setLayoutParams(params);
+        return textView;
+    }
+
+    private TextView buildTermsBody(String text) {
+        TextView textView = new TextView(this);
+        textView.setText(text);
+        textView.setTextColor(getColor(R.color.text_light));
+        textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        textView.setLineSpacing(0f, 1.25f);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        params.topMargin = dp(6);
+        params.bottomMargin = dp(8);
+        textView.setLayoutParams(params);
+        return textView;
+    }
+
+    private int dp(int value) {
+        return Math.round(getResources().getDisplayMetrics().density * value);
     }
 
     private boolean isAdult(String birthDateText) {

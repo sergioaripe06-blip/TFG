@@ -145,7 +145,6 @@ public class PaymentService {
 
     @NonNull
     public String normalizeCategory(boolean fixedBilling, @Nullable String category, @NonNull String rentCategoryKey) {
-        if (fixedBilling) return rentCategoryKey;
         if (category == null || category.trim().isEmpty()) return "otros";
         return category.trim().toLowerCase(Locale.ROOT);
     }

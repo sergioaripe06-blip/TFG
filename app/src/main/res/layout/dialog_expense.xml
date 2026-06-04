@@ -176,7 +176,7 @@
         android:layout_height="40dp"
         android:layout_marginTop="10dp"
         android:background="@drawable/bg_tab_default"
-        android:text="Adjuntar ticket (OCR)"
+        android:text="Adjuntar ticket"
         android:textAllCaps="false"
         android:textColor="@color/text_light" />
 
@@ -208,10 +208,11 @@
         android:popupBackground="@drawable/bg_spinner_popup" />
 
     <TextView
+        android:id="@+id/splitTargetScopeLabelTv"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
-        android:text="Repartir por:"
+        android:text="Dirigido a:"
         android:textColor="@color/text_light"
         android:textSize="12sp"
         android:textStyle="bold" />
@@ -223,7 +224,8 @@
         android:layout_marginTop="4dp"
         android:background="@drawable/bg_select_dark_round"
         android:paddingHorizontal="12dp"
-        android:popupBackground="@drawable/bg_spinner_popup" />
+        android:popupBackground="@drawable/bg_spinner_popup"
+        android:visibility="gone" />
 
     <LinearLayout
         android:id="@+id/splitRowsContainer"

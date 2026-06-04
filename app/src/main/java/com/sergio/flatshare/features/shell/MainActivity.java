@@ -5,15 +5,14 @@ import android.os.Bundle;
 import android.os.SystemClock;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatDelegate;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.os.LocaleListCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.sergio.flatshare.R;
+import com.sergio.flatshare.core.settings.ThemeUtils;
 import com.sergio.flatshare.core.session.SessionStore;
 import com.sergio.flatshare.features.auth.LoginActivity;
 import com.sergio.flatshare.features.groups.GroupsFragment;
@@ -22,7 +21,6 @@ import com.sergio.flatshare.features.profile.ProfileFragment;
 import com.sergio.flatshare.features.workspace.CalendarFragment;
 import com.sergio.flatshare.features.workspace.ExpensesFragment;
 import com.sergio.flatshare.features.workspace.PersonalBalanceFragment;
-import com.sergio.flatshare.core.settings.SettingsStore;
 
 public class MainActivity extends AppCompatActivity {
     private BottomNavigationView nav;
@@ -30,14 +28,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        boolean darkModeEnabled = SettingsStore.isDarkModeEnabled(this);
-        AppCompatDelegate.setDefaultNightMode(
-                darkModeEnabled ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO
-        );
-        AppCompatDelegate.setApplicationLocales(
-                LocaleListCompat.forLanguageTags(SettingsStore.getLanguage(this))
-        );
-
+        ThemeUtils.applyAppTheme(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
@@ -104,12 +95,14 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(@NonNull android.view.MenuItem item) {
+        SessionStore.clearReauthRequired(this);
         SessionStore.setRememberMeEnabled(this, false);
         FirebaseAuth.getInstance().signOut();
         startActivity(new Intent(this, LoginActivity.class));
         finish();
         return true;
     }
+
 }
 
 

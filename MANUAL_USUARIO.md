@@ -54,13 +54,14 @@
 - Archivo fuente: `firestore.rules`.
 - Publicar en Firebase Console > Firestore > Rules.
 - En gestion de alquiler:
-  - `rent_collections`, `maintenance_tickets` y `group_documents` permiten crear/leer a miembros del grupo.
-  - Solo el propietario del piso puede actualizar o eliminar en esas tres colecciones.
+  - `maintenance_tickets` permite crear, leer, actualizar y eliminar a miembros del grupo.
+  - `group_schedules` permite lectura a miembros del grupo, pero solo el propietario puede crear, editar y eliminar.
+  - `house_rules` se lee por miembros y lo gestiona el propietario.
 
 ### 4.3 Colecciones principales
 - `users`, `groups`, `group_codes`, `rooms_groups`
 - `expenses`, `payments`, `payment_deadlines`, `reminders`, `activity_logs`, `invitations`
-- Gestion alquiler: `rental_contracts`, `rent_collections`, `maintenance_tickets`, `group_documents`, `audit_events`, `rent_automations`, `event_reminder_rules`, `event_reminder_jobs`
+- Gestion del piso: `maintenance_tickets`, `house_rules`, `group_schedules`, `audit_events`
 
 ## 5. Arranque y navegacion general
 
@@ -88,19 +89,22 @@ Controles:
 - Botón `Iniciar sesión`.
 - Boton debug `Entrar con cuenta seed` (solo DEBUG).
 - Enlace `Crear cuenta`.
-- Enlace `¿Olvidaste tu contraseña?`.
+- Enlace `¿Olvidaste tu contraseña`.
 
 Comportamiento:
 - Login por email directo.
 - Login por correo electrónico (Firebase Auth).
 - Recuperación de contraseña solo por correo (Firebase Auth).
 - Si el correo no está verificado, no se permite entrar en la app y se redirige a la pantalla de verificación.
+- Si `Recordarme` está desactivado y el usuario abandona la app, al volver deberá iniciar sesión de nuevo.
+- Si `Recordarme` está activado, la sesión se mantiene entre aperturas de la app.
 
 ### Registro (`RegisterActivity`)
 Controles:
 - `Nombre completo`, `email`, `teléfono`, `fecha nacimiento`, `contraseña`.
 - Botón `Crear cuenta`.
 - Enlace `Ya tengo cuenta` (vuelta a login).
+- Consulta y aceptación obligatoria de `Términos y condiciones de uso`.
 
 Comportamiento:
 - Crea usuario en Auth.
@@ -158,8 +162,8 @@ Anadir:
 ## 6.3 Habitaciones del propietario (`OwnerRoomsActivity`)
 Controles clave:
 - `Crear habitacion`.
-- `A?adir por codigo`.
-- `A?adir por email`.
+- `Aadir por codigo`.
+- `Aadir por email`.
 - `Terminar`.
 - En creacion/edicion de inquilinos (solo propietario):
   - seleccion por plaza (`Inquilino 1`, `Inquilino 2`, etc.) para decidir quien ocupa cada posicion;
@@ -171,7 +175,7 @@ Operaciones por habitacion:
 - Renombrar.
 - Eliminar.
 - Editar inquilinos (solo propietario).
-- Configurar reparto por habitaci?n en alquiler fijo: equitativo o porcentual.
+- Configurar reparto por habitacin en alquiler fijo: equitativo o porcentual.
 
 ## 6.4 Workspace del piso (`ExpensesFragment`)
 
@@ -206,6 +210,7 @@ Operaciones:
 - OCR de ticket para importe.
 - Exportacion PDF resumen mensual.
 - El PDF de resumen usa ahora una presentacion visual cuidada: cabecera centrada, tarjetas por movimiento, paginacion y colores diferenciados por estado.
+- Se ha aumentado la tipografia y el espaciado interno del PDF para que el contenido sea mas legible sin perder el estilo visual.
 - Exportacion PDF compatible:
   - Android 10+ (`API 29+`): guarda en Descargas del dispositivo.
   - Android 7-9 (`API 24-28`): guarda en almacenamiento externo privado de la app.
@@ -213,7 +218,7 @@ Operaciones:
 
 Campos de gasto:
 - Concepto, importe, categoria, prioridad, fecha limite.
-- La categoria es editable (texto libre) con sugerencias historicas del propio piso.
+- La categoria es editable (texto libre) y muestra sugerencias historicas del propio piso.
 - Reparto (`customSplit`) equitativo o por importes.
 - Habitacion(es) destino.
 - Estado visual del flujo:
@@ -225,12 +230,13 @@ Campos de gasto:
 
 Campos de pago:
 - Importe, concepto, categoria, prioridad, fecha limite.
-- En `alquiler variable`, la categoria es editable (texto libre) y reutiliza sugerencias historicas al registrar nuevos pagos/gastos.
+- La categoria es editable (texto libre) en todos los modelos de alquiler.
+- Mientras escribes aparecen sugerencias historicas del mismo piso, combinando movimientos del balance y categorias ya usadas.
 - Destino (habitacion, miembro o todos).
-- Si el destino es `Habitaci?n`, se pueden seleccionar una o varias habitaciones (a?adiendo/quitar l?neas).
-- En `alquiler fijo`, el reparto se calcula dentro de cada habitaci?n seleccionada:
-  - con 1 residente, ese residente asume el 100% de su habitaci?n;
-  - con 2 o m?s residentes, puede ser equitativo o porcentual (configurable por habitaci?n).
+- Si el destino es `Habitacin`, se pueden seleccionar una o varias habitaciones (aadiendo/quitar lneas).
+- En `alquiler fijo`, el reparto se calcula dentro de cada habitacin seleccionada:
+  - con 1 residente, ese residente asume el 100% de su habitacin;
+  - con 2 o ms residentes, puede ser equitativo o porcentual (configurable por habitacin).
 - Si el destino es `Miembro`, se pueden anadir o quitar lineas de destinatario (minimo 1).
 - Estado visual del pago:
   - `Solicitado` (rojo),
@@ -240,8 +246,10 @@ Campos de pago:
 - Cambio manual de estado del pago: solo permitido mientras está en `Solicitado`.
 - Si un pago ya está en `Pendiente`, `En revisión` o `Pagado`, deja de poder borrarse o editarse.
 - No se permite crear un gasto dirigido solo al propio pagador; debe haber al menos otro destinatario real en el reparto.
-- Las categorías al crear gasto se sugieren a partir de gastos previos del mismo piso, no de otros pisos.
+- Las categorías al crear gasto o pago se sugieren a partir del historial del mismo piso, no de otros pisos.
 - Si vuelves a escribir la misma categoría (aunque cambien mayúsculas o espacios), se reutiliza la misma clave lógica para mantener el balance agrupado; si escribes una distinta, se crea una nueva categoría para ese piso.
+- En cada gasto solicitado se indica de forma clara si, para tu usuario, `tienes que pagarlo tú`.
+- Cuando un gasto solicitado te corresponde como deudor, la fila muestra el aviso `(Este gasto es para ti)`.
 
 Flujo de inquilino con deuda (`alquiler fijo` y `alquiler variable`):
 - En `Movimientos` se muestran sus pendientes por confirmar (`payment_deadlines`) como lista accionable.
@@ -253,8 +261,13 @@ Flujo de inquilino con deuda (`alquiler fijo` y `alquiler variable`):
 - El botón `Enviar pago` o `Enviar confirmación` solo se habilita cuando hay justificante adjunto.
 - Si no hay deuda, se muestra `No tienes pendientes por confirmar`.
 - En el dialogo de acciones ya no existe un pago libre separado: el flujo principal parte siempre de `Nuevo gasto` y, si debes dinero, de `Confirmar pendiente`.
+- La ventana de pago pendiente se simplifica ocultando controles que no aplican al caso y evita dobles envíos: al pulsar enviar, el botón se bloquea hasta terminar la operación.
+- Si una deuda ya existe para ese gasto, la app la reutiliza en lugar de crear otra nueva al abrir la pantalla de justificante.
 - Cuando el deudor envía el justificante, la deuda pasa a revisión (`submitted`) y el gasto padre pasa a `Pendiente`.
 - La aceptación final del pago pendiente la puede hacer el propietario del piso o el acreedor del pago (`toEmail`), que en una deuda nacida desde gasto coincide con quien adelantó ese gasto.
+- Al crear o editar un gasto, ya no es obligatorio que el piso tenga habitaciones creadas: el reparto sigue funcionando por personas y la habitación queda solo como dato opcional cuando existe.
+- Si el gasto antiguo no tenía aún una deuda técnica creada, la app intenta reconstruirla antes de abrir el flujo de justificante.
+- Si se vence la fecha límite de un gasto o de un pago, la app lanza una notificación local avisando del vencimiento para que se contacte con la otra parte y se resuelva el plazo.
 
 ### 6.4.2 Recordatorios
 Operaciones:
@@ -285,17 +298,23 @@ Campos importantes guardados:
 
 ### 6.4.3 Gestion (RentalManagementFragment + TenantsFragment)
 Modulos:
-- Contrato (`rental_contracts`).
-- Cobros (`rent_collections`).
 - Incidencias (`maintenance_tickets`).
-- Documentos (`group_documents`).
-- Auditoria (`audit_events`).
-- Automatizacion (`rent_automations`).
-- Reglas push (`event_reminder_rules`, `event_reminder_jobs`).
+- Reglas (`house_rules`).
+- Horarios (`group_schedules`).
 
 Operaciones:
-- Altas, ediciones, estados, historicos y trazabilidad por modulo.
-- En formularios de `Cobros`, `Incidencias` y `Automatizacion`, los selectores de persona muestran `Nombre` en primera linea y `correo` en segunda linea.
+- Altas y ediciones desde la propia pestaña de gestión.
+- `Incidencias`: título, zona, responsable, estado, costes y descripción.
+- Los campos de coste en `Incidencias` admiten importes con coma o con punto, por ejemplo `17,66` o `17.66`.
+- `Reglas`: norma para todo el piso, una persona concreta o una habitación.
+- `Horarios`: reserva recurrente con frecuencia, rango de fechas, hora inicio y hora fin.
+- `Horarios` normaliza y guarda las horas en formato `HH:MM`, por ejemplo `17:00`, `18:00` o `19:00`, aunque se escriban sin cero inicial o con separador alternativo.
+- En `Horarios`, las fechas se muestran y se guardan en formato español `DD/MM/AAAA`; si editas datos antiguos, la app sigue aceptando valores heredados en `AAAA-MM-DD` y los normaliza al abrirlos.
+- En `Horarios`, solo el propietario puede crear, editar o eliminar.
+- El resto de miembros puede abrir el detalle y consultarlo, pero no modificarlo.
+- Los selectores de persona muestran `Nombre` en primera línea y `correo` en segunda línea cuando el formulario lo usa.
+- Las tarjetas de gestión separan título, contexto y detalle en bloques distintos, y muestran el dato lateral en formato pastilla para mejorar lectura.
+- La zona superior y las filas de `Gestión` usan tarjetas propias con más jerarquía visual y mejor contraste en modo claro.
 
 ## 6.5 Balance personal (`PersonalBalanceFragment`)
 - Selector de piso (o todos).
@@ -316,6 +335,8 @@ Operaciones:
   - `payment_deadlines` (deudor actual).
   - `payments` emitidos/recibidos.
   - `reminders`.
+  - `group_schedules` para horarios recurrentes del piso.
+- Los horarios se muestran con un color propio para distinguirlos de pagos y recordatorios.
 
 ## 6.7 Perfil (`ProfileFragment`)
 Controles:
@@ -353,7 +374,10 @@ Efecto:
 ### Ajuste visual del modo claro
 - Se incrementa contraste general en fondos y superficies.
 - La barra inferior deja de ser transparente y usa contenedor propio para mejorar legibilidad.
-- Iconos y textos del menú inferior se muestran en blanco para evitar tonos grises de baja legibilidad.
+- El elemento activo del menu inferior mantiene alto contraste y los elementos inactivos usan un morado apagado mas legible sobre fondo crema.
+- La paleta clara pasa a una base crema con acentos morados en botones y elementos activos.
+- Inputs, selectores y tarjetas refuerzan bordes y rellenos claros para que no se pierdan en modo claro.
+- Las tarjetas, chips y superficies auxiliares usan blancos y cremas suaves para dar mas volumen sin tocar el modo oscuro.
 
 ### Sonidos personalizados de acciones
 - Puedes anadir sonidos propios en `app/src/main/res/raw` con estos nombres:
@@ -403,6 +427,8 @@ En cada tarea nueva:
 2. Actualizar stack/versiones si cambian Gradle o dependencias.
 3. Actualizar Firebase si se crean campos/colecciones nuevas.
 4. Registrar el cambio en `diary.md`.
+
+- Las portadas de los documentos HTML incluyen ya los datos del autor: Sergio Ariño Pérez, DAM Superior, Segundo año.
 
 ## 11. Control de versiones (Git)
 - El repositorio ignora caches y artefactos locales para mantener commits limpios.
@@ -541,7 +567,7 @@ En cada tarea nueva:
 
 ### Acceso (2026-05-27) - Estilo de acciones principales
 - En `Iniciar sesión` y `Crear cuenta`, las acciones principales pasan a estilo enlace (azul y subrayado), sin fondo de botón.
-- El enlace `¿Olvidaste tu contraseña?` se alinea al mismo estilo visual azul y subrayado.
+- El enlace `¿Olvidaste tu contraseña` se alinea al mismo estilo visual azul y subrayado.
 - En modo claro, el fondo de `Login` y `Registro` pasa a blanco plano (sin degradado).
 
 ### Acceso (2026-05-27) - Idioma de correos de Auth
@@ -836,6 +862,7 @@ En cada tarea nueva:
 - `Balance por tiempo` incorpora un desplegable entre el titulo y la grafica para cambiar el rango visible.
 - El rango temporal permite ver al menos `Trimestre`, `Cuatrimestre`, `Semestre`, `Año completo` y `2 años`.
 - Las barras muestran los meses con etiqueta de mes y año corto para que un rango largo no repita nombres ambiguos.
+- Cuando el periodo incluye muchos meses, la grafica puede desplazarse en horizontal para evitar que las etiquetas se superpongan.
 
 ### Recordatorios y selectores (2026-06-03) - Etiquetas de inquilinos
 - En los selectores de personas visibles de la app se muestra el formato `Nombre (correo)` en lugar de solo nombre o solo email.
@@ -850,3 +877,108 @@ En cada tarea nueva:
 - Los recordatorios con recurrencia pasan a respetar la fecha `Hasta` tambien en `Calendario`.
 - Si un recordatorio empieza y termina el mismo dia, aunque su frecuencia sea `Diario`, solo se muestra y programa para ese unico dia.
 
+### Documentacion de entrega (2026-06-04) - Estilo sobrio
+- Los HTML de `docs_entrega/` se han simplificado para que tengan apariencia de documento basico tipo Word.
+- Se eliminan esquinas redondeadas, sombras y recursos visuales decorativos, priorizando la informacion y la facilidad de importacion a Word o Google Docs.
+
+### Acceso (2026-06-04) - Recordarme al cerrar la app
+- Si `Recordarme` esta activado, la sesion permanece iniciada al cerrar y volver a abrir la aplicacion.
+- Si `Recordarme` esta desactivado, al mandar la app a segundo plano o cerrarla se cierra la sesion y al volver se exige login de nuevo.
+
+### Tema visual (2026-06-04) - Sincronizacion entre acceso y app
+- El modo claro/oscuro se aplica ahora de forma consistente desde `Splash`, `Login`, `Registro`, `Verificacion` y `Main`.
+- Se evita el caso intermitente en el que la pantalla de acceso aparece con un tema y, al entrar en la app, el contenido se muestra con el contrario.
+
+### Balance y habitaciones (2026-06-04) - Reparto real por inquilino
+- El coste mensual de una habitacion ya no se trata como si lo asumiera una sola persona.
+- Si una habitacion se reparte entre varios inquilinos, el balance descuenta a cada uno solo su parte segun el reparto configurado en la propia habitacion.
+- En la vista de balance por categorias, el alquiler variable de habitaciones aparece ademas como categoria propia `Gasto habitación`.
+
+### Nuevo gasto (2026-06-04) - Ticket obligatorio
+- Al crear un gasto nuevo, adjuntar el ticket pasa a ser obligatorio.
+- El boton `Guardar` del modal `Nuevo gasto` permanece desactivado mientras no haya ticket adjunto.
+- Si se adjunta una imagen, la app mantiene el OCR para intentar detectar el importe y agilizar el alta.
+- En `Editar gasto`, si el gasto ya tenia ticket, no hace falta volver a subirlo para actualizar otros datos.
+- Los modales de detalle largos, como `Gasto habitación` o algunas confirmaciones con muchos campos, permiten desplazarse verticalmente para ver toda la información.
+- El diálogo de `Términos y condiciones` del registro se muestra con secciones visuales, mejor separación y scroll, para que el texto legal sea más legible.
+- Se corrigen textos visibles del acceso y recuperación de contraseña para mantener la puntuación completa en español.
+- Se han saneado las cadenas base de la interfaz en español para eliminar textos corruptos de codificación en login, ajustes, registro, verificación y balance.
+
+### Gestion (2026-06-04) - Horarios solo del propietario
+- El modulo `Horarios` queda en modo solo lectura para inquilinos que no sean propietarios del piso.
+- Solo el propietario puede crear, editar y eliminar horarios.
+- Al tocar un horario como propietario aparecen acciones para ver detalle, editarlo o eliminarlo.
+
+### Gestion (2026-06-04) - Deteccion de propietario corregida
+- La pantalla de `Gestion` vuelve a reconocer correctamente al propietario tambien cuando el grupo usa rol `admin`.
+- Con ello, `Reglas` y `Horarios` dejan de quedarse bloqueados por error para el propietario legitimo del piso.
+
+### Filtro por habitacion (2026-06-04) - Alcance completo
+- El selector de habitacion del piso ya no afecta solo a `Movimientos`.
+- Ahora tambien filtra `Recordatorios` y `Gestion`.
+- Si se elige una habitacion concreta, se ocultan recordatorios, incidencias, reglas y horarios ligados a otra habitacion.
+- En elementos dirigidos a una persona, el filtro usa tambien los miembros reales de la habitacion seleccionada para decidir si deben verse.
+
+### Habitaciones (2026-06-04) - Reparto mensual exacto
+- El coste mensual de una habitacion se aplica al 100 % si solo vive una persona en ella.
+- Si viven varias personas, se divide entre ellas segun el reparto configurado en esa habitacion.
+- El reparto se redondea a centimos de forma consistente para que balance, resumen rapido y pagos por habitacion usen exactamente los mismos importes.
+- Esto evita diferencias de calculo entre vistas cuando el alquiler de la habitacion cambia o cuando cambian sus residentes.
+
+### Movimientos (2026-06-04) - Gasto de habitación visible
+- La parte mensual que cada inquilino debe por su habitacion se guarda tambien como cobro mensual del piso.
+- En `Movimientos` aparece como una fila mas con el nombre `Gasto habitación`.
+- La solicitud se genera automaticamente al entrar en el piso, aunque quien abra primero no sea el propietario.
+- Ese movimiento queda asociado al propietario del piso como solicitante.
+- La fecha de inicio se fija en el mismo dia de generacion y el vencimiento se coloca 30 dias despues.
+- Si cambia el coste de la habitacion o cambian sus residentes, el cobro mensual del mes actual se recalcula y se actualiza.
+- La siguiente mensualidad pendiente de `Gasto habitación` tambien se resincroniza para que no conserve importes antiguos si cambia el reparto antes de vencer.
+- Si una habitacion pasa de una persona a dos, el importe visible de quien ya estaba baja a su nueva parte y se crea tambien la fila de la nueva persona.
+- Cuando un gasto normal va dirigido a ti, al abrirlo se prioriza el flujo de justificante y no la edición del gasto.
+- Tras subir la foto, el estado pasa a `En revisión` para que quien adelantó el gasto pueda revisarla y aceptarla.
+- El detalle de pagos y confirmaciones permite abrir el justificante en un visor más grande para verlo completo sin cargar la imagen a tamaño original.
+### Dialogos (2026-06-04) - Altura adaptativa
+- Las ventanas emergentes ajustan ahora mejor su tamaño al contenido que muestran.
+- Los dialogos cortos, como `Nueva accion` o avisos de validacion, ya no ocupan una altura desproporcionada.
+- Los dialogos largos siguen permitiendo desplazamiento vertical cuando el contenido lo necesita.
+
+### Pagos (2026-06-04) - Ticket visible al validar
+- En el detalle de `Pago solicitado` o de una confirmacion ya enviada puede mostrarse tambien el ticket original del gasto, no solo el justificante del pago.
+- Esto permite a quien valida revisar mejor si el importe y el concepto del gasto coinciden con el ticket adjunto.
+- Las imagenes siguen abriendose en visor ampliado para verlas completas sin cargar el archivo original a maxima resolucion.
+
+### Movimientos y calendario (2026-06-04) - Limpieza del flujo antiguo de pagos
+- La app deja de mostrar en `Pisos` y en `Calendario` los pagos genericos del flujo antiguo que no nacen de un gasto real.
+- Se mantienen visibles las confirmaciones ligadas a gastos y sus pendientes asociados, que son el flujo vigente.
+- Con ello desaparecen etiquetas residuales como `Pago pendiente` cuando no aportan nada al funcionamiento actual.
+
+### Nuevo gasto y tarjetas (2026-06-04) - Informacion mas clara
+- El reparto de `Nuevo gasto` se centra ahora en personas, no en lineas por habitaciones.
+- En cada selector de persona se muestra tambien su habitacion para identificar mejor a quien corresponde cada parte del gasto.
+- Las tarjetas de `Movimientos`, `Recordatorios` y `Gestion` pasan a destacar mejor la informacion principal, con textos como quien solicita, para quien va, fechas y frecuencia.
+
+### Seguridad (2026-06-04) - Edicion y borrado de gastos
+- A nivel de Firebase, los gastos solo pueden editarse o borrarse mientras siguen en estado `Solicitado`.
+- Esa gestion queda reservada al pagador original del gasto o al propietario del piso.
+- Cuando el gasto ya ha pasado a confirmacion o validacion, las reglas del servidor bloquean cambios manuales aunque alguien intente saltarse la interfaz.
+
+### Gastos dirigidos (2026-06-04) - Ticket visible y justificante recuperado
+- Cuando un gasto solicitado va dirigido a un inquilino, su detalle muestra tambien el ticket original del gasto para poder comprobarlo antes de pagar.
+- Ese detalle puede desplazarse aunque incluya imagen, para que no se corte en pantallas pequenas.
+- El flujo de `Subir justificante` vuelve a activarse tambien para deudas antiguas que todavia arrastraban estado `requested` en vez de `pending`.
+
+### Gastos (2026-06-04) - Habitacion real y etiquetas limpias
+- Los gastos creados por reparto de personas ya no arrastran por defecto la etiqueta `Todas las habitaciones`.
+- La app intenta guardar y mostrar la habitacion real de las personas afectadas, o `Varias habitaciones` si participan varias.
+- En `Movimientos` se eliminan restos visuales del texto `Pago solicitado` para el flujo actual de gastos y confirmaciones.
+
+### Gastos y balance (2026-06-04) - Fechas y reparto más claros
+- En `Nuevo gasto`, el botón de adjuntar ticket deja de mostrar la coletilla `OCR`, aunque la lectura automática del importe sigue funcionando al subir una imagen.
+- En el reparto por personas ya no aparece el propio pagador dentro de los desplegables de deudores, evitando una opción inválida que luego quedaba bloqueada.
+- Las tarjetas de `Movimientos` dan más protagonismo a `Solicitado por` y `Para`.
+- Cada gasto muestra también la `Fecha del gasto` en la tarjeta y en su detalle.
+- Todas las fechas visibles de este flujo pasan a mostrarse en `DD/MM/AAAA`, incluidos los meses de gastos de habitación y las etiquetas temporales del balance.
+- En la vista rápida de `Movimientos`, los nombres se muestran de forma compacta para no repetir el correo entre paréntesis y mejorar la lectura de la tarjeta.
+- El buscador rápido junto a `Filtros` desaparece y se reemplaza por tres accesos directos de estado: `Solicitado`, `En revisión` y `Pagados`.
+- Cada botón de estado muestra solo los movimientos que correspondan a ese bloque; si vuelves a tocar el mismo botón activo, se quita ese filtro y vuelven a verse todos.
+- El botón `Filtros` sigue disponible aparte para los filtros avanzados por categoría, persona o fecha.

@@ -48,7 +48,8 @@ public class PieChartView extends View {
         density = getResources().getDisplayMetrics().density;
 
         slicePaint.setStyle(Paint.Style.STROKE);
-        slicePaint.setStrokeCap(Paint.Cap.ROUND);
+        slicePaint.setStrokeCap(Paint.Cap.BUTT);
+        slicePaint.setStrokeJoin(Paint.Join.ROUND);
 
         ringBasePaint.setStyle(Paint.Style.STROKE);
         ringBasePaint.setStrokeCap(Paint.Cap.ROUND);
@@ -85,9 +86,9 @@ public class PieChartView extends View {
 
         float cx = width / 2f;
         float cy = height / 2f;
-        float outerRadius = Math.max(0f, (Math.min(width, height) / 2f) - dp(18f));
-        float ringWidth = Math.max(dp(24f), outerRadius * 0.34f);
-        float innerRadius = Math.max(dp(24f), outerRadius - ringWidth);
+        float outerRadius = Math.max(0f, (Math.min(width, height) / 2f) - dp(24f));
+        float ringWidth = Math.max(dp(18f), outerRadius * 0.23f);
+        float innerRadius = Math.max(dp(38f), outerRadius - ringWidth);
 
         arcRect.set(cx - outerRadius, cy - outerRadius, cx + outerRadius, cy + outerRadius);
 
@@ -110,9 +111,9 @@ public class PieChartView extends View {
         float total = 0f;
         for (Slice slice : slices) total += slice.value;
 
-        topLabelPaint.setTextSize(dp(12f));
+        topLabelPaint.setTextSize(dp(11f));
         topLabelPaint.setColor(textMutedColor);
-        valueLabelPaint.setTextSize(dp(18f));
+        valueLabelPaint.setTextSize(dp(16f));
         valueLabelPaint.setColor(textLightColor);
 
         if (total <= 0f) {
@@ -122,11 +123,11 @@ public class PieChartView extends View {
 
         slicePaint.setStrokeWidth(ringWidth);
         float start = -90f;
-        float maxGap = slices.size() <= 1 ? 0f : 2.2f;
+        float maxGap = slices.size() <= 1 ? 0f : 1.6f;
         for (Slice slice : slices) {
             if (slice.value <= 0f) continue;
             float rawSweep = (slice.value / total) * 360f;
-            float gap = Math.min(maxGap, rawSweep * 0.35f);
+            float gap = Math.min(maxGap, rawSweep * 0.18f);
             float sweep = rawSweep - gap;
             if (sweep > 0f) {
                 slicePaint.setColor(slice.color);
@@ -135,8 +136,8 @@ public class PieChartView extends View {
             start += rawSweep;
         }
 
-        canvas.drawText("Total", cx, cy - dp(4f), topLabelPaint);
+        canvas.drawText("Total", cx, cy - dp(2f), topLabelPaint);
         String totalLabel = amountFormat.format(total) + " EUR";
-        canvas.drawText(totalLabel, cx, cy + dp(16f), valueLabelPaint);
+        canvas.drawText(totalLabel, cx, cy + dp(14f), valueLabelPaint);
     }
 }

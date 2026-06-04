@@ -54,7 +54,16 @@ public class MonthlyBarChartView extends View {
         if (items != null) {
             bars.addAll(items);
         }
+        requestLayout();
         invalidate();
+    }
+
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        int desiredWidth = Math.round(desiredChartWidth());
+        int measuredWidth = resolveSize(desiredWidth, widthMeasureSpec);
+        int measuredHeight = resolveSize(getSuggestedMinimumHeight(), heightMeasureSpec);
+        setMeasuredDimension(measuredWidth, measuredHeight);
     }
 
     @Override
@@ -79,7 +88,7 @@ public class MonthlyBarChartView extends View {
         float leftPad = dp(16f);
         float rightPad = dp(12f);
         float topPad = dp(16f);
-        float bottomPad = dp(46f);
+        float bottomPad = dp(58f);
         float yAxisWidth = dp(78f);
 
         float plotLeft = leftPad + yAxisWidth;
@@ -107,9 +116,28 @@ public class MonthlyBarChartView extends View {
             barRect.set(left, top, right, plotBottom);
             canvas.drawRoundRect(barRect, radius, radius, barPaint);
 
-            float labelWidth = axisTextPaint.measureText(bar.label);
-            canvas.drawText(bar.label, centerX - labelWidth / 2f, getHeight() - dp(14f), axisTextPaint);
+            drawBarLabel(canvas, bar.label, centerX);
         }
+    }
+
+    private void drawBarLabel(Canvas canvas, String label, float centerX) {
+        if (label == null) return;
+        String normalized = label.trim();
+        if (normalized.isEmpty()) return;
+
+        String[] parts = normalized.split(" ", 2);
+        float baseY = getHeight() - dp(28f);
+        if (parts.length >= 2) {
+            drawCenteredAxisText(canvas, parts[0], centerX, baseY);
+            drawCenteredAxisText(canvas, parts[1], centerX, baseY + dp(14f));
+            return;
+        }
+        drawCenteredAxisText(canvas, normalized, centerX, getHeight() - dp(16f));
+    }
+
+    private void drawCenteredAxisText(Canvas canvas, String text, float centerX, float baselineY) {
+        float labelWidth = axisTextPaint.measureText(text);
+        canvas.drawText(text, centerX - labelWidth / 2f, baselineY, axisTextPaint);
     }
 
     private void drawHorizontalGrid(Canvas canvas, float left, float right, float top, float bottom, float max) {
@@ -131,6 +159,15 @@ public class MonthlyBarChartView extends View {
         float x = (getWidth() - width) / 2f;
         float y = (getHeight() / 2f) + dp(2f);
         canvas.drawText(text, x, y, emptyPaint);
+    }
+
+    private float desiredChartWidth() {
+        int count = Math.max(1, bars.size());
+        float leftPad = dp(16f);
+        float rightPad = dp(12f);
+        float yAxisWidth = dp(78f);
+        float slotWidth = dp(36f);
+        return leftPad + rightPad + yAxisWidth + (slotWidth * count);
     }
 
     private float dp(float value) {

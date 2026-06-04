@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manual de Instalación - FlatShare</title>
+  <style>
+    :root {
+      --paper: #ffffff;
+      --ink: #111111;
+      --muted: #555555;
+      --accent: #111111;
+      --accent-soft: #d9d9d9;
+      --line: #bfbfbf;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #ffffff;
+      color: var(--ink);
+      font: 12pt/1.5 "Times New Roman", Times, serif;
+    }
+    .document {
+      max-width: 850px;
+      margin: 0 auto;
+      background: var(--paper);
+      border: none;
+      overflow: hidden;
+    }
+    .sheet {
+      padding: 32px 42px;
+      border-bottom: none;
+    }
+    .cover {
+      min-height: 92vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: #ffffff;
+    }
+    .cover-top {
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 11pt;
+    }
+    .cover-center {
+      text-align: center;
+      padding: 72px 0;
+    }
+    .cover-kicker {
+      display: block;
+      margin-bottom: 18px;
+      padding: 0;
+      color: var(--ink);
+      font: 700 12pt/1.2 "Times New Roman", Times, serif;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin: 0 0 14px;
+      font-size: 24pt;
+      line-height: 1.15;
+      color: var(--ink);
+    }
+    .cover-subtitle {
+      max-width: 720px;
+      margin: 0 auto;
+      font-size: 12pt;
+      color: var(--muted);
+    }
+    .cover-meta {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 34px;
+      text-align: left;
+    }
+    .meta-card {
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+    }
+    .meta-label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font: 700 10pt/1.2 "Times New Roman", Times, serif;
+      text-transform: uppercase;
+    }
+    .cover-footer {
+      padding-top: 28px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      text-align: center;
+      font-size: 11pt;
+    }
+    h2 {
+      margin: 0 0 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+      font-size: 18pt;
+      color: var(--ink);
+    }
+    h3 {
+      margin: 26px 0 10px;
+      font-size: 14pt;
+    }
+    h4 {
+      margin: 18px 0 8px;
+      font-size: 12pt;
+    }
+    p { margin: 0 0 12px; }
+    ul, ol { margin: 8px 0 16px 24px; }
+    li { margin: 4px 0; }
+    .toc {
+      padding: 16px 18px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+    }
+    .toc ol { margin: 0 0 0 22px; }
+    .toc li { padding: 3px 0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0 22px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #f2f2f2;
+      color: var(--ink);
+      font: 700 11pt/1.4 "Times New Roman", Times, serif;
+    }
+    pre, code {
+      font-family: Consolas, "Courier New", monospace;
+    }
+    code {
+      padding: 0;
+      background: transparent;
+      font-size: 0.94em;
+    }
+    pre {
+      margin: 12px 0 18px;
+      padding: 10px 12px;
+      overflow-x: auto;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      white-space: pre-wrap;
+    }
+    .callout {
+      margin: 16px 0 20px;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+    }
+    .footer {
+      margin-top: 28px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .page-number {
+      margin-top: 18px;
+      color: var(--muted);
+      text-align: right;
+      font-size: 10pt;
+      font-family: "Times New Roman", Times, serif;
+    }
+    @media print {
+      body { background: #fff; }
+      .document {
+        margin: 0;
+        max-width: none;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      .sheet {
+        min-height: 100vh;
+        page-break-after: always;
+      }
+      .sheet:last-child {
+        page-break-after: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="document">
+    <section class="sheet cover">
+      <div class="cover-top">
+        <span>Trabajo Fin de Grado</span>
+        <span>FlatShare</span>
+      </div>
+      <div class="cover-center">
+        <div class="cover-kicker">Manual de instalación</div>
+        <h1>FlatShare</h1>
+        <p class="cover-subtitle">Documento técnico para la preparación del entorno, configuración de Firebase, compilación, ejecución y carga de datos de prueba del proyecto.</p>
+        <div class="cover-meta">
+          <div class="meta-card">
+            <span class="meta-label">Aplicación</span>
+            <strong>FlatShare</strong><br>
+            Android nativo
+          </div>
+          <div class="meta-card">
+            <span class="meta-label">Paquete</span>
+            <strong><code>com.sergio.flatshare</code></strong>
+          </div>
+          <div class="meta-card">
+            <span class="meta-label">Autor</span>
+            <strong>Sergio Ariño Pérez</strong>
+          </div>
+          <div class="meta-card">
+            <span class="meta-label">Titulación</span>
+            <strong>DAM Superior</strong><br>
+            Segundo año
+          </div>
+          <div class="meta-card">
+            <span class="meta-label">Tipo de documento</span>
+            Manual formal de instalación
+          </div>
+          <div class="meta-card">
+            <span class="meta-label">Fecha</span>
+            04/06/2026
+          </div>
+        </div>
+      </div>
+      <div class="cover-footer">
+        Documento preparado para entrega académica, defensa o importación en Microsoft Word y Google Docs.
+      </div>
+    </section>
+
+    <section class="sheet">
+      <h2>Índice</h2>
+      <div class="toc">
+        <ol>
+          <li>Alcance del documento</li>
+          <li>Requisitos previos</li>
+          <li>Datos técnicos del proyecto</li>
+          <li>Estructura general del proyecto</li>
+          <li>Clonar o abrir el proyecto</li>
+          <li>Configuración de Android Studio</li>
+          <li>Configuración de Firebase</li>
+          <li>Reglas y seguridad</li>
+          <li>Dependencias principales</li>
+          <li>Primera compilación</li>
+          <li>Ejecución de la aplicación</li>
+          <li>Permisos Android incluidos</li>
+          <li>Seeder de datos de prueba</li>
+          <li>Colecciones que crea o usa la aplicación</li>
+          <li>Validación recomendada tras instalar</li>
+          <li>Problemas frecuentes y solución</li>
+          <li>Observaciones técnicas</li>
+          <li>Cierre</li>
+        </ol>
+      </div>
+      <div class="page-number">Página 1</div>
+    </section>
+
+    <section class="sheet">
+      <h2>1. Alcance del documento</h2>
+      <p>Este manual describe el procedimiento completo para poner en marcha el proyecto FlatShare en un entorno de desarrollo. Incluye la instalación del entorno Android, la configuración de Firebase, la aplicación de reglas, la compilación, la ejecución en dispositivo o emulador y la carga opcional de datos de prueba.</p>
+
+      <h2>2. Requisitos previos</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Elemento</th>
+            <th>Requisito</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Sistema</td>
+            <td>Windows, macOS o Linux con soporte de desarrollo Android.</td>
+          </tr>
+          <tr>
+            <td>IDE</td>
+            <td>Android Studio compatible con AGP 8.5.x.</td>
+          </tr>
+          <tr>
+            <td>JDK</td>
+            <td>Java 17.</td>
+          </tr>
+          <tr>
+            <td>SDK Android</td>
+            <td><code>compileSdk 35</code>, <code>targetSdk 35</code>, <code>minSdk 24</code>.</td>
+          </tr>
+          <tr>
+            <td>Build Tools</td>
+            <td>36.1.0.</td>
+          </tr>
+          <tr>
+            <td>Firebase</td>
+            <td>Proyecto con Authentication, Firestore y Storage habilitados.</td>
+          </tr>
+          <tr>
+            <td>Node.js</td>
+            <td>Versión 18 o superior para el seeder opcional.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>3. Datos técnicos del proyecto</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Dato</th>
+            <th>Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Namespace</td>
+            <td><code>com.sergio.flatshare</code></td>
+          </tr>
+          <tr>
+            <td>Application ID</td>
+            <td><code>com.sergio.flatshare</code></td>
+          </tr>
+          <tr>
+            <td>Lenguaje</td>
+            <td>Java</td>
+          </tr>
+          <tr>
+            <td>Android Gradle Plugin</td>
+            <td>8.5.2</td>
+          </tr>
+          <tr>
+            <td>Gradle Wrapper</td>
+            <td>9.0.0</td>
+          </tr>
+          <tr>
+            <td>Firebase BoM</td>
+            <td>34.12.0</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="page-number">Página 2</div>
+    </section>
+
+    <section class="sheet">
+      <h2>4. Estructura general del proyecto</h2>
+      <ul>
+        <li><code>app/</code>: aplicación Android principal.</li>
+        <li><code>app/src/main/java/com/sergio/flatshare/features/</code>: pantallas por dominio funcional.</li>
+        <li><code>app/src/main/java/com/sergio/flatshare/core/</code>: sesión, ajustes, notificaciones y sincronización.</li>
+        <li><code>app/src/main/java/com/sergio/flatshare/shared/</code>: utilidades y widgets reutilizables.</li>
+        <li><code>tools/firebase-admin-seed/</code>: seeder para cuentas y datos de prueba.</li>
+        <li><code>firestore.rules</code>: reglas de seguridad.</li>
+        <li><code>firestore.indexes.json</code>: índices de Firestore.</li>
+        <li><code>firebase.json</code>: configuración base de despliegue.</li>
+      </ul>
+
+      <h2>5. Clonar o abrir el proyecto</h2>
+      <ol>
+        <li>Descargar o clonar el repositorio en local.</li>
+        <li>Abrir Android Studio.</li>
+        <li>Seleccionar <strong>File &gt; Open</strong>.</li>
+        <li>Elegir la carpeta raíz del proyecto.</li>
+        <li>Esperar a que finalice el <strong>Gradle Sync</strong>.</li>
+      </ol>
+
+      <h2>6. Configuración de Android Studio</h2>
+      <h3>6.1 SDK y JDK</h3>
+      <ul>
+        <li>Instalar Android SDK Platform 35.</li>
+        <li>Instalar Build Tools 36.1.0.</li>
+        <li>Configurar Java 17 como JDK del proyecto.</li>
+      </ul>
+
+      <h3>6.2 Archivo gradle.properties</h3>
+      <p>El proyecto ya incluye la configuración base:</p>
+      <pre>org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+org.gradle.problems.report=false
+android.useAndroidX=true
+android.nonTransitiveRClass=true</pre>
+      <div class="page-number">Página 3</div>
+    </section>
+
+    <section class="sheet">
+      <h2>7. Configuración de Firebase</h2>
+      <h3>7.1 Crear y asociar el proyecto</h3>
+      <ol>
+        <li>Entrar en Firebase Console.</li>
+        <li>Crear un proyecto nuevo o reutilizar uno existente.</li>
+        <li>Añadir una app Android con identificador <code>com.sergio.flatshare</code>.</li>
+        <li>Descargar <code>google-services.json</code>.</li>
+        <li>Copiarlo en <code>app/google-services.json</code>.</li>
+      </ol>
+
+      <div class="callout">
+        <strong>Importante:</strong> sin el archivo <code>google-services.json</code> la app no podrá conectarse con Firebase.
+      </div>
+
+      <h3>7.2 Authentication</h3>
+      <p>En <strong>Authentication &gt; Sign-in method</strong> debe activarse <strong>Email/Password</strong>. La app trabaja con verificación obligatoria de correo.</p>
+
+      <h3>7.3 Firestore Database</h3>
+      <ol>
+        <li>Ir a <strong>Firestore Database</strong>.</li>
+        <li>Crear la base de datos en <strong>Native mode</strong>.</li>
+        <li>Seleccionar la región del proyecto.</li>
+        <li>Aplicar el contenido de <code>firestore.rules</code>.</li>
+      </ol>
+
+      <h3>7.4 Firebase Storage</h3>
+      <p>Storage debe estar habilitado para soportar documentos y justificantes subidos desde la app. Es necesario especialmente para archivos asociados al piso y comprobantes de pago.</p>
+
+      <h2>8. Reglas y seguridad</h2>
+      <p>La instalación no estará completa si no se publican las reglas del proyecto. Las reglas actuales:</p>
+      <ul>
+        <li>Restringen el acceso a usuarios autenticados y con correo verificado.</li>
+        <li>Limitan lectura de pisos a miembros del grupo.</li>
+        <li>Controlan aceptación de pagos pendientes por acreedor o propietario.</li>
+        <li>Permiten a miembros gestionar incidencias y horarios.</li>
+        <li>Reservan las reglas de la casa al propietario.</li>
+      </ul>
+      <div class="page-number">Página 4</div>
+    </section>
+
+    <section class="sheet">
+      <h3>8.1 Aplicación manual de reglas</h3>
+      <ol>
+        <li>Abrir Firebase Console.</li>
+        <li>Entrar en Firestore Database.</li>
+        <li>Ir a la pestaña <strong>Rules</strong>.</li>
+        <li>Copiar el contenido de <code>firestore.rules</code>.</li>
+        <li>Publicar.</li>
+      </ol>
+
+      <h3>8.2 Archivo firebase.json</h3>
+      <p>El proyecto ya incluye esta referencia de despliegue:</p>
+      <pre>{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}</pre>
+
+      <h3>8.3 Índices Firestore</h3>
+      <p>En el estado actual, el archivo <code>firestore.indexes.json</code> no define índices adicionales:</p>
+      <pre>{
+  "indexes": [],
+  "fieldOverrides": []
+}</pre>
+
+      <h2>9. Dependencias principales</h2>
+      <ul>
+        <li>AndroidX Core, AppCompat, Material y ConstraintLayout.</li>
+        <li>Firebase Auth, Firestore y Storage.</li>
+        <li>ML Kit Text Recognition para OCR.</li>
+        <li>ZXing para lectura y generación de QR.</li>
+        <li>libphonenumber para tratamiento de teléfonos.</li>
+      </ul>
+
+      <h2>10. Primera compilación</h2>
+      <h3>10.1 Desde Android Studio</h3>
+      <ol>
+        <li>Esperar a que finalice el sync.</li>
+        <li>Seleccionar emulador o dispositivo físico.</li>
+        <li>Pulsar <strong>Run</strong>.</li>
+      </ol>
+
+      <h3>10.2 Desde terminal</h3>
+      <pre>gradlew.bat assembleDebug</pre>
+      <p>En entornos Windows donde se use configuración aislada de Android/Gradle, puede ejecutarse:</p>
+      <pre>$env:ANDROID_USER_HOME='C:\ruta\proyecto\.android-home'
+$env:GRADLE_USER_HOME='C:\ruta\proyecto\.gradle-home'
+.\gradlew.bat assembleDebug</pre>
+      <div class="page-number">Página 5</div>
+    </section>
+
+    <section class="sheet">
+      <h2>11. Ejecución de la aplicación</h2>
+      <p>La aplicación arranca desde <code>SplashActivity</code>. Durante el inicio:</p>
+      <ul>
+        <li>Se crea el canal de notificaciones <code>flatshare_reminders</code>.</li>
+        <li>Se solicita <code>POST_NOTIFICATIONS</code> en Android 13 o superior.</li>
+        <li>Se verifica si existe sesión activa.</li>
+        <li>Si el correo no está verificado, la sesión se cierra y se redirige a login.</li>
+      </ul>
+
+      <h2>12. Permisos Android incluidos</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Permiso</th>
+            <th>Uso</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>INTERNET</code></td>
+            <td>Comunicación con Firebase.</td>
+          </tr>
+          <tr>
+            <td><code>ACCESS_NETWORK_STATE</code></td>
+            <td>Comprobación del estado de red.</td>
+          </tr>
+          <tr>
+            <td><code>POST_NOTIFICATIONS</code></td>
+            <td>Recordatorios y avisos locales.</td>
+          </tr>
+          <tr>
+            <td><code>CAMERA</code></td>
+            <td>Escaneo de códigos QR.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>13. Seeder de datos de prueba</h2>
+      <p>El proyecto incorpora un seeder en <code>tools/firebase-admin-seed</code>.</p>
+
+      <h3>13.1 Requisitos</h3>
+      <ul>
+        <li>Node.js 18 o superior.</li>
+        <li>Archivo <code>service-account.json</code> del SDK Admin de Firebase.</li>
+        <li>Proyecto Firebase con Authentication y Firestore habilitados.</li>
+      </ul>
+
+      <h3>13.2 Instalación del seeder</h3>
+      <pre>cd tools/firebase-admin-seed
+npm install</pre>
+      <div class="page-number">Página 6</div>
+    </section>
+
+    <section class="sheet">
+      <h3>13.3 Ejecución básica del seeder</h3>
+      <pre>node seed.js ^
+  --service-account ./service-account.json ^
+  --owner-email tu_owner@email.com ^
+  --owner-password TuPasswordSegura123! ^
+  --users 12 ^
+  --groups 4 ^
+  --rooms 3 ^
+  --members-per-group 4 ^
+  --expenses-per-group 8 ^
+  --payments-per-group 6 ^
+  --reminders-per-group 4</pre>
+
+      <h3>13.4 Presets incluidos</h3>
+      <ul>
+        <li><code>npm run seed:sergio-demo</code></li>
+        <li><code>npm run seed:sergio-owner-plus</code></li>
+        <li><code>npm run seed:sergio-tenant-plus</code></li>
+        <li><code>npm run seed:sergio-owner-homoerectus</code></li>
+      </ul>
+      <p>El seeder genera un archivo de salida con las credenciales creadas en <code>tools/firebase-admin-seed/output/</code>.</p>
+
+      <h2>14. Colecciones que crea o usa la aplicación</h2>
+      <p>No es necesario crear colecciones manualmente. La app y el seeder generan automáticamente los documentos necesarios. Las colecciones principales son:</p>
+      <ul>
+        <li><code>users</code></li>
+        <li><code>groups</code></li>
+        <li><code>group_codes</code></li>
+        <li><code>rooms_groups</code></li>
+        <li><code>expenses</code></li>
+        <li><code>payments</code></li>
+        <li><code>payment_deadlines</code></li>
+        <li><code>reminders</code></li>
+        <li><code>activity_logs</code></li>
+        <li><code>maintenance_tickets</code></li>
+        <li><code>house_rules</code></li>
+        <li><code>group_schedules</code></li>
+        <li><code>audit_events</code></li>
+        <li><code>invitations</code></li>
+      </ul>
+
+      <h2>15. Validación recomendada tras instalar</h2>
+      <ol>
+        <li>Registrar un usuario con correo válido.</li>
+        <li>Verificar el correo y entrar en la app.</li>
+        <li>Crear un piso con habitaciones.</li>
+        <li>Unirse a un piso con otro usuario por código o QR.</li>
+        <li>Crear un gasto y completar un flujo de justificante.</li>
+        <li>Crear un recordatorio y comprobarlo en calendario.</li>
+        <li>Crear una incidencia y un horario desde Gestión.</li>
+      </ol>
+      <div class="page-number">Página 7</div>
+    </section>
+
+    <section class="sheet">
+      <h2>16. Problemas frecuentes y solución</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Problema</th>
+            <th>Causa probable</th>
+            <th>Solución</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>No compila el proyecto</td>
+            <td>SDK o JDK incorrectos</td>
+            <td>Verificar Java 17, compileSdk 35 y Build Tools 36.1.0.</td>
+          </tr>
+          <tr>
+            <td>Firebase no conecta</td>
+            <td>Falta <code>google-services.json</code></td>
+            <td>Copiar el archivo en <code>app/google-services.json</code>.</td>
+          </tr>
+          <tr>
+            <td>No deja leer o guardar datos</td>
+            <td>Reglas no desplegadas o correo no verificado</td>
+            <td>Publicar <code>firestore.rules</code> y verificar el correo.</td>
+          </tr>
+          <tr>
+            <td>No se suben archivos</td>
+            <td>Storage no habilitado</td>
+            <td>Activar Firebase Storage y revisar su configuración.</td>
+          </tr>
+          <tr>
+            <td>El seeder falla</td>
+            <td>Service account o Node incorrectos</td>
+            <td>Instalar Node 18+ y comprobar el JSON del SDK Admin.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>17. Observaciones técnicas</h2>
+      <ul>
+        <li>Todos los archivos de texto deben mantenerse en UTF-8.</li>
+        <li>Existe una advertencia conocida de compatibilidad de AGP 8.5.2 con <code>compileSdk 35</code>, aunque actualmente no bloquea la compilación.</li>
+        <li>Es recomendable mantener sincronizados <code>firestore.rules</code>, <code>firestore.indexes.json</code> y la documentación de Firebase.</li>
+      </ul>
+
+      <h2>18. Cierre</h2>
+      <p>Una vez completados los pasos descritos, el proyecto queda operativo para desarrollo, pruebas y demostración. El entorno puede ampliarse con datos reales o con datos seed según las necesidades de validación.</p>
+
+      <div class="footer">
+        Manual de instalación elaborado a partir de la implementación real del proyecto y preparado para defensa, memoria o entrega formal.
+      </div>
+      <div class="page-number">Página 8</div>
+    </section>
+  </main>
+</body>
+</html>

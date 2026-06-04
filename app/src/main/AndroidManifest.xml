@@ -9,6 +9,7 @@
         android:required="false" />
 
     <application
+        android:name=".core.session.FlatShareApp"
         android:allowBackup="true"
         android:icon="@mipmap/appicon"
         android:roundIcon="@mipmap/appicon_round"

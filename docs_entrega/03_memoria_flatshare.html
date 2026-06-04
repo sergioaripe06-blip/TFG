@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Memoria - FlatShare</title>
+  <style>
+    :root {
+      --paper: #ffffff;
+      --ink: #111111;
+      --muted: #555555;
+      --accent: #111111;
+      --accent-soft: #d9d9d9;
+      --line: #bfbfbf;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #ffffff;
+      color: var(--ink);
+      font: 12pt/1.5 "Times New Roman", Times, serif;
+    }
+    .document {
+      max-width: 850px;
+      margin: 0 auto;
+      background: var(--paper);
+      border: none;
+      overflow: hidden;
+    }
+    .sheet {
+      padding: 32px 42px;
+      border-bottom: none;
+    }
+    .cover {
+      min-height: 92vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: #ffffff;
+    }
+    .cover-top {
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 11pt;
+    }
+    .cover-center {
+      text-align: center;
+      padding: 72px 0;
+    }
+    .cover-kicker {
+      display: block;
+      margin-bottom: 18px;
+      padding: 0;
+      color: var(--ink);
+      font: 700 12pt/1.2 "Times New Roman", Times, serif;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin: 0 0 14px;
+      font-size: 24pt;
+      line-height: 1.15;
+      color: var(--ink);
+    }
+    .cover-subtitle {
+      max-width: 740px;
+      margin: 0 auto;
+      font-size: 12pt;
+      color: var(--muted);
+    }
+    .cover-meta {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 34px;
+      text-align: left;
+    }
+    .meta-card {
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+    }
+    .meta-label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font: 700 10pt/1.2 "Times New Roman", Times, serif;
+      text-transform: uppercase;
+    }
+    .cover-footer {
+      padding-top: 28px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      text-align: center;
+      font-size: 11pt;
+    }
+    h2 {
+      margin: 0 0 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+      font-size: 18pt;
+      color: var(--ink);
+    }
+    h3 {
+      margin: 26px 0 10px;
+      font-size: 14pt;
+    }
+    p { margin: 0 0 12px; }
+    ul, ol { margin: 8px 0 16px 24px; }
+    li { margin: 4px 0; }
+    .toc {
+      padding: 16px 18px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+    }
+    .toc ol { margin: 0 0 0 22px; }
+    .toc li { padding: 3px 0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0 22px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #f2f2f2;
+      color: var(--ink);
+      font: 700 11pt/1.4 "Times New Roman", Times, serif;
+    }
+    .callout {
+      margin: 16px 0 20px;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+    }
+    code {
+      padding: 0;
+      background: transparent;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 0.94em;
+    }
+    .footer {
+      margin-top: 28px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .page-number {
+      margin-top: 18px;
+      color: var(--muted);
+      text-align: right;
+      font-size: 10pt;
+      font-family: "Times New Roman", Times, serif;
+    }
+    @media print {
+      body { background: #fff; }
+      .document {
+        margin: 0;
+        max-width: none;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      .sheet {
+        min-height: 100vh;
+        page-break-after: always;
+      }
+      .sheet:last-child {
+        page-break-after: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="document">
+    <section class="sheet cover">
+      <div class="cover-top">
+        <span>Trabajo Fin de Grado</span>
+        <span>FlatShare</span>
+      </div>
+      <div class="cover-center">
+        <div class="cover-kicker">Memoria</div>
+        <h1>FlatShare</h1>
+        <p class="cover-subtitle">Memoria descriptiva del desarrollo de una aplicación Android para la gestión de pisos compartidos, con control económico, organización interna y soporte de Firebase.</p>
+        <div class="cover-meta">
+          <div class="meta-card">
+            <span class="meta-label">Aplicación</span>
+            <strong>FlatShare</strong><br>
+            Android nativo
+          </div>
+          <div class="meta-card">
+            <span class="meta-label">Paquete</span>
+            <strong><code>com.sergio.flatshare</code></strong>
+          </div>
+          <div class="meta-card">
+            <span class="meta-label">Autor</span>
+            <strong>Sergio Ariño Pérez</strong>
+          </div>
+          <div class="meta-card">
+            <span class="meta-label">Titulación</span>
+            <strong>DAM Superior</strong><br>
+            Segundo año
+          </div>
+          <div class="meta-card">
+            <span class="meta-label">Tipo de documento</span>
+            Memoria de proyecto
+          </div>
+          <div class="meta-card">
+            <span class="meta-label">Fecha</span>
+            04/06/2026
+          </div>
+        </div>
+      </div>
+      <div class="cover-footer">
+        Documento elaborado a partir del estado real del proyecto, su documentación viva y su evolución funcional y técnica.
+      </div>
+    </section>
+
+    <section class="sheet">
+      <h2>Índice</h2>
+      <div class="toc">
+        <ol>
+          <li>Introducción</li>
+          <li>Objetivos del proyecto</li>
+          <li>Alcance funcional</li>
+          <li>Stack tecnológico</li>
+          <li>Arquitectura de la aplicación</li>
+          <li>Modelo de datos y Firebase</li>
+          <li>Funcionalidades implementadas</li>
+          <li>Seguridad y control de acceso</li>
+          <li>Evolución del proyecto</li>
+          <li>Validación y pruebas</li>
+          <li>Problemas encontrados y soluciones aplicadas</li>
+          <li>Resultado final</li>
+          <li>Líneas de mejora futura</li>
+          <li>Conclusión</li>
+        </ol>
+      </div>
+      <div class="page-number">Página 1</div>
+    </section>
+
+    <section class="sheet">
+      <h2>1. Introducción</h2>
+      <p>FlatShare es una aplicación Android desarrollada con el objetivo de facilitar la gestión diaria de pisos compartidos. El proyecto surge de la necesidad de unificar en una sola herramienta las tareas habituales de convivencia y organización económica: alta de miembros, reparto de habitaciones, registro de gastos, control de pagos, recordatorios, calendario, balance y gestión interna del piso.</p>
+      <p>La aplicación se apoya en Firebase como backend y está planteada como una solución nativa para Android, buscando una experiencia fluida, clara y adaptada al uso cotidiano desde dispositivos móviles.</p>
+
+      <h2>2. Objetivos del proyecto</h2>
+      <h3>2.1 Objetivo general</h3>
+      <p>Diseñar e implementar una aplicación móvil para Android que permita gestionar de forma práctica y centralizada la economía y la organización de un piso compartido.</p>
+
+      <h3>2.2 Objetivos específicos</h3>
+      <ul>
+        <li>Permitir autenticación segura mediante correo y contraseña.</li>
+        <li>Gestionar pisos, miembros y habitaciones.</li>
+        <li>Registrar gastos y pagos con trazabilidad por usuario.</li>
+        <li>Incorporar un sistema de deudas pendientes con justificantes.</li>
+        <li>Programar recordatorios y mostrarlos en calendario.</li>
+        <li>Visualizar balances mediante gráficos.</li>
+        <li>Añadir utilidades de convivencia como incidencias, reglas y horarios.</li>
+        <li>Aplicar control de acceso basado en reglas de Firestore.</li>
+      </ul>
+      <div class="page-number">Página 2</div>
+    </section>
+
+    <section class="sheet">
+      <h2>3. Alcance funcional</h2>
+      <p>El proyecto cubre las siguientes áreas funcionales:</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Módulo</th>
+            <th>Alcance</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Autenticación</td>
+            <td>Registro, login, verificación de correo y recuperación de contraseña.</td>
+          </tr>
+          <tr>
+            <td>Pisos</td>
+            <td>Creación de grupo, unión por código o QR, consulta de miembros.</td>
+          </tr>
+          <tr>
+            <td>Habitaciones</td>
+            <td>Alta, edición, reparto y ocupación por inquilinos.</td>
+          </tr>
+          <tr>
+            <td>Movimientos</td>
+            <td>Gastos, pagos, pendientes, justificantes, OCR y exportación PDF.</td>
+          </tr>
+          <tr>
+            <td>Recordatorios</td>
+            <td>Creación de avisos manuales y recurrentes.</td>
+          </tr>
+          <tr>
+            <td>Gestión</td>
+            <td>Incidencias, reglas de la casa y horarios.</td>
+          </tr>
+          <tr>
+            <td>Balance</td>
+            <td>Gráficos por categorías y por tiempo.</td>
+          </tr>
+          <tr>
+            <td>Calendario</td>
+            <td>Consulta de eventos económicos y horarios por fecha.</td>
+          </tr>
+          <tr>
+            <td>Perfil y ajustes</td>
+            <td>Edición de perfil, idioma, tema, notificaciones y borrado de cuenta.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>4. Stack tecnológico</h2>
+      <ul>
+        <li><strong>Lenguaje:</strong> Java.</li>
+        <li><strong>Plataforma:</strong> Android nativo.</li>
+        <li><strong>SDK objetivo:</strong> compileSdk 35, targetSdk 35, minSdk 24.</li>
+        <li><strong>Build system:</strong> Gradle 9.0.0 con Android Gradle Plugin 8.5.2.</li>
+        <li><strong>Backend:</strong> Firebase Authentication, Cloud Firestore y Firebase Storage.</li>
+        <li><strong>Librerías destacadas:</strong> Material Components, ML Kit Text Recognition, ZXing y libphonenumber.</li>
+      </ul>
+      <div class="page-number">Página 3</div>
+    </section>
+
+    <section class="sheet">
+      <h2>5. Arquitectura de la aplicación</h2>
+      <p>La arquitectura del proyecto está organizada por capas y por dominios funcionales para mantener el código estructurado y facilitar su evolución.</p>
+
+      <h3>5.1 Organización principal</h3>
+      <ul>
+        <li><code>features/</code>: módulos funcionales de la app.</li>
+        <li><code>core/</code>: sesión, ajustes, sincronización y notificaciones.</li>
+        <li><code>shared/</code>: utilidades de interfaz y componentes reutilizables.</li>
+      </ul>
+
+      <h3>5.2 Módulos destacados</h3>
+      <ul>
+        <li><strong>features/auth</strong>: login, registro y verificación de correo.</li>
+        <li><strong>features/groups</strong>: gestión de pisos y habitaciones.</li>
+        <li><strong>features/workspace</strong>: gastos, pagos, recordatorios, balance, calendario y gestión.</li>
+        <li><strong>features/profile</strong> y <strong>features/settings</strong>: perfil y ajustes.</li>
+        <li><strong>core/notifications</strong>: planificación de recordatorios locales.</li>
+      </ul>
+
+      <h2>6. Modelo de datos y Firebase</h2>
+      <p>La aplicación utiliza Firebase Authentication para el acceso, Firestore como base de datos documental y Firebase Storage para archivos subidos por el usuario.</p>
+
+      <h3>6.1 Colecciones principales</h3>
+      <ul>
+        <li><code>users</code></li>
+        <li><code>groups</code></li>
+        <li><code>group_codes</code></li>
+        <li><code>rooms_groups</code></li>
+        <li><code>expenses</code></li>
+        <li><code>payments</code></li>
+        <li><code>payment_deadlines</code></li>
+        <li><code>reminders</code></li>
+        <li><code>activity_logs</code></li>
+        <li><code>maintenance_tickets</code></li>
+        <li><code>house_rules</code></li>
+        <li><code>group_schedules</code></li>
+        <li><code>audit_events</code></li>
+        <li><code>invitations</code></li>
+      </ul>
+      <div class="page-number">Página 4</div>
+    </section>
+
+    <section class="sheet">
+      <h3>6.2 Diseño del flujo económico</h3>
+      <p>Uno de los puntos más relevantes del proyecto es la separación entre el documento origen del gasto y las deudas derivadas de dicho gasto. Para ello se mantiene el gasto como entidad principal y se generan vencimientos individuales en <code>payment_deadlines</code> para cada deudor.</p>
+      <p>Cuando un usuario envía justificante, el flujo queda registrado sin necesidad de duplicar el gasto original en la interfaz del deudor, reduciendo inconsistencias visuales y de estado entre cuentas.</p>
+
+      <h3>6.3 Uso de Storage</h3>
+      <p>Firebase Storage se utiliza para documentos y justificantes de pago. La app sube archivos y guarda después la URL final en Firestore para enlazarlos desde la UI.</p>
+
+      <h2>7. Funcionalidades implementadas</h2>
+      <h3>7.1 Autenticación</h3>
+      <ul>
+        <li>Registro de usuarios.</li>
+        <li>Login con control de correo verificado.</li>
+        <li>Recuperación de contraseña.</li>
+      </ul>
+
+      <h3>7.2 Gestión de pisos y habitaciones</h3>
+      <ul>
+        <li>Creación de pisos con configuración inicial.</li>
+        <li>Unión mediante código o QR.</li>
+        <li>Asignación de habitaciones con control de plazas.</li>
+        <li>Gestión diferenciada para propietario e inquilinos.</li>
+      </ul>
+
+      <h3>7.3 Movimientos económicos</h3>
+      <ul>
+        <li>Creación de gastos y pagos.</li>
+        <li>Reparto equitativo y personalizado.</li>
+        <li>Bloqueo de edición y borrado según estado.</li>
+        <li>Justificantes con foto y OCR.</li>
+        <li>Exportación PDF de resumen mensual.</li>
+      </ul>
+      <div class="page-number">Página 5</div>
+    </section>
+
+    <section class="sheet">
+      <h3>7.4 Recordatorios y calendario</h3>
+      <ul>
+        <li>Recordatorios únicos o recurrentes.</li>
+        <li>Destino por miembros, habitaciones o todos los inquilinos.</li>
+        <li>Integración con calendario mensual.</li>
+        <li>Respeto real de fecha de inicio y fin.</li>
+      </ul>
+
+      <h3>7.5 Gestión del piso</h3>
+      <ul>
+        <li>Incidencias con responsable, estado y costes.</li>
+        <li>Reglas de la casa por ámbito general, persona o habitación.</li>
+        <li>Horarios recurrentes visibles también en calendario.</li>
+      </ul>
+
+      <h3>7.6 Balance y visualización</h3>
+      <ul>
+        <li>Balance de gastos por categorías.</li>
+        <li>Balance por tiempo con distintos rangos temporales.</li>
+        <li>Mejora visual del modo claro con paleta crema y acentos morados.</li>
+      </ul>
+
+      <h2>8. Seguridad y control de acceso</h2>
+      <p>La seguridad se resuelve principalmente mediante reglas de Firestore, alineadas con la lógica de la aplicación. Entre los puntos clave destacan:</p>
+      <ul>
+        <li>Acceso restringido a usuarios autenticados y con correo verificado.</li>
+        <li>Lectura de pisos limitada a sus miembros.</li>
+        <li>Control de aceptación de pagos por acreedor o propietario.</li>
+        <li>Gestión de reglas del piso reservada al propietario.</li>
+        <li>Permisos explícitos para incidencias y horarios de miembros del grupo.</li>
+      </ul>
+      <div class="page-number">Página 6</div>
+    </section>
+
+    <section class="sheet">
+      <h2>9. Evolución del proyecto</h2>
+      <p>La evolución del proyecto ha quedado documentada en el diario técnico y puede resumirse en tres grandes etapas:</p>
+
+      <h3>9.1 Definición y diseño inicial</h3>
+      <p>Entre marzo y abril de 2026 se definieron el alcance, la arquitectura, los casos de uso principales y el modelo de datos sobre Firestore. En esta fase se fijó también la navegación general y la separación en capas <code>features</code>, <code>core</code> y <code>shared</code>.</p>
+
+      <h3>9.2 Construcción funcional</h3>
+      <p>Durante mayo de 2026 se consolidó la base del proyecto: autenticación, pisos, habitaciones, gastos, pagos, recordatorios y perfil. Paralelamente se desarrollaron flujos de unión por código y QR, control de habitaciones y ajustes de seguridad.</p>
+
+      <h3>9.3 Refinamiento, sincronización y gestión avanzada</h3>
+      <p>En junio de 2026 el foco se desplazó hacia la robustez del flujo económico, la corrección de duplicados e inconsistencias entre cuentas, la integración de justificantes, la mejora visual del modo claro y la ampliación del módulo de gestión con incidencias, reglas y horarios.</p>
+
+      <h2>10. Validación y pruebas</h2>
+      <p>La validación del proyecto se ha apoyado en:</p>
+      <ul>
+        <li>Compilación continua mediante <code>assembleDebug</code>.</li>
+        <li>Pruebas de smoke sobre navegación principal.</li>
+        <li>Checklist funcional de autenticación, pisos, habitaciones, gastos, pagos, recordatorios y seguridad.</li>
+        <li>Pruebas multiusuario con cuentas seed reales mediante Firebase Admin.</li>
+      </ul>
+      <div class="page-number">Página 7</div>
+    </section>
+
+    <section class="sheet">
+      <h2>11. Problemas encontrados y soluciones aplicadas</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Problema</th>
+            <th>Solución aplicada</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Duplicados entre gastos y confirmaciones</td>
+            <td>Recalcular estado efectivo desde <code>payment_deadlines</code> y ocultar la fila original cuando ya existe confirmación ligada.</td>
+          </tr>
+          <tr>
+            <td>Propietario tratado siempre como editor del gasto</td>
+            <td>Priorizar el flujo de deudor cuando el gasto está dirigido al propio propietario como destinatario.</td>
+          </tr>
+          <tr>
+            <td>Recordatorios recurrentes mostrados fuera de rango</td>
+            <td>Aplicar correctamente la fecha final en calendario y en la programación local.</td>
+          </tr>
+          <tr>
+            <td>Cierres y lentitud al abrir justificantes</td>
+            <td>Cargar la imagen reducida, en segundo plano y dentro de una vista desplazable.</td>
+          </tr>
+          <tr>
+            <td>Inconsistencias visuales en modo claro</td>
+            <td>Rehacer la paleta, contrastes, barra inferior, inputs y tarjetas.</td>
+          </tr>
+          <tr>
+            <td>Bloqueos al guardar incidencias y horarios</td>
+            <td>Alinear reglas de Firestore con la lógica real de la UI.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>12. Resultado final</h2>
+      <p>El proyecto culmina en una aplicación Android funcional que cubre la gestión diaria de un piso compartido desde una perspectiva tanto económica como organizativa. El sistema no solo registra información, sino que estructura la responsabilidad de cada miembro, incorpora validación de pagos mediante justificantes y añade herramientas de convivencia que amplían el alcance del producto más allá del simple control de gastos.</p>
+      <div class="page-number">Página 8</div>
+    </section>
+
+    <section class="sheet">
+      <h2>13. Líneas de mejora futura</h2>
+      <ul>
+        <li>Panel web administrativo complementario.</li>
+        <li>Sincronización avanzada y métricas más completas de balance.</li>
+        <li>Notificaciones push remotas integradas con Firebase Cloud Messaging.</li>
+        <li>Mayor internacionalización de la interfaz y correos de sistema.</li>
+        <li>Motor de reportes y exportaciones más amplio.</li>
+        <li>Automatización adicional de cobros y auditoría.</li>
+      </ul>
+
+      <h2>14. Conclusión</h2>
+      <p>FlatShare resuelve un problema cotidiano real mediante una aplicación móvil que combina gestión económica, trazabilidad de pagos, coordinación interna del piso y organización de la convivencia. El proyecto ha evolucionado desde una base funcional inicial hasta una versión más sólida, cuidada visualmente y alineada con reglas de seguridad coherentes con su comportamiento real.</p>
+      <p>Desde el punto de vista académico y técnico, el resultado final demuestra integración entre frontend Android nativo, backend serverless con Firebase, modelado documental, control de acceso por reglas y una evolución iterativa guiada por pruebas, correcciones y refinamiento continuo.</p>
+
+      <div class="footer">
+        Memoria elaborada a partir de la implementación real del proyecto, su documentación viva y el diario técnico de desarrollo.
+      </div>
+      <div class="page-number">Página 9</div>
+    </section>
+  </main>
+</body>
+</html>

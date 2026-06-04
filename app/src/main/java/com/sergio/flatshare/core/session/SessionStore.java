@@ -11,6 +11,7 @@ public class SessionStore {
     private static final String KEY_ROOM_ID = "current_room_id";
     private static final String KEY_ROOM_NAME = "current_room_name";
     private static final String KEY_REMEMBER_ME = "remember_me";
+    private static final String KEY_REAUTH_REQUIRED = "reauth_required";
     private static final String KEY_PENDING_EMAIL = "pending_email";
     private static final String KEY_PENDING_FULL_NAME = "pending_full_name";
     private static final String KEY_PENDING_PHONE = "pending_phone";
@@ -69,6 +70,25 @@ public class SessionStore {
     public static boolean isRememberMeEnabled(Context context) {
         SharedPreferences p = context.getSharedPreferences(PREF, Context.MODE_PRIVATE);
         return p.getBoolean(KEY_REMEMBER_ME, false);
+    }
+
+    public static void setReauthRequired(Context context, boolean required) {
+        context.getSharedPreferences(PREF, Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean(KEY_REAUTH_REQUIRED, required)
+                .apply();
+    }
+
+    public static boolean isReauthRequired(Context context) {
+        SharedPreferences p = context.getSharedPreferences(PREF, Context.MODE_PRIVATE);
+        return p.getBoolean(KEY_REAUTH_REQUIRED, false);
+    }
+
+    public static void clearReauthRequired(Context context) {
+        context.getSharedPreferences(PREF, Context.MODE_PRIVATE)
+                .edit()
+                .remove(KEY_REAUTH_REQUIRED)
+                .apply();
     }
 
     public static void savePendingRegistrationProfile(

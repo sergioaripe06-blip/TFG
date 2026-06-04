@@ -28,6 +28,8 @@ Nuevas colecciones de gestión de alquiler:
 - `rental_contracts`
 - `rent_collections`
 - `maintenance_tickets`
+- `house_rules`
+- `group_schedules`
 - `group_documents`
 - `audit_events`
 - `rent_automations`
@@ -223,6 +225,8 @@ Campos principales:
 - `dueDateText`
 - `dueAt`
 - `uniqueKey` (evita duplicados)
+- `roomId` (opcional)
+- `sourceType` (por ejemplo `room_charge`)
 - `generatedByRuleId` (opcional)
 - `prorated` (boolean opcional)
 - `occupiedDays` (opcional)
@@ -249,6 +253,53 @@ Campos principales:
 - `estimatedCost`
 - `finalCost`
 - `history` (array de eventos)
+- `createdAt`
+- `createdByUid`
+- `createdByEmail`
+- `updatedAt`
+- `updatedByUid`
+- `updatedByEmail`
+
+### `house_rules/{ruleId}`
+
+Normas internas del piso, aplicables a todo el grupo, a una persona concreta o a una habitación.
+
+Campos principales:
+
+- `groupId`
+- `title`
+- `description`
+- `scopeType` (`everyone`, `member`, `room`)
+- `targetMemberEmail`
+- `targetEmails`
+- `roomName`
+- `createdAt`
+- `createdByUid`
+- `createdByEmail`
+- `updatedAt`
+- `updatedByUid`
+- `updatedByEmail`
+
+### `group_schedules/{scheduleId}`
+
+Horarios recurrentes del piso visibles también en calendario.
+
+Campos principales:
+
+- `groupId`
+- `title`
+- `description`
+- `scopeType` (`everyone`, `member`, `room`)
+- `targetMemberEmail`
+- `targetEmails`
+- `roomName`
+- `frequency` (`diario`, `semanal`, `mensual`)
+- `startAt`
+- `startDateText`
+- `endAt`
+- `endDateText`
+- `startTimeText`
+- `endTimeText`
 - `createdAt`
 - `createdByUid`
 - `createdByEmail`
@@ -375,7 +426,13 @@ Resumen:
 - `payments`: el propietario puede eliminar pagos del grupo para soportar borrado en cascada del piso.
 - `rental_contracts`: lectura de miembros, gestión del propietario.
 - `rent_collections`: miembros del grupo pueden crear/leer; solo el propietario puede actualizar o eliminar.
-- `maintenance_tickets`: miembros del grupo pueden crear/leer; solo el propietario puede actualizar o eliminar.
+- La app puede generar cobros de `room_charge` en `rent_collections` para reflejar la parte mensual de cada residente de una habitacion.
+- Cuando cambia el reparto o los residentes de una habitacion, la app resincroniza el mes actual y la siguiente mensualidad pendiente de esos `room_charge`.
+- Para `room_charge`, la app guarda tambien `ownerEmail`, `startAt` y `startDateText` para mostrar la solicitud automatica del propietario con fecha de inicio y vencimiento.
+- Los miembros del grupo pueden actualizar o limpiar solo los `rent_collections` de tipo `room_charge` si mantienen fijo `groupId`, `roomId`, `tenantEmail`, `monthKey` y `uniqueKey`, de forma que la resincronizacion automatica funcione aunque el primero en entrar no sea el propietario.
+- `maintenance_tickets`: miembros del grupo pueden crear, leer, actualizar y eliminar.
+- `house_rules`: lectura para miembros del grupo; gestión reservada al propietario.
+- `group_schedules`: los miembros del grupo pueden leer, pero crear, actualizar y eliminar queda reservado al propietario.
 - `group_documents`: miembros del grupo pueden crear/leer; solo el propietario puede actualizar o eliminar.
 - `audit_events`: miembros leen y crean; no se permite editar. El propietario puede borrar en limpieza del piso.
 - `rent_automations` y `event_reminder_rules`: lectura de miembros, gestión del propietario.
@@ -415,7 +472,7 @@ En `Firestore Database`:
 
 ## No hace falta crear colecciones a mano
 
-La app crea los documentos automáticamente al crear piso, habitaciones, gastos, pagos, contratos, cobros, incidencias, documentos, automatizaciones y reglas de recordatorio.
+La app crea los documentos automáticamente al crear piso, habitaciones, gastos, pagos, contratos, cobros, incidencias, reglas del piso, horarios, documentos, automatizaciones y reglas de recordatorio.
 
 ## Seed de cuentas reales (Auth + Firestore)
 
@@ -537,4 +594,11 @@ Uso rápido:
 - El reparto multiple de un gasto se materializa ahora en varios documentos de `expenses`, uno por cada deudor final.
 - Cada uno de esos gastos individuales mantiene su propio `customSplit` al 100% para el deudor afectado y genera su propia entrada en `payment_deadlines`.
 - El flujo de aceptacion sigue apoyandose en `payments` y `payment_deadlines`; no ha sido necesario cambiar `firestore.rules` para esta iteracion.
+
+## Actualizacion funcional (2026-06-04) - Reglas alineadas con el flujo real de gastos
+- `expenses.read` sigue permitido para miembros del piso.
+- `expenses.update` y `expenses.delete` quedan limitados a gastos en estado `requested`.
+- Solo puede gestionar un gasto su pagador original o el propietario del piso.
+- En `update` se preservan `groupId`, `payerId` y `payerEmail` para evitar reasignaciones manuales del gasto desde cliente.
+- `payments`, `payment_deadlines`, `house_rules`, `group_schedules` y `rent_collections` mantienen la logica de permisos ya alineada con los cambios recientes, por lo que no ha sido necesario tocar mas reglas en esta revision.
 

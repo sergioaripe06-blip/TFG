@@ -22,11 +22,12 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.sergio.flatshare.R;
+import com.sergio.flatshare.features.workspace.services.RoomRentShareCalculator;
+import com.sergio.flatshare.shared.ui.DateInputUtils;
 import com.sergio.flatshare.shared.widgets.MonthlyBarChartView;
 import com.sergio.flatshare.shared.widgets.PieChartView;
 
 import java.text.DecimalFormat;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -40,6 +41,7 @@ import java.util.Map;
 public class PersonalBalanceFragment extends Fragment {
     private static final String BILLING_FIXED = "fixed";
     private static final String CATEGORY_RENT = "alquiler";
+    private static final String CATEGORY_ROOM_EXPENSE = "gasto habitación";
     private static final int[] CATEGORY_COLOR_PALETTE = {
             Color.parseColor("#44D4FF"),
             Color.parseColor("#FFD95A"),
@@ -292,10 +294,41 @@ public class PersonalBalanceFragment extends Fragment {
                         double a = doc.getDouble("amount") == null ? 0.0 : doc.getDouble("amount");
                         totals.put(c, totals.getOrDefault(c, 0.0) + a);
                     });
-                    done.run();
+                    accumulateVariableRoomCharges(groupId, myEmail, personal, totals, done);
                 }).addOnFailureListener(e -> done.run());
             }).addOnFailureListener(e -> done.run());
         }).addOnFailureListener(e -> done.run());
+    }
+
+    private void accumulateVariableRoomCharges(String groupId, String myEmail, boolean personal, Map<String, Double> totals, Runnable done) {
+        db.collection("rooms_groups")
+                .whereEqualTo("groupId", groupId)
+                .get()
+                .addOnSuccessListener(rooms -> {
+                    double totalRoomAmount = 0.0;
+                    for (DocumentSnapshot room : rooms.getDocuments()) {
+                        double roomCost = room.getDouble("monthlyCost") == null ? 0.0 : room.getDouble("monthlyCost");
+                        if (roomCost <= 0.0) continue;
+                        if (!personal) {
+                            totalRoomAmount += roomCost;
+                            continue;
+                        }
+                        List<String> residents = toLowerList(room.get("memberEmails"));
+                        Map<String, Double> residentAmounts = RoomRentShareCalculator.calculateResidentAmounts(
+                                roomCost,
+                                residents,
+                                room.getString("rentSplitMode"),
+                                castPercentages(room.get("rentSplitPercentages"))
+                        );
+                        totalRoomAmount += residentAmounts.getOrDefault(myEmail, 0.0);
+                    }
+                    if (totalRoomAmount > 0.0) {
+                        String category = normalizeType(CATEGORY_ROOM_EXPENSE);
+                        totals.put(category, totals.getOrDefault(category, 0.0) + totalRoomAmount);
+                    }
+                    done.run();
+                })
+                .addOnFailureListener(e -> done.run());
     }
 
     private GroupOption resolveSelectedGroupOption() {
@@ -344,6 +377,7 @@ public class PersonalBalanceFragment extends Fragment {
             View dot = item.findViewById(R.id.legendColorDot);
             TextView typeTv = item.findViewById(R.id.legendTypeTv);
             TextView valueTv = item.findViewById(R.id.legendValueTv);
+            TextView percentTv = item.findViewById(R.id.legendPercentTv);
 
             GradientDrawable dotShape = new GradientDrawable();
             dotShape.setShape(GradientDrawable.OVAL);
@@ -351,8 +385,8 @@ public class PersonalBalanceFragment extends Fragment {
             dot.setBackground(dotShape);
 
             typeTv.setText(capitalize(type));
-            typeTv.setTextColor(color);
-            valueTv.setText(df.format(percentage) + "%  -  " + df.format(value) + " EUR");
+            valueTv.setText(df.format(value) + " EUR");
+            percentTv.setText(df.format(percentage) + "%");
             legend.addView(item);
         }
         applyDynamicPieChartHeight(rows.size());
@@ -442,7 +476,24 @@ public class PersonalBalanceFragment extends Fragment {
                                     double amount = doc.getDouble("amount") == null ? 0.0 : doc.getDouble("amount");
                                     monthlyTotals.put(key, monthlyTotals.getOrDefault(key, 0.0) + amount);
                                 });
-                                done.run();
+                                db.collection("rent_collections")
+                                        .whereEqualTo("groupId", groupId)
+                                        .whereEqualTo("tenantEmail", myEmail)
+                                        .whereEqualTo("sourceType", "room_charge")
+                                        .get()
+                                        .addOnSuccessListener(roomCharges -> {
+                                            roomCharges.forEach(doc -> {
+                                                java.util.Date date = resolveDocDate(doc);
+                                                if (date == null) return;
+                                                String key = monthKey(date);
+                                                if (!monthlyTotals.containsKey(key)) return;
+                                                double amountBase = doc.getDouble("amountBase") == null ? 0.0 : doc.getDouble("amountBase");
+                                                double surcharge = doc.getDouble("surcharge") == null ? 0.0 : doc.getDouble("surcharge");
+                                                monthlyTotals.put(key, monthlyTotals.getOrDefault(key, 0.0) + amountBase + surcharge);
+                                            });
+                                            done.run();
+                                        })
+                                        .addOnFailureListener(e -> done.run());
                             })
                             .addOnFailureListener(e -> done.run());
                 })
@@ -491,16 +542,7 @@ public class PersonalBalanceFragment extends Fragment {
     }
 
     private String monthLabel(String key) {
-        SimpleDateFormat parser = new SimpleDateFormat("yyyy-MM", Locale.ROOT);
-        try {
-            java.util.Date date = parser.parse(key);
-            if (date == null) return key;
-            String month = new SimpleDateFormat("MMM yy", new Locale("es", "ES")).format(date);
-            month = month.replace(".", "");
-            return capitalize(month);
-        } catch (ParseException e) {
-            return key;
-        }
+        return DateInputUtils.normalizeMonthKeyToDisplay(key);
     }
 
     private String capitalize(String s) {
@@ -522,10 +564,31 @@ public class PersonalBalanceFragment extends Fragment {
         if ("electricidad".equals(normalized)) return Color.parseColor("#FFD95A");
         if ("internet".equals(normalized)) return Color.parseColor("#8EA8FF");
         if ("alquiler".equals(normalized)) return Color.parseColor("#FF9E66");
+        if (normalizeType(CATEGORY_ROOM_EXPENSE).equals(normalized)) return Color.parseColor("#A77BFF");
         if ("comida".equals(normalized)) return Color.parseColor("#78E08F");
         if ("otros".equals(normalized)) return Color.parseColor("#C3C3C3");
         int index = (normalized.hashCode() & 0x7fffffff) % CATEGORY_COLOR_PALETTE.length;
         return CATEGORY_COLOR_PALETTE[index];
+    }
+
+    private Map<String, Double> castPercentages(@Nullable Object raw) {
+        Map<String, Double> out = new LinkedHashMap<>();
+        if (!(raw instanceof Map<?, ?> map)) return out;
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            if (entry.getKey() == null || entry.getValue() == null) continue;
+            String email = safeLower(String.valueOf(entry.getKey()));
+            if (email.isEmpty()) continue;
+            Object value = entry.getValue();
+            if (value instanceof Number number) {
+                out.put(email, number.doubleValue());
+            } else {
+                try {
+                    out.put(email, Double.parseDouble(String.valueOf(value).trim()));
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        return out;
     }
 
     private List<String> toLowerList(@Nullable Object raw) {

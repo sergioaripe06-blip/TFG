@@ -3,6 +3,7 @@ package com.sergio.flatshare.features.workspace;
 import android.app.AlertDialog;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Typeface;
 import android.graphics.Matrix;
 import android.app.DatePickerDialog;
 import android.content.ActivityNotFoundException;
@@ -22,17 +23,19 @@ import android.provider.MediaStore;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.Layout;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.TextWatcher;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.StyleSpan;
 import android.util.TypedValue;
 import android.view.Gravity;
-import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
-import android.view.inputmethod.EditorInfo;
 import android.widget.ArrayAdapter;
 import android.widget.Toast;
 import android.widget.AdapterView;
@@ -86,6 +89,7 @@ import com.sergio.flatshare.features.workspace.services.MemberLabelFormatter;
 import com.sergio.flatshare.features.workspace.services.PaymentAccessPolicy;
 import com.sergio.flatshare.features.workspace.services.PaymentService;
 import com.sergio.flatshare.features.workspace.services.ReminderService;
+import com.sergio.flatshare.features.workspace.services.RoomRentShareCalculator;
 
 import java.text.DecimalFormat;
 import java.text.Normalizer;
@@ -96,6 +100,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -124,11 +129,18 @@ public class ExpensesFragment extends Fragment {
     private static final String FILTER_MODE_PERSON = "person";
     private static final String FILTER_MODE_DATE = "date";
     private static final String CATEGORY_RENT = "alquiler";
+    private static final String CATEGORY_ROOM_EXPENSE = "gasto habitación";
     private static final String ROW_TYPE_PENDING_DEBT = "pending_debt";
+    private static final String ROW_TYPE_ROOM_CHARGE = "room_charge";
     private static final String STATUS_REQUESTED = "requested";
     private static final String STATUS_SUBMITTED = "submitted";
     private static final String STATUS_PENDING = "pending";
     private static final String STATUS_CONFIRMED = "confirmed";
+    private static final String STATUS_FILTER_REQUESTED = "requested_only";
+    private static final String STATUS_FILTER_IN_REVIEW = "in_review";
+    private static final String STATUS_FILTER_PAID = "paid_only";
+    private static final int ROOM_CHARGE_BILLING_DAY = 5;
+    private static final int ROOM_CHARGE_FUTURE_MONTHS_TO_SYNC = 1;
     private static final String[] SPENDING_TYPES = {"agua", "electricidad", "internet", "alquiler", "comida", "otros"};
     private static final int[] SPENDING_TYPE_COLORS = {
             Color.parseColor("#44D4FF"),
@@ -179,7 +191,9 @@ public class ExpensesFragment extends Fragment {
     private Button managementTabBtn;
     private Spinner roomFilterSpinner;
     private View expensesToolsRow;
-    private EditText expensesSearchEt;
+    private Button filterRequestedBtn;
+    private Button filterInReviewBtn;
+    private Button filterPaidBtn;
     private Button openFiltersBtn;
 
     private String currentTab = TAB_EXPENSES;
@@ -194,20 +208,26 @@ public class ExpensesFragment extends Fragment {
     private List<String> currentGroupMemberEmails = new ArrayList<>();
     private String filterPersonEmail;
     private String filterCategory;
-    private String filterSearchQuery;
+    private String filterStatusBucket;
     private Long filterFromMs;
     private Long filterToMs;
     private String filterDateIso;
     private String pendingTicketUri;
     private EditText pendingTicketAmountEt;
     private TextView pendingTicketStatusTv;
+    private Button pendingExpenseConfirmBtn;
     private Button pendingPaymentConfirmBtn;
+    private boolean expenseSubmitInProgress = false;
+    private boolean paymentSubmitInProgress = false;
+    private boolean pendingDebtCreationInProgress = false;
+    private boolean requireExpenseTicketForCurrentDialog = false;
     private boolean requirePaymentProofForCurrentDialog = false;
     @Nullable private PendingDebtRequest activePendingDebtRequest;
     private boolean isRebindingRoomSelectors = false;
     private boolean isUpdatingRoomFilterSpinner = false;
     private boolean isRebindingPaymentSelectors = false;
     private final Map<String, String> memberDisplayNamesByEmail = new HashMap<>();
+    private final Map<String, String> memberRoomLabelsByEmail = new HashMap<>();
     private String workspaceMetaCache = "";
     private String workspaceDescriptionCache = "";
     private String workspaceOwnerCache = "";
@@ -247,7 +267,9 @@ public class ExpensesFragment extends Fragment {
         managementTabBtn = view.findViewById(R.id.tenantsTabBtn);
         roomFilterSpinner = view.findViewById(R.id.roomFilterSpinner);
         expensesToolsRow = view.findViewById(R.id.expensesToolsRow);
-        expensesSearchEt = view.findViewById(R.id.expensesSearchEt);
+        filterRequestedBtn = view.findViewById(R.id.filterRequestedBtn);
+        filterInReviewBtn = view.findViewById(R.id.filterInReviewBtn);
+        filterPaidBtn = view.findViewById(R.id.filterPaidBtn);
         openFiltersBtn = view.findViewById(R.id.openFiltersBtn);
         mainActionBtn = view.findViewById(R.id.addExpenseCenterFab);
 
@@ -273,40 +295,16 @@ public class ExpensesFragment extends Fragment {
             }
         });
         openFiltersBtn.setOnClickListener(v -> showFiltersDialog());
+        filterRequestedBtn.setOnClickListener(v -> toggleStatusFilter(STATUS_FILTER_REQUESTED));
+        filterInReviewBtn.setOnClickListener(v -> toggleStatusFilter(STATUS_FILTER_IN_REVIEW));
+        filterPaidBtn.setOnClickListener(v -> toggleStatusFilter(STATUS_FILTER_PAID));
+        updateStatusFilterButtons();
         workspaceTitleTv.setOnLongClickListener(v -> {
             if (currentGroupId == null || workspaceMetaCache == null || workspaceMetaCache.trim().isEmpty()) {
                 return false;
             }
             showWorkspaceMetaDialog();
             return true;
-        });
-        expensesSearchEt.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-            }
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {
-                String query = s == null ? "" : s.toString().trim().toLowerCase(Locale.ROOT);
-                filterSearchQuery = query.isEmpty() ? null : query;
-                loadExpenses();
-            }
-        });
-        expensesSearchEt.setOnFocusChangeListener((v, hasFocus) -> updateCtaVisibilityForCurrentTab());
-        expensesSearchEt.setOnEditorActionListener((v, actionId, event) -> {
-            boolean done = actionId == EditorInfo.IME_ACTION_DONE
-                    || actionId == EditorInfo.IME_ACTION_SEARCH
-                    || (event != null && event.getKeyCode() == KeyEvent.KEYCODE_ENTER);
-            if (done) {
-                expensesSearchEt.clearFocus();
-                updateCtaVisibilityForCurrentTab();
-                return true;
-            }
-            return false;
         });
         mainActionBtn.setOnClickListener(v -> {
             if (isFastTap(lastMainActionAtMs, 400)) return;
@@ -918,8 +916,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     private void updateCtaVisibilityForCurrentTab() {
         if (workspaceCtaLayout == null) return;
         boolean ctaAllowedTab = TAB_EXPENSES.equals(currentTab) || TAB_REMINDERS.equals(currentTab);
-        boolean hideForSearch = TAB_EXPENSES.equals(currentTab) && expensesSearchEt != null && expensesSearchEt.hasFocus();
-        boolean visible = currentGroupId != null && ctaAllowedTab && !hideForSearch;
+        boolean visible = currentGroupId != null && ctaAllowedTab;
         workspaceCtaLayout.setVisibility(visible ? View.VISIBLE : View.GONE);
         applyBottomContentInset();
     }
@@ -1936,6 +1933,8 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 }
                 View form = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_expense, null, false);
                 pendingTicketUri = null;
+                pendingExpenseConfirmBtn = null;
+                requireExpenseTicketForCurrentDialog = true;
                 setupCategoryInput((AutoCompleteTextView) form.findViewById(R.id.categoryEt), null);
                 setupPrioritySpinner((Spinner) form.findViewById(R.id.expensePrioritySpinner), null);
                 setupDateField(form.findViewById(R.id.dueDateEt));
@@ -1964,11 +1963,25 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 ExpenseDialogs.tuneLongFormShell(shell);
                 AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
                 ExpenseDialogs.adjustLongFormDialogWindow(requireContext(), dialog);
+                pendingExpenseConfirmBtn = shell.confirmBtn;
+                updateExpenseConfirmButtonState();
                 shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
                 shell.confirmBtn.setOnClickListener(v -> {
+                    if (expenseSubmitInProgress) return;
+                    shell.confirmBtn.setEnabled(false);
                     if (saveExpense(form, null, members, rooms)) {
                         dialog.dismiss();
+                    } else {
+                        shell.confirmBtn.setEnabled(true);
                     }
+                });
+                dialog.setOnDismissListener(v -> {
+                    expenseSubmitInProgress = false;
+                    pendingExpenseConfirmBtn = null;
+                    requireExpenseTicketForCurrentDialog = false;
+                    pendingTicketAmountEt = null;
+                    pendingTicketStatusTv = null;
+                    pendingTicketUri = null;
                 });
             });
         });
@@ -2007,7 +2020,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             return false;
         }
         String payerEmail = currentUserEmail();
-        if (allocations.containsKey(payerEmail)) {
+        if (containsCurrentUserAllocation(allocations, payerEmail)) {
             NoticeUtils.show(requireContext(), "El pagador no puede estar dentro del reparto del gasto");
             return false;
         }
@@ -2017,28 +2030,27 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             return false;
         }
         String normalizedDueDateText = DateInputUtils.formatDay(dueDate);
-        List<RoomOption> selectedRooms;
-        if (isRoomScopeSelected(form)) {
-            selectedRooms = getRoomsSelectedInSplitRows(form, rooms);
-        } else {
-            selectedRooms = new ArrayList<>(rooms);
-        }
-        if (selectedRooms.isEmpty()) {
-            NoticeUtils.show(requireContext(), "Selecciona al menos una habitación");
-            return false;
-        }
-
+        List<RoomOption> selectedRooms = resolveExpenseRoomsFromAllocations(allocations, rooms);
         List<String> selectedRoomIds = new ArrayList<>();
         List<String> selectedRoomNames = new ArrayList<>();
         for (RoomOption room : selectedRooms) {
             selectedRoomIds.add(room.id);
             selectedRoomNames.add(room.name);
         }
-        boolean allRoomsSelected = selectedRooms.size() == rooms.size();
+        boolean allRoomsSelected = !rooms.isEmpty() && selectedRooms.size() == rooms.size();
         String payerId = FirebaseAuth.getInstance().getCurrentUser().getUid();
         String safeCategory = category.isEmpty() ? "otros" : category;
         String normalizedPriority = expenseService.normalizePriority(priority);
-        String proofUri = pendingTicketUri == null ? "" : pendingTicketUri;
+        String proofUri = pendingTicketUri == null ? "" : pendingTicketUri.trim();
+
+        if (documentId == null && proofUri.isEmpty()) {
+            NoticeUtils.show(requireContext(), "Debes adjuntar el ticket del gasto para poder guardarlo");
+            return false;
+        }
+        if (expenseSubmitInProgress) {
+            return false;
+        }
+        expenseSubmitInProgress = true;
 
         if (documentId == null) {
             List<ExpenseWriteSeed> createdExpenses = new ArrayList<>();
@@ -2088,6 +2100,10 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 pendingTicketUri = null;
                 loadExpenses();
                 loadFinancialViews();
+            }).addOnFailureListener(e -> {
+                expenseSubmitInProgress = false;
+                updateExpenseConfirmButtonState();
+                NoticeUtils.show(requireContext(), "No se pudo guardar el gasto");
             });
         } else {
             String customSplit = buildCustomSplitFromAllocations(allocations, amount);
@@ -2122,6 +2138,10 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 pendingTicketUri = null;
                 loadExpenses();
                 loadFinancialViews();
+            }).addOnFailureListener(e -> {
+                expenseSubmitInProgress = false;
+                updateExpenseConfirmButtonState();
+                NoticeUtils.show(requireContext(), "No se pudo actualizar el gasto");
             });
         }
         return true;
@@ -2160,7 +2180,10 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         data.put("status", STATUS_REQUESTED);
         data.put("roomIds", new ArrayList<>(selectedRoomIds));
         data.put("roomNames", new ArrayList<>(selectedRoomNames));
-        if (allRoomsSelected) {
+        if (selectedRooms.isEmpty()) {
+            data.put("roomId", "");
+            data.put("roomName", "");
+        } else if (allRoomsSelected) {
             data.put("roomId", "all");
             data.put("roomName", ROOM_ALL_LABEL);
         } else if (selectedRooms.size() == 1) {
@@ -2194,17 +2217,17 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 View paymentCategoryFixedContainer = form.findViewById(R.id.paymentCategoryFixedContainer);
                 TextView paymentCategoryFixedHintTv = form.findViewById(R.id.paymentCategoryFixedHintTv);
                 EditText paymentAmountEt = form.findViewById(R.id.paymentAmountEt);
+                paymentCategoryInputEt.setVisibility(View.VISIBLE);
+                paymentCategoryFixedContainer.setVisibility(View.GONE);
+                paymentCategoryFixedHintTv.setVisibility(View.GONE);
+                setupCategoryInput(
+                        paymentCategoryInputEt,
+                        pendingDebtRequest == null || pendingDebtRequest.snapshot == null
+                                ? null
+                                : pendingDebtRequest.snapshot.getString("category")
+                );
                 if (BILLING_FIXED.equals(currentBillingModel)) {
-                    paymentCategoryInputEt.setVisibility(View.GONE);
-                    paymentCategoryFixedContainer.setVisibility(View.VISIBLE);
-                    paymentCategoryFixedTv.setText(capitalizeTypeLabel(CATEGORY_RENT));
-                    paymentCategoryFixedHintTv.setVisibility(View.VISIBLE);
                     setupFixedPaymentConceptSuggestions(form);
-                } else {
-                    paymentCategoryFixedContainer.setVisibility(View.GONE);
-                    paymentCategoryFixedHintTv.setVisibility(View.GONE);
-                    paymentCategoryInputEt.setVisibility(View.VISIBLE);
-                    setupCategoryInput(paymentCategoryInputEt, null);
                 }
                 setupPrioritySpinner((Spinner) form.findViewById(R.id.paymentPrioritySpinner), "media");
                 setupDateField(form.findViewById(R.id.paymentDueDateEt));
@@ -2241,11 +2264,16 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 updatePaymentConfirmButtonState();
                 shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
                 shell.confirmBtn.setOnClickListener(v -> {
+                    if (paymentSubmitInProgress) return;
+                    shell.confirmBtn.setEnabled(false);
                     if (savePayment(form, members, rooms)) {
                         dialog.dismiss();
+                    } else {
+                        shell.confirmBtn.setEnabled(true);
                     }
                 });
                 dialog.setOnDismissListener(v -> {
+                    paymentSubmitInProgress = false;
                     pendingPaymentConfirmBtn = null;
                     requirePaymentProofForCurrentDialog = false;
                     activePendingDebtRequest = null;
@@ -2271,10 +2299,20 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
     private void updatePaymentConfirmButtonState() {
         if (pendingPaymentConfirmBtn == null) return;
-        boolean enabled = !requirePaymentProofForCurrentDialog
-                || (pendingTicketUri != null && !pendingTicketUri.trim().isEmpty());
+        boolean enabled = !paymentSubmitInProgress
+                && (!requirePaymentProofForCurrentDialog
+                || (pendingTicketUri != null && !pendingTicketUri.trim().isEmpty()));
         pendingPaymentConfirmBtn.setEnabled(enabled);
         pendingPaymentConfirmBtn.setAlpha(enabled ? 1f : 0.45f);
+    }
+
+    private void updateExpenseConfirmButtonState() {
+        if (pendingExpenseConfirmBtn == null) return;
+        boolean enabled = !expenseSubmitInProgress
+                && (!requireExpenseTicketForCurrentDialog
+                || (pendingTicketUri != null && !pendingTicketUri.trim().isEmpty()));
+        pendingExpenseConfirmBtn.setEnabled(enabled);
+        pendingExpenseConfirmBtn.setAlpha(enabled ? 1f : 0.45f);
     }
 
     private boolean isVariableTenantUser() {
@@ -2291,6 +2329,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 .addOnSuccessListener(result -> {
                     List<PendingDebtRequest> rows = new ArrayList<>();
                     for (DocumentSnapshot doc : result.getDocuments()) {
+                        if (!isExpenseDebt(doc)) continue;
                         String concept = pendingDebtFallbackConcept(doc);
                         Double amount = doc.getDouble("amount");
                         String creditorEmail = doc.getString("creditorEmail");
@@ -2356,11 +2395,17 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         Spinner targetTypeSpinner = form.findViewById(R.id.paymentTargetTypeSpinner);
         Spinner prioritySpinner = form.findViewById(R.id.paymentPrioritySpinner);
         AutoCompleteTextView categoryEt = form.findViewById(R.id.paymentCategoryInputEt);
-        TextView categoryFixedTv = form.findViewById(R.id.paymentCategoryFixedTv);
         View categoryFixedContainer = form.findViewById(R.id.paymentCategoryFixedContainer);
         TextView categoryFixedHintTv = form.findViewById(R.id.paymentCategoryFixedHintTv);
         TextView proofStatusTv = form.findViewById(R.id.paymentProofStatusTv);
         TextView memberLabelTv = form.findViewById(R.id.paymentMemberLabelTv);
+        TextView roomLabelTv = form.findViewById(R.id.paymentRoomLabelTv);
+        LinearLayout roomsContainer = form.findViewById(R.id.paymentRoomsContainer);
+        Button addRoomLineBtn = form.findViewById(R.id.addPaymentRoomLineBtn);
+        Button removeRoomLineBtn = form.findViewById(R.id.removePaymentRoomLineBtn);
+        LinearLayout membersContainer = form.findViewById(R.id.paymentMembersContainer);
+        Button addMemberLineBtn = form.findViewById(R.id.addPaymentMemberLineBtn);
+        Button removeMemberLineBtn = form.findViewById(R.id.removePaymentMemberLineBtn);
 
         amountEt.setText(formatPercent(debt.amount));
         conceptEt.setText(debt.concept);
@@ -2372,30 +2417,22 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             dueDateEt.setText(DUE_DATE_FORMAT.format(new Date()));
         }
 
-        if (categoryEt.getText() == null || categoryEt.getText().toString().trim().isEmpty()) {
-            categoryEt.setText("Otros", false);
-        }
-        String lockedCategory = categoryEt.getText() == null || categoryEt.getText().toString().trim().isEmpty()
-                ? "Otros"
-                : categoryEt.getText().toString().trim();
-        categoryEt.setVisibility(View.GONE);
-        if (categoryFixedContainer != null) {
-            categoryFixedContainer.setVisibility(View.VISIBLE);
-        }
-        if (categoryFixedTv != null) {
-            categoryFixedTv.setText(lockedCategory);
-        }
-        if (categoryFixedHintTv != null) {
-            categoryFixedHintTv.setText("Categoria bloqueada para esta confirmacion");
-            categoryFixedHintTv.setVisibility(View.VISIBLE);
-        }
+        categoryEt.setVisibility(View.VISIBLE);
+        if (categoryFixedContainer != null) categoryFixedContainer.setVisibility(View.GONE);
+        if (categoryFixedHintTv != null) categoryFixedHintTv.setVisibility(View.GONE);
+        if (targetTypeSpinner != null) targetTypeSpinner.setVisibility(View.GONE);
+        if (memberLabelTv != null) memberLabelTv.setVisibility(View.GONE);
+        if (roomLabelTv != null) roomLabelTv.setVisibility(View.GONE);
+        if (membersContainer != null) membersContainer.setVisibility(View.GONE);
+        if (roomsContainer != null) roomsContainer.setVisibility(View.GONE);
+        if (addMemberLineBtn != null) addMemberLineBtn.setVisibility(View.GONE);
+        if (removeMemberLineBtn != null) removeMemberLineBtn.setVisibility(View.GONE);
+        if (addRoomLineBtn != null) addRoomLineBtn.setVisibility(View.GONE);
+        if (removeRoomLineBtn != null) removeRoomLineBtn.setVisibility(View.GONE);
         lockTextField(amountEt);
         lockTextField(conceptEt);
         lockTextField(dueDateEt);
-        lockSpinner(targetTypeSpinner);
-        if (memberLabelTv != null) {
-            memberLabelTv.setText("A quién pagas:");
-        }
+        if (targetTypeSpinner != null) lockSpinner(targetTypeSpinner);
 
         int priorityIndex = indexOfPriorityType(debt.priority);
         if (priorityIndex >= 0) {
@@ -2403,33 +2440,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         }
         lockSpinner(prioritySpinner);
 
-        rebindPaymentMemberLines(form, members, rooms.size(), Collections.singletonList(debt.creditorEmail));
-        int memberTargetIndex = indexOfPaymentTargetType("miembro");
-        if (memberTargetIndex < 0) memberTargetIndex = 1;
-        targetTypeSpinner.setSelection(memberTargetIndex);
         setPendingDebtUiLocked(form, true);
-        updatePaymentTargetSection(form, memberTargetIndex, members.size(), rooms.size());
-
-        Button addMemberLineBtn = form.findViewById(R.id.addPaymentMemberLineBtn);
-        Button removeMemberLineBtn = form.findViewById(R.id.removePaymentMemberLineBtn);
-        addMemberLineBtn.setVisibility(View.GONE);
-        removeMemberLineBtn.setVisibility(View.GONE);
-        LinearLayout membersContainer = form.findViewById(R.id.paymentMembersContainer);
-        for (int i = 0; i < membersContainer.getChildCount(); i++) {
-            View child = membersContainer.getChildAt(i);
-            Spinner rowSpinner = child.findViewById(R.id.memberSpinner);
-            EditText rowAmountEt = child.findViewById(R.id.memberAmountEt);
-            if (rowSpinner != null) {
-                lockSpinner(rowSpinner);
-            }
-            if (rowAmountEt != null) {
-                rowAmountEt.setText(formatPercent(debt.amount));
-                lockTextField(rowAmountEt);
-            }
-            child.setEnabled(false);
-            child.setClickable(false);
-            child.setAlpha(0.8f);
-        }
 
         if (proofStatusTv != null) {
             proofStatusTv.setText(
@@ -2535,10 +2546,27 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         if (!normalizedSelected.isEmpty()) {
             input.setText(capitalizeTypeLabel(normalizedSelected), false);
         }
+        input.setAdapter(buildLightDropdownAdapter(new String[0]));
         input.setThreshold(1);
         input.setOnClickListener(v -> input.showDropDown());
         input.setOnFocusChangeListener((v, hasFocus) -> {
             if (hasFocus) input.post(input::showDropDown);
+        });
+        input.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                if (input.hasFocus()) {
+                    input.post(input::showDropDown);
+                }
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+            }
         });
 
         loadGroupCategorySuggestions(false, categories -> {
@@ -2549,6 +2577,9 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 labels.add(capitalizeTypeLabel(category));
             }
             input.setAdapter(buildLightDropdownAdapter(labels.toArray(new String[0])));
+            if (input.isFocused() || !TextUtils.isEmpty(input.getText())) {
+                input.post(input::showDropDown);
+            }
         });
     }
 
@@ -2695,7 +2726,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         isRebindingPaymentSelectors = true;
         List<String> memberLabels = new ArrayList<>();
         for (String member : members) {
-            memberLabels.add(memberSelectionLabel(member));
+            memberLabels.add(memberSelectionLabelWithRoom(member));
         }
 
         for (int i = 0; i < selectedKeys.size(); i++) {
@@ -2888,16 +2919,18 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             }
             if (roomAmount <= 0.0) continue;
 
-            Map<String, Double> residentPercents = resolveRoomResidentPercentagesForAllocation(room);
-            if (residentPercents == null) {
-                return new ArrayList<>();
-            }
-            if (residentPercents.isEmpty()) continue;
+            Map<String, Double> residentAmounts = RoomRentShareCalculator.calculateResidentAmounts(
+                    roomAmount,
+                    room.memberEmails,
+                    room.rentSplitMode,
+                    room.rentSplitPercentages
+            );
+            if (residentAmounts.isEmpty()) continue;
 
-            for (Map.Entry<String, Double> entry : residentPercents.entrySet()) {
+            for (Map.Entry<String, Double> entry : residentAmounts.entrySet()) {
                 String email = safeLowerText(entry.getKey());
                 if (email.isEmpty() || email.equals(safeLowerText(fromEmail))) continue;
-                double residentShare = (roomAmount * Math.max(0.0, entry.getValue())) / 100.0;
+                double residentShare = entry.getValue() == null ? 0.0 : entry.getValue();
                 if (residentShare <= 0.0) continue;
                 weightedByEmail.put(email, weightedByEmail.getOrDefault(email, 0.0) + residentShare);
                 byEmail.putIfAbsent(email, new PaymentService.PaymentTarget(
@@ -2944,10 +2977,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         if (currentGroupId == null) return false;
         String amountStr = ((EditText) form.findViewById(R.id.paymentAmountEt)).getText().toString().trim();
         String concept = ((EditText) form.findViewById(R.id.paymentConceptEt)).getText().toString().trim();
-        String category = "";
-        if (!BILLING_FIXED.equals(currentBillingModel)) {
-            category = normalizeCategoryKey(((EditText) form.findViewById(R.id.paymentCategoryInputEt)).getText().toString());
-        }
+        String category = normalizeCategoryKey(((EditText) form.findViewById(R.id.paymentCategoryInputEt)).getText().toString());
         String priority = ((Spinner) form.findViewById(R.id.paymentPrioritySpinner)).getSelectedItem().toString();
         String dueDateText = ((EditText) form.findViewById(R.id.paymentDueDateEt)).getText().toString().trim();
         String targetType = ((Spinner) form.findViewById(R.id.paymentTargetTypeSpinner)).getSelectedItem().toString();
@@ -2986,11 +3016,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 selectedMemberEmails.add(selectedPendingDebt.creditorEmail.trim().toLowerCase(Locale.ROOT));
             }
         }
-        String normalizedCategory = paymentService.normalizeCategory(
-                BILLING_FIXED.equals(currentBillingModel),
-                category,
-                CATEGORY_RENT
-        );
+        String normalizedCategory = paymentService.normalizeCategory(false, category, CATEGORY_RENT);
         List<PaymentService.PaymentTarget> targets;
         String normalizedTargetType = safeLowerText(targetType);
         if (selectedPendingDebt != null) {
@@ -3086,6 +3112,10 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             }
         }
         String proofUri = pendingTicketUri == null ? "" : pendingTicketUri.trim();
+        if (paymentSubmitInProgress) {
+            return false;
+        }
+        paymentSubmitInProgress = true;
         WriteBatch batch = db.batch();
         List<Map<String, Object>> createdPayments = new ArrayList<>();
         for (PaymentService.PaymentWrite write : writes) {
@@ -3129,6 +3159,10 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             }
             loadExpenses();
             loadFinancialViews();
+        }).addOnFailureListener(e -> {
+            paymentSubmitInProgress = false;
+            updatePaymentConfirmButtonState();
+            NoticeUtils.show(requireContext(), "No se pudo registrar el pago");
         });
         return true;
     }
@@ -3665,6 +3699,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                     });
                     for (DocumentSnapshot doc : docs) {
                         if (!seenReminderIds.add(doc.getId())) continue;
+                        if (hasRoomContext() && !matchesReminderWithCurrentRoom(doc)) continue;
                         String title = doc.getString("title");
                         String subtitle = buildReminderSubtitle(doc);
                         String interval = doc.getString("interval");
@@ -3686,6 +3721,27 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                     if (loadVersion != remindersLoadVersion) return;
                     remindersAdapter.notifyDataSetChanged();
                 });
+    }
+
+    private boolean matchesReminderWithCurrentRoom(@NonNull DocumentSnapshot doc) {
+        if (!hasRoomContext()) return true;
+        String targetType = safeLowerText(doc.getString("targetType"));
+        if ("x_habitacion".equals(targetType)) {
+            String reminderRoomId = doc.getString("roomId");
+            if (currentRoomId != null && currentRoomId.equals(reminderRoomId)) {
+                return true;
+            }
+            List<String> reminderRoomIds = castStrings(doc.get("roomIds"));
+            return reminderRoomIds.contains(currentRoomId);
+        }
+        if ("x_miembro".equals(targetType)) {
+            List<String> targetEmails = castEmails(doc.get("targetEmails"));
+            for (String email : targetEmails) {
+                if (currentRoomMembers.contains(email)) return true;
+            }
+            return false;
+        }
+        return true;
     }
 
     private String buildReminderSubtitle(DocumentSnapshot doc) {
@@ -3711,8 +3767,119 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         }
         return prefix + " · Desde: " + startDateText;
     }
+
+    @NonNull
+    private String buildWorkspaceRowPrimaryText(@NonNull WorkspaceRow row) {
+        if (row.snapshot == null) {
+            return row.subtitle == null ? "" : row.subtitle;
+        }
+        if ("payment".equals(row.type)) {
+            return "Gasto solicitado por: " + memberReferenceCompact(row.snapshot.getString("fromEmail"));
+        }
+        if ("expense".equals(row.type)) {
+            String payerText = "Solicitado por: " + memberReferenceCompact(row.snapshot.getString("payerEmail"));
+            if (isCurrentUserExpenseDebtor(row.snapshot)) {
+                return payerText + " (Este gasto es para ti)";
+            }
+            return payerText;
+        }
+        if ("reminder".equals(row.type)) {
+            return "Para: " + buildReminderTargetLabelForDetail(row.snapshot);
+        }
+        if (ROW_TYPE_ROOM_CHARGE.equals(row.type)) {
+            return "Solicitado por: " + memberReferenceCompact(row.snapshot.getString("ownerEmail"));
+        }
+        if (ROW_TYPE_PENDING_DEBT.equals(row.type)) {
+            return "Te lo solicita: " + memberReferenceCompact(row.snapshot.getString("creditorEmail"));
+        }
+        return row.subtitle == null ? "" : row.subtitle;
+    }
+
+    @NonNull
+    private String buildWorkspaceRowDetailText(@NonNull WorkspaceRow row) {
+        if (row.snapshot == null) return "";
+        if ("payment".equals(row.type)) {
+            String toEmail = row.snapshot.getString("toEmail");
+            String roomName = safeText(row.snapshot.getString("roomName"));
+            String dueDate = safeText(DateInputUtils.normalizeToDisplay(row.snapshot.getString("dueDateText")));
+            String status = statusLabel(normalizeFlowStatus(row.snapshot.getString("status")));
+            StringBuilder detail = new StringBuilder();
+            detail.append("Para: ").append(memberReferenceCompact(toEmail));
+            if (!roomName.isEmpty()) detail.append("\nHabitación: ").append(roomName);
+            if (!dueDate.isEmpty()) detail.append("\nDía límite: ").append(dueDate);
+            detail.append("\nEstado: ").append(status);
+            return detail.toString();
+        }
+        if ("expense".equals(row.type)) {
+            String recipients = buildExpenseRecipientsSummary(row.snapshot);
+            String roomName = safeText(row.snapshot.getString("roomName"));
+            String category = safeText(row.snapshot.getString("category"));
+            String createdDate = resolveCreatedDateText(row.snapshot);
+            String dueDate = safeText(DateInputUtils.normalizeToDisplay(row.snapshot.getString("dueDateText")));
+            StringBuilder detail = new StringBuilder();
+            detail.append("Para: ").append(recipients);
+            if (!createdDate.isEmpty()) detail.append("\nFecha del gasto: ").append(createdDate);
+            if (!roomName.isEmpty()) detail.append("\nHabitación: ").append(roomName);
+            if (!category.isEmpty()) detail.append("\nCategoría: ").append(category);
+            if (!dueDate.isEmpty()) detail.append("\nDía límite: ").append(dueDate);
+            return detail.toString();
+        }
+        if ("reminder".equals(row.type)) {
+            String interval = buildReminderIntervalLabel(row.snapshot);
+            String fromDate = safeText(row.snapshot.getString("startDateText"));
+            String toDate = safeText(row.snapshot.getString("endDateText"));
+            StringBuilder detail = new StringBuilder();
+            detail.append("Frecuencia: ").append(interval);
+            if (!fromDate.isEmpty()) detail.append("\nDesde: ").append(fromDate);
+            if (!toDate.isEmpty()) detail.append("\nHasta: ").append(toDate);
+            return detail.toString();
+        }
+        if (ROW_TYPE_ROOM_CHARGE.equals(row.type)) {
+            String tenantEmail = row.snapshot.getString("tenantEmail");
+            String monthKey = formatMonthKeyForDisplay(row.snapshot.getString("monthKey"));
+            String dueDate = safeText(DateInputUtils.normalizeToDisplay(row.snapshot.getString("dueDateText")));
+            StringBuilder detail = new StringBuilder();
+            detail.append("Para: ").append(memberReferenceCompact(tenantEmail));
+            if (!monthKey.isEmpty()) detail.append("\nMes: ").append(monthKey);
+            if (!dueDate.isEmpty()) detail.append("\nDía límite: ").append(dueDate);
+            return detail.toString();
+        }
+        if (ROW_TYPE_PENDING_DEBT.equals(row.type)) {
+            String dueDate = safeText(DateInputUtils.normalizeToDisplay(row.snapshot.getString("dueDateText")));
+            return dueDate.isEmpty() ? "" : "Día límite: " + dueDate;
+        }
+        return "";
+    }
+
+    @NonNull
+    private String buildExpenseRecipientsSummary(@NonNull DocumentSnapshot doc) {
+        String customSplit = safeText(doc.getString("customSplit"));
+        if (customSplit.isEmpty()) return "Sin destinatarios";
+        String payerEmail = safeLowerText(doc.getString("payerEmail"));
+        List<String> labels = new ArrayList<>();
+        String[] parts = customSplit.split(",");
+        for (String partEntry : parts) {
+            String[] kv = partEntry.trim().split(":");
+            if (kv.length != 2) continue;
+            String email = safeLowerText(kv[0]);
+            if (email.isEmpty()) continue;
+            if (!payerEmail.isEmpty() && payerEmail.equals(email)) continue;
+            String label = memberReferenceCompact(email);
+            if (!labels.contains(label)) labels.add(label);
+        }
+        return labels.isEmpty() ? "Sin destinatarios" : String.join(", ", labels);
+    }
+
     private void loadExpenses() {
+        loadExpenses(false);
+    }
+
+    private void loadExpenses(boolean skipRoomChargeSync) {
         if (currentGroupId == null) return;
+        if (!skipRoomChargeSync) {
+            syncRoomCharges(() -> loadExpenses(true));
+            return;
+        }
         final int loadVersion = ++expensesLoadVersion;
         DecimalFormat df = new DecimalFormat("0.00");
         expenseRows.clear();
@@ -3739,7 +3906,9 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 String dueDateText = DateInputUtils.normalizeToDisplay(doc.getString("dueDateText"));
                 String status = normalizeFlowStatus(doc.getString("status"));
                 String statusLabel = statusLabel(status);
-                String subtitle = (payerEmail == null ? "Gasto compartido" : "Pagado por " + payerLabel)
+                String responsibilityLabel = isCurrentUserExpenseDebtor(doc) ? " - Tienes que pagarlo tú" : "";
+                String subtitle = (payerEmail == null ? "Gasto compartido" : "Solicitado por " + payerLabel)
+                        + responsibilityLabel
                         + (roomName == null || roomName.trim().isEmpty() ? "" : " - hab. " + roomName)
                         + (category == null || category.isEmpty() ? "" : " - " + category)
                         + " - " + statusLabel
@@ -3755,14 +3924,47 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 ));
             }
 
-            db.collection("payments").whereEqualTo("groupId", currentGroupId).get().addOnSuccessListener(payments -> {
+            db.collection("rent_collections").whereEqualTo("groupId", currentGroupId).get().addOnSuccessListener(rentCollections -> {
                 if (loadVersion != expensesLoadVersion) return;
+                for (DocumentSnapshot doc : rentCollections.getDocuments()) {
+                    if (!shouldShowRoomChargeRow(doc, ownerView, myEmail)) continue;
+                    String roomName = doc.getString("roomName") == null ? "" : doc.getString("roomName").trim();
+                    String tenantEmail = doc.getString("tenantEmail") == null ? "" : doc.getString("tenantEmail").trim();
+                    String monthKey = doc.getString("monthKey") == null ? "" : doc.getString("monthKey").trim();
+                    String monthLabel = formatMonthKeyForDisplay(monthKey);
+                    String ownerEmail = doc.getString("ownerEmail") == null ? "" : doc.getString("ownerEmail").trim();
+                    double amountBase = safeDouble(doc.getDouble("amountBase"));
+                    double amountPaid = safeDouble(doc.getDouble("amountPaid"));
+                    double surcharge = safeDouble(doc.getDouble("surcharge"));
+                    double remaining = Math.max(0.0, round2((amountBase + surcharge) - amountPaid));
+                    String rentStatus = normalizeRentChargeStatus(doc.getString("status"), amountBase, amountPaid, surcharge, doc.getDate("dueAt"));
+                    String dueDateText = DateInputUtils.normalizeToDisplay(doc.getString("dueDateText"));
+                    String subtitle = "Solicitado por " + (ownerEmail.isEmpty() ? "propietario" : memberReferenceInline(ownerEmail))
+                            + " - para " + memberReferenceInline(tenantEmail)
+                            + (roomName.isEmpty() ? "" : " - hab. " + roomName)
+                            + (monthLabel.isEmpty() ? "" : " - " + monthLabel)
+                            + " - " + roomChargeStatusLabel(rentStatus)
+                            + (dueDateText == null || dueDateText.isEmpty() ? "" : " - vence " + dueDateText);
+                    if (!passesRentChargeFilters(doc, tenantEmail, roomName, monthKey)) continue;
+                    expenseRows.add(new WorkspaceRow(
+                            doc.getId(),
+                            ROW_TYPE_ROOM_CHARGE,
+                            "Gasto habitación",
+                            subtitle,
+                            df.format(remaining) + " EUR",
+                            doc
+                    ));
+                }
+
+                db.collection("payments").whereEqualTo("groupId", currentGroupId).get().addOnSuccessListener(payments -> {
+                    if (loadVersion != expensesLoadVersion) return;
                 Set<String> hiddenExpenseIds = new HashSet<>();
                 for (DocumentSnapshot doc : payments.getDocuments()) {
                     String fromEmail = doc.getString("fromEmail");
                     String toEmail = doc.getString("toEmail");
                     String toLabel = memberReferenceInline(toEmail);
                     boolean expenseBackedPayment = isExpenseBackedPayment(doc);
+                    if (!expenseBackedPayment) continue;
                     // Para inquilino, mostrar solo pagos que el mismo ha enviado.
                     // El resto de "deudas por pagar" se muestran en ROW_TYPE_PENDING_DEBT.
                     // Si el movimiento es una confirmacion de gasto recibida, el acreedor tambien debe verla.
@@ -3793,7 +3995,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                             && dueAt.getTime() < System.currentTimeMillis();
                     String statusLabel = statusLabel(normalizedStatus);
                     if (overdue && !confirmed) statusLabel = "Pendiente (vencido)";
-                    if (expenseBackedPayment && myEmail.equalsIgnoreCase(PaymentAccessPolicy.normalizeEmail(fromEmail))) {
+                    if (expenseBackedPayment) {
                         String sourceExpenseId = doc.getString("sourceId");
                         if (sourceExpenseId != null && !sourceExpenseId.trim().isEmpty()) {
                             hiddenExpenseIds.add(sourceExpenseId.trim());
@@ -3858,9 +4060,11 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                         ));
                     }
                     expensesAdapter.notifyDataSetChanged();
+                    renderQuickBalances();
                     });
                 }).addOnFailureListener(e -> expensesAdapter.notifyDataSetChanged());
-            });
+                });
+            }).addOnFailureListener(e -> expensesAdapter.notifyDataSetChanged());
         });
     }
 
@@ -3876,6 +4080,47 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             }
         }
         return false;
+    }
+
+    private boolean shouldShowRoomChargeRow(@NonNull DocumentSnapshot doc, boolean ownerView, @NonNull String myEmail) {
+        String tenantEmail = safeLowerText(doc.getString("tenantEmail"));
+        if (tenantEmail.isEmpty()) return false;
+        if (!ownerView && !tenantEmail.equals(myEmail)) return false;
+        if (hasRoomContext()) {
+            String roomId = doc.getString("roomId");
+            if (currentRoomId != null && currentRoomId.equals(roomId)) return true;
+            String roomName = doc.getString("roomName") == null ? "" : doc.getString("roomName").trim();
+            return roomName.equalsIgnoreCase(currentRoomName == null ? "" : currentRoomName);
+        }
+        return true;
+    }
+
+    @NonNull
+    private String normalizeRentChargeStatus(
+            @Nullable String rawStatus,
+            double amountBase,
+            double amountPaid,
+            double surcharge,
+            @Nullable Date dueAt
+    ) {
+        String normalized = safeLowerText(rawStatus);
+        double totalDue = round2(amountBase + surcharge);
+        if (amountPaid >= totalDue && totalDue > 0.0) return "pagado";
+        if (amountPaid > 0.0) return "parcial";
+        if ("pagado".equals(normalized) || "confirmed".equals(normalized)) return "pagado";
+        if ("parcial".equals(normalized)) return "parcial";
+        if (dueAt != null && dueAt.getTime() < System.currentTimeMillis()) return "atrasado";
+        if ("atrasado".equals(normalized)) return "atrasado";
+        return "pendiente";
+    }
+
+    @NonNull
+    private String roomChargeStatusLabel(@Nullable String rawStatus) {
+        String normalized = safeLowerText(rawStatus);
+        if ("pagado".equals(normalized)) return "Pagado";
+        if ("parcial".equals(normalized)) return "Parcial";
+        if ("atrasado".equals(normalized)) return "Vencido";
+        return "Solicitado";
     }
 
     private String normalizeBillingModel(@Nullable String raw) {
@@ -3912,13 +4157,15 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             if (BILLING_FIXED.equals(billingModel)) {
                 loadFixedRentFinancials(groupDoc, members, net);
             } else {
-                loadVariableRentFinancials(members, net);
+                loadVariableRentFinancials(groupDoc, members, net);
             }
         });
     }
 
-    private void loadVariableRentFinancials(List<String> members, Map<String, Double> net) {
+    private void loadVariableRentFinancials(DocumentSnapshot groupDoc, List<String> members, Map<String, Double> net) {
+        String ownerEmail = resolveOwnerEmail(groupDoc, castStrings(groupDoc.get("members")), members);
         loadCurrentGroupRooms(rooms -> {
+            applyRoomChargeImpacts(ownerEmail, rooms, net);
             Map<String, Double> memberWeights = computeMemberWeightsFromRooms(members, rooms);
             computeExpenseImpacts(members, net, memberWeights);
         });
@@ -3948,9 +4195,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
                 if (payerEmail != null) {
                     String normalized = payerEmail.toLowerCase(Locale.ROOT);
-                    if (net.containsKey(normalized)) {
-                        net.put(normalized, net.getOrDefault(normalized, 0.0) + amount);
-                    }
+                    net.put(normalized, net.getOrDefault(normalized, 0.0) + amount);
                 }
             }
             applyPaymentsAndRenderFinancials(net);
@@ -3960,26 +4205,33 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     private void loadFixedRentFinancials(DocumentSnapshot groupDoc, List<String> members, Map<String, Double> net) {
         String ownerEmail = resolveOwnerEmail(groupDoc, castStrings(groupDoc.get("members")), members);
         loadCurrentGroupRooms(rooms -> {
-            for (RoomOption room : rooms) {
-                if (hasRoomContext() && !room.id.equals(currentRoomId)) continue;
-                if (room.memberEmails.isEmpty()) continue;
-
-                double roomCost = room.monthlyCost;
-                Map<String, Double> roomPercentages = resolveRoomResidentPercentages(room);
-                for (Map.Entry<String, Double> shareEntry : roomPercentages.entrySet()) {
-                    String resident = shareEntry.getKey();
-                    double percent = shareEntry.getValue();
-                    double residentShare = roomCost * (percent / 100.0);
-                    if (net.containsKey(resident)) {
-                        net.put(resident, net.getOrDefault(resident, 0.0) - residentShare);
-                    }
-                }
-                if (ownerEmail != null && !ownerEmail.trim().isEmpty() && net.containsKey(ownerEmail)) {
-                    net.put(ownerEmail, net.getOrDefault(ownerEmail, 0.0) + roomCost);
-                }
-            }
+            applyRoomChargeImpacts(ownerEmail, rooms, net);
             computeExpenseImpacts(members, net, null);
         });
+    }
+
+    private void applyRoomChargeImpacts(@Nullable String ownerEmail, @NonNull List<RoomOption> rooms, @NonNull Map<String, Double> net) {
+        for (RoomOption room : rooms) {
+            if (hasRoomContext() && !room.id.equals(currentRoomId)) continue;
+            if (room.memberEmails.isEmpty()) continue;
+
+            double roomCost = room.monthlyCost;
+            if (roomCost <= 0.0) continue;
+            Map<String, Double> residentAmounts = RoomRentShareCalculator.calculateResidentAmounts(
+                    roomCost,
+                    room.memberEmails,
+                    room.rentSplitMode,
+                    room.rentSplitPercentages
+            );
+            for (Map.Entry<String, Double> shareEntry : residentAmounts.entrySet()) {
+                String resident = shareEntry.getKey();
+                double residentShare = shareEntry.getValue() == null ? 0.0 : shareEntry.getValue();
+                net.put(resident, net.getOrDefault(resident, 0.0) - residentShare);
+            }
+            if (ownerEmail != null && !ownerEmail.trim().isEmpty()) {
+                net.put(ownerEmail, net.getOrDefault(ownerEmail, 0.0) + roomCost);
+            }
+        }
     }
 
     private void applyCustomSplit(Map<String, Double> net, String custom, double amount) {
@@ -3990,9 +4242,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             String email = kv[0].trim().toLowerCase(Locale.ROOT);
             try {
                 double percent = Double.parseDouble(kv[1].trim());
-                if (net.containsKey(email)) {
-                    net.put(email, net.getOrDefault(email, 0.0) - amount * (percent / 100.0));
-                }
+                net.put(email, net.getOrDefault(email, 0.0) - amount * (percent / 100.0));
             } catch (NumberFormatException ignored) {
             }
         }
@@ -4048,8 +4298,8 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 double amount = payment.getDouble("amount") == null ? 0.0 : payment.getDouble("amount");
                 String from = payment.getString("fromEmail");
                 String to = payment.getString("toEmail");
-                if (from != null && net.containsKey(from)) net.put(from, net.getOrDefault(from, 0.0) + amount);
-                if (to != null && net.containsKey(to)) net.put(to, net.getOrDefault(to, 0.0) - amount);
+                if (from != null) net.put(from, net.getOrDefault(from, 0.0) + amount);
+                if (to != null) net.put(to, net.getOrDefault(to, 0.0) - amount);
             }
             renderSaldos(net);
         });
@@ -4121,57 +4371,9 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     private void renderQuickBalances() {
         if (!isAdded() || quickBalancesContainer == null || quickBalancesCard == null) return;
         quickBalancesContainer.removeAllViews();
-
-        String myEmailRaw = FirebaseAuth.getInstance().getCurrentUser().getEmail();
-        String myEmail = myEmailRaw == null ? "" : myEmailRaw.toLowerCase(Locale.ROOT);
-        double teDebenTotal = 0.0;
-        double debesTotal = 0.0;
-
-        for (BalanceMovement movement : lastBalanceMovements) {
-            if (myEmail.equals(movement.toEmail)) {
-                teDebenTotal += movement.amount;
-            } else if (myEmail.equals(movement.fromEmail)) {
-                debesTotal += movement.amount;
-            }
-        }
-
-        addQuickSummaryCard("Te deben", teDebenTotal);
-        addQuickSummaryCard("Debes", debesTotal);
         updateQuickBalancesVisibility();
     }
 
-    private void addQuickSummaryCard(String title, double amount) {
-        LinearLayout card = new LinearLayout(requireContext());
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setBackgroundResource(R.drawable.bg_tab_default);
-        card.setPadding(dp(14), dp(10), dp(14), dp(10));
-
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                0,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        params.weight = 1f;
-        params.leftMargin = dp(6);
-        params.rightMargin = dp(6);
-        card.setLayoutParams(params);
-
-        TextView titleTv = new TextView(requireContext());
-        titleTv.setText(title);
-        titleTv.setTextColor(requireContext().getColor(R.color.text_muted));
-        titleTv.setTextSize(12f);
-        titleTv.setTypeface(titleTv.getTypeface(), android.graphics.Typeface.BOLD);
-
-        TextView amountTv = new TextView(requireContext());
-        amountTv.setText(formatCurrency(amount));
-        amountTv.setTextColor(requireContext().getColor(R.color.text_light));
-        amountTv.setTextSize(18f);
-        amountTv.setTypeface(amountTv.getTypeface(), android.graphics.Typeface.BOLD);
-        amountTv.setPadding(0, dp(6), 0, 0);
-
-        card.addView(titleTv);
-        card.addView(amountTv);
-        quickBalancesContainer.addView(card);
-    }
 
     private void updateQuickBalancesVisibility() {
         if (quickBalancesCard == null || quickBalancesContainer == null) return;
@@ -4356,45 +4558,16 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         return Math.round(value * 100.0) / 100.0;
     }
 
+    private double safeDouble(@Nullable Double value) {
+        return value == null ? 0.0 : value;
+    }
+
     private Map<String, Double> resolveRoomResidentPercentages(@NonNull RoomOption room) {
-        Map<String, Double> out = new LinkedHashMap<>();
-        List<String> residents = deduplicateStringKeys(room.memberEmails);
-        if (residents.isEmpty()) return out;
-        if (residents.size() == 1) {
-            out.put(residents.get(0), 100.0);
-            return out;
-        }
-
-        String splitMode = normalizeRoomSplitMode(room.rentSplitMode);
-        if (!ROOM_SPLIT_PERCENTAGE.equals(splitMode)) {
-            double equal = 100.0 / residents.size();
-            for (String resident : residents) {
-                out.put(resident, equal);
-            }
-            return out;
-        }
-
-        double providedSum = 0.0;
-        for (String resident : residents) {
-            double value = room.rentSplitPercentages.getOrDefault(resident, 0.0);
-            if (value > 0.0) {
-                providedSum += value;
-            }
-        }
-        if (providedSum <= 0.0) {
-            double equal = 100.0 / residents.size();
-            for (String resident : residents) {
-                out.put(resident, equal);
-            }
-            return out;
-        }
-
-        for (String resident : residents) {
-            double value = room.rentSplitPercentages.getOrDefault(resident, 0.0);
-            if (value < 0.0) value = 0.0;
-            out.put(resident, (value * 100.0) / providedSum);
-        }
-        return out;
+        return RoomRentShareCalculator.resolveResidentPercentages(
+                room.memberEmails,
+                room.rentSplitMode,
+                room.rentSplitPercentages
+        );
     }
 
     @Nullable
@@ -4477,11 +4650,39 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     }
 
     @NonNull
+    private String memberReferenceCompact(@Nullable String email) {
+        if (email == null || email.trim().isEmpty()) {
+            return "Sin datos";
+        }
+        String normalized = MemberLabelFormatter.normalizeEmail(email);
+        String name = displayNameForEmail(normalized);
+        if (name == null || name.trim().isEmpty()) {
+            return normalized;
+        }
+        return name.trim();
+    }
+
+    @NonNull
     private String memberSelectionLabel(@Nullable String value) {
         if (value == null) return "";
         String trimmed = value.trim();
         if (trimmed.isEmpty()) return "";
         return trimmed.contains("@") ? memberReferenceInline(trimmed) : trimmed;
+    }
+
+    @NonNull
+    private String memberSelectionLabelWithRoom(@Nullable String value) {
+        if (value == null) return "";
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) return "";
+        if (!trimmed.contains("@")) return trimmed;
+        String normalized = safeLowerText(trimmed);
+        String base = memberReferenceInline(normalized);
+        String room = memberRoomLabelsByEmail.get(normalized);
+        if (room == null || room.trim().isEmpty()) {
+            return base + " - Sin habitación";
+        }
+        return base + " - " + room.trim();
     }
 
     private String formatMembersDetailed(List<String> memberEmails) {
@@ -4923,14 +5124,31 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             return;
         }
 
+        if (ROW_TYPE_ROOM_CHARGE.equals(row.type)) {
+            View content = DialogUtils.createInfoRowsView(requireContext(), buildRoomChargeInfoRows(row));
+            DialogUtils.Shell shell = DialogUtils.buildShell(
+                    requireContext(),
+                    row.title,
+                    "Detalle del gasto de habitación",
+                    content,
+                    null,
+                    "Cerrar"
+            );
+            AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+            shell.confirmBtn.setOnClickListener(v -> dialog.dismiss());
+            return;
+        }
+
         if (row.snapshot != null) {
-            if (isExpenseAssignedToCurrentUser(row.snapshot)) {
+            String myEmail = currentUserEmail();
+            String payerEmail = PaymentAccessPolicy.normalizeEmail(row.snapshot.getString("payerEmail"));
+            if (!myEmail.isEmpty() && !myEmail.equals(payerEmail) && (isExpenseAssignedToCurrentUser(row.snapshot) || !canManageExpense(row.snapshot.getString("payerId")))) {
                 openExpensePendingDebtFlow(row);
                 return;
             }
             String payerId = row.snapshot.getString("payerId");
             if (!canManageExpense(payerId)) {
-                View content = DialogUtils.createInfoRowsView(requireContext(), buildExpenseInfoRows(row));
+                View content = buildExpenseInfoContent(row);
                 DialogUtils.Shell shell = DialogUtils.buildShell(
                         requireContext(),
                         row.title,
@@ -4944,7 +5162,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 return;
             }
             if (!canEditOrDeleteExpense(row.snapshot)) {
-                View content = DialogUtils.createInfoRowsView(requireContext(), buildExpenseInfoRows(row));
+                View content = buildExpenseInfoContent(row);
                 DialogUtils.Shell shell = DialogUtils.buildShell(
                         requireContext(),
                         row.title,
@@ -4972,7 +5190,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             return;
         }
 
-        View content = DialogUtils.createInfoRowsView(requireContext(), buildExpenseInfoRows(row));
+        View content = buildExpenseInfoContent(row);
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 row.title,
@@ -5043,7 +5261,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         String concept = row.snapshot.getString("concept");
         String fromEmail = row.snapshot.getString("fromEmail");
         String toEmail = row.snapshot.getString("toEmail");
-        String roomName = row.snapshot.getString("roomName");
+        String roomName = normalizeExpenseRoomLabel(row.snapshot.getString("roomName"), row.snapshot.getString("customSplit"));
         String dueDateText = DateInputUtils.normalizeToDisplay(row.snapshot.getString("dueDateText"));
         Date dueAt = row.snapshot.getDate("dueAt");
         if ((dueDateText == null || dueDateText.trim().isEmpty()) && dueAt != null) {
@@ -5056,7 +5274,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 : concept.trim());
         rows.put("De", fromEmail == null || fromEmail.trim().isEmpty() ? "Sin datos" : memberReferenceInline(fromEmail));
         rows.put("Para", toEmail == null || toEmail.trim().isEmpty() ? "Sin datos" : memberReferenceInline(toEmail));
-        rows.put("Habitación", roomName == null || roomName.trim().isEmpty() ? "Varias habitaciones" : roomName.trim());
+        rows.put("Habitación", roomName == null || roomName.trim().isEmpty() ? "Sin habitación" : roomName.trim());
         rows.put("Estado", statusLabel(status));
         rows.put("Vence", dueDateText == null || dueDateText.trim().isEmpty() ? "Sin fecha" : dueDateText.trim());
         rows.put("Importe", row.amount == null || row.amount.trim().isEmpty() ? "0.00 EUR" : row.amount.trim());
@@ -5076,17 +5294,136 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         String roomName = row.snapshot.getString("roomName");
         String category = row.snapshot.getString("category");
         String dueDateText = DateInputUtils.normalizeToDisplay(row.snapshot.getString("dueDateText"));
+        String createdDateText = resolveCreatedDateText(row.snapshot);
         String status = effectiveExpenseStatus(row.id, row.snapshot);
         String customSplit = row.snapshot.getString("customSplit");
 
-        rows.put("Pagado por", payerEmail == null || payerEmail.trim().isEmpty() ? "Sin datos" : memberReferenceInline(payerEmail));
+        rows.put("Solicitado por", payerEmail == null || payerEmail.trim().isEmpty() ? "Sin datos" : memberReferenceInline(payerEmail));
         rows.put("Para", buildExpenseTargetsLabel(customSplit, payerEmail));
-        rows.put("Habitación", roomName == null || roomName.trim().isEmpty() ? "Varias habitaciones" : roomName);
+        rows.put("Tu saldo", buildExpensePerspectiveLabel(row.snapshot));
+        rows.put("Habitación", roomName == null || roomName.trim().isEmpty() ? "Sin habitación" : roomName);
         rows.put("Categoría", category == null || category.trim().isEmpty() ? "Sin categoría" : capitalizeTypeLabel(category));
         rows.put("Estado", statusLabel(status));
+        rows.put("Fecha del gasto", createdDateText.isEmpty() ? "Sin fecha" : createdDateText);
         rows.put("Vence", dueDateText == null || dueDateText.trim().isEmpty() ? "Sin fecha" : dueDateText);
         rows.put("Importe", row.amount == null || row.amount.trim().isEmpty() ? "0.00 EUR" : row.amount);
         return rows;
+    }
+
+    @NonNull
+    private List<RoomOption> resolveExpenseRoomsFromAllocations(
+            @NonNull Map<String, Double> allocations,
+            @NonNull List<RoomOption> rooms
+    ) {
+        List<RoomOption> selectedRooms = new ArrayList<>();
+        for (RoomOption room : rooms) {
+            for (String memberEmail : room.memberEmails) {
+                String normalizedEmail = safeLowerText(memberEmail);
+                Double allocated = allocations.get(normalizedEmail);
+                if (allocated == null || allocated <= 0.0) continue;
+                if (!selectedRooms.contains(room)) {
+                    selectedRooms.add(room);
+                }
+                break;
+            }
+        }
+        return selectedRooms;
+    }
+
+    @NonNull
+    private String normalizeExpenseRoomLabel(@Nullable String roomName, @Nullable String customSplit) {
+        String raw = roomName == null ? "" : roomName.trim();
+        if (!ROOM_ALL_LABEL.equalsIgnoreCase(raw)) {
+            return raw;
+        }
+        Map<String, Double> split = parseCustomSplitPercentages(customSplit);
+        List<String> targetRooms = new ArrayList<>();
+        for (String email : split.keySet()) {
+            String roomLabel = memberRoomLabelsByEmail.get(safeLowerText(email));
+            if (roomLabel == null || roomLabel.trim().isEmpty()) continue;
+            if (!targetRooms.contains(roomLabel.trim())) {
+                targetRooms.add(roomLabel.trim());
+            }
+        }
+        if (targetRooms.size() == 1) {
+            return targetRooms.get(0);
+        }
+        if (targetRooms.isEmpty()) {
+            return "";
+        }
+        return "Varias habitaciones";
+    }
+
+    private View buildExpenseInfoContent(@NonNull WorkspaceRow row) {
+        LinearLayout container = new LinearLayout(requireContext());
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.addView(DialogUtils.createInfoRowsView(requireContext(), buildExpenseInfoRows(row)));
+
+        String ticketUri = row.snapshot == null ? "" : row.snapshot.getString("ticketUri");
+        boolean hasTicket = ticketUri != null && !ticketUri.trim().isEmpty();
+        if (hasTicket) {
+            appendProofSection(container, "Ticket del gasto", ticketUri.trim());
+        }
+
+        ScrollView scrollView = new ScrollView(requireContext());
+        scrollView.setFillViewport(true);
+        scrollView.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
+        scrollView.addView(container);
+        if (hasTicket) {
+            scrollView.setLayoutParams(new ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(430)
+            ));
+        }
+        return scrollView;
+    }
+
+    private Map<String, String> buildRoomChargeInfoRows(@NonNull WorkspaceRow row) {
+        Map<String, String> rows = new LinkedHashMap<>();
+        rows.put("Nombre del piso", currentGroupName == null || currentGroupName.trim().isEmpty() ? "Piso actual" : currentGroupName);
+        if (row.snapshot == null) {
+            rows.put("Detalle", row.subtitle == null ? "Sin datos" : row.subtitle);
+            rows.put("Importe pendiente", row.amount == null ? "0.00 EUR" : row.amount);
+            return rows;
+        }
+        String roomName = row.snapshot.getString("roomName") == null ? "" : row.snapshot.getString("roomName").trim();
+        String tenantEmail = row.snapshot.getString("tenantEmail") == null ? "" : row.snapshot.getString("tenantEmail").trim();
+        String ownerEmail = row.snapshot.getString("ownerEmail") == null ? "" : row.snapshot.getString("ownerEmail").trim();
+        String monthKey = row.snapshot.getString("monthKey") == null ? "" : row.snapshot.getString("monthKey").trim();
+        String monthLabel = formatMonthKeyForDisplay(monthKey);
+        double amountBase = safeDouble(row.snapshot.getDouble("amountBase"));
+        double amountPaid = safeDouble(row.snapshot.getDouble("amountPaid"));
+        double surcharge = safeDouble(row.snapshot.getDouble("surcharge"));
+        double remaining = Math.max(0.0, round2((amountBase + surcharge) - amountPaid));
+        String status = normalizeRentChargeStatus(row.snapshot.getString("status"), amountBase, amountPaid, surcharge, row.snapshot.getDate("dueAt"));
+        String startDateText = DateInputUtils.normalizeToDisplay(row.snapshot.getString("startDateText"));
+        String dueDateText = DateInputUtils.normalizeToDisplay(row.snapshot.getString("dueDateText"));
+        rows.put("Concepto", "Gasto habitación");
+        rows.put("Habitación", roomName.isEmpty() ? "Sin definir" : roomName);
+        rows.put("Para", tenantEmail.isEmpty() ? "Sin datos" : memberReferenceInline(tenantEmail));
+        rows.put("Mes", monthLabel.isEmpty() ? "Actual" : monthLabel);
+        rows.put("Estado", roomChargeStatusLabel(status));
+        rows.put("Desde", startDateText == null || startDateText.trim().isEmpty() ? "Sin fecha" : startDateText.trim());
+        rows.put("Vence", dueDateText == null || dueDateText.trim().isEmpty() ? "Sin fecha" : dueDateText.trim());
+        rows.put("Base mensual", new DecimalFormat("0.00").format(amountBase) + " EUR");
+        rows.put("Pagado", new DecimalFormat("0.00").format(amountPaid) + " EUR");
+        rows.put("Recargo", new DecimalFormat("0.00").format(surcharge) + " EUR");
+        rows.put("Importe pendiente", new DecimalFormat("0.00").format(remaining) + " EUR");
+        Map<String, String> normalizedRows = new LinkedHashMap<>();
+        normalizedRows.put("Nombre del piso", rows.getOrDefault("Nombre del piso", currentGroupName == null || currentGroupName.trim().isEmpty() ? "Piso actual" : currentGroupName));
+        normalizedRows.put("Concepto", "Gasto habitación");
+        normalizedRows.put("Solicitado por", ownerEmail.isEmpty() ? "Propietario" : memberReferenceInline(ownerEmail));
+        normalizedRows.put("Habitación", roomName.isEmpty() ? "Sin definir" : roomName);
+        normalizedRows.put("Para", tenantEmail.isEmpty() ? "Sin datos" : memberReferenceInline(tenantEmail));
+        normalizedRows.put("Mes", monthLabel.isEmpty() ? "Actual" : monthLabel);
+        normalizedRows.put("Estado", roomChargeStatusLabel(status));
+        normalizedRows.put("Desde", startDateText == null || startDateText.trim().isEmpty() ? "Sin fecha" : startDateText.trim());
+        normalizedRows.put("Vence", dueDateText == null || dueDateText.trim().isEmpty() ? "Sin fecha" : dueDateText.trim());
+        normalizedRows.put("Base mensual", new DecimalFormat("0.00").format(amountBase) + " EUR");
+        normalizedRows.put("Pagado", new DecimalFormat("0.00").format(amountPaid) + " EUR");
+        normalizedRows.put("Recargo", new DecimalFormat("0.00").format(surcharge) + " EUR");
+        normalizedRows.put("Importe pendiente", new DecimalFormat("0.00").format(remaining) + " EUR");
+        return normalizedRows;
     }
 
     @NonNull
@@ -5101,9 +5438,6 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             String normalized = email.trim().toLowerCase(Locale.ROOT);
             if (!payer.isEmpty() && payer.equals(normalized)) continue;
             if (!targets.contains(normalized)) targets.add(normalized);
-        }
-        if (targets.isEmpty() && !payer.isEmpty()) {
-            targets.add(payer);
         }
         if (targets.isEmpty()) return "Sin datos";
 
@@ -5138,6 +5472,8 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                     ((EditText) form.findViewById(R.id.dueDateEt)).setText(DUE_DATE_FORMAT.format(dueAt));
                 }
                 pendingTicketUri = row.snapshot.getString("ticketUri");
+                pendingExpenseConfirmBtn = null;
+                requireExpenseTicketForCurrentDialog = false;
                 String currentSplit = row.snapshot.getString("customSplit");
                 setupSplitUi(form, members, currentSplit);
                 setupRoomSelector(
@@ -5163,11 +5499,20 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 ExpenseDialogs.tuneLongFormShell(shell);
                 AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
                 ExpenseDialogs.adjustLongFormDialogWindow(requireContext(), dialog);
+                pendingExpenseConfirmBtn = shell.confirmBtn;
+                updateExpenseConfirmButtonState();
                 shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
                 shell.confirmBtn.setOnClickListener(v -> {
                     if (saveExpense(form, row.id, members, rooms)) {
                         dialog.dismiss();
                     }
+                });
+                dialog.setOnDismissListener(v -> {
+                    pendingExpenseConfirmBtn = null;
+                    requireExpenseTicketForCurrentDialog = false;
+                    pendingTicketAmountEt = null;
+                    pendingTicketStatusTv = null;
+                    pendingTicketUri = null;
                 });
             });
         });
@@ -5185,6 +5530,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
     private void loadCurrentGroupRooms(RoomsCallback callback) {
         if (currentGroupId == null) {
+            memberRoomLabelsByEmail.clear();
             callback.onLoaded(new ArrayList<>());
             return;
         }
@@ -5193,6 +5539,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 .get()
                 .addOnSuccessListener(result -> {
                     List<RoomOption> rooms = new ArrayList<>();
+                    Map<String, List<String>> roomsByMember = new LinkedHashMap<>();
                     for (DocumentSnapshot doc : result.getDocuments()) {
                         String roomName = doc.getString("name");
                         Long roomNumber = doc.getLong("roomNumber");
@@ -5205,10 +5552,19 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                         String label = (roomNumber == null || roomNumber <= 0)
                                 ? normalizedName
                                 : "Hab. " + roomNumber + " - " + normalizedName;
+                        List<String> roomMembers = castEmails(doc.get("memberEmails"));
+                        for (String memberEmail : roomMembers) {
+                            String normalizedEmail = safeLowerText(memberEmail);
+                            if (normalizedEmail.isEmpty()) continue;
+                            roomsByMember.computeIfAbsent(normalizedEmail, key -> new ArrayList<>());
+                            if (!roomsByMember.get(normalizedEmail).contains(label)) {
+                                roomsByMember.get(normalizedEmail).add(label);
+                            }
+                        }
                         rooms.add(new RoomOption(
                                 doc.getId(),
                                 label,
-                                castEmails(doc.get("memberEmails")),
+                                roomMembers,
                                 roomNumber == null ? 0 : roomNumber.intValue(),
                                 capacity == null ? 0 : capacity.intValue(),
                                 monthlyCost == null ? 0.0 : monthlyCost,
@@ -5218,9 +5574,193 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                         ));
                     }
                     rooms.sort((a, b) -> Integer.compare(a.roomNumber <= 0 ? Integer.MAX_VALUE : a.roomNumber, b.roomNumber <= 0 ? Integer.MAX_VALUE : b.roomNumber));
+                    memberRoomLabelsByEmail.clear();
+                    for (Map.Entry<String, List<String>> entry : roomsByMember.entrySet()) {
+                        memberRoomLabelsByEmail.put(entry.getKey(), String.join(", ", entry.getValue()));
+                    }
                     callback.onLoaded(rooms);
                 })
-                .addOnFailureListener(e -> callback.onLoaded(new ArrayList<>()));
+                .addOnFailureListener(e -> {
+                    memberRoomLabelsByEmail.clear();
+                    callback.onLoaded(new ArrayList<>());
+                });
+    }
+
+    private void syncRoomCharges(@NonNull Runnable onDone) {
+        if (currentGroupId == null) {
+            onDone.run();
+            return;
+        }
+        loadCurrentGroupRooms(rooms -> {
+            db.collection("groups").document(currentGroupId).get()
+                    .addOnSuccessListener(groupDoc -> {
+                        String ownerEmail = "";
+                        if (groupDoc.exists()) {
+                            ownerEmail = safeLowerText(resolveOwnerEmail(
+                                    groupDoc,
+                                    castStrings(groupDoc.get("members")),
+                                    castEmails(groupDoc.get("memberEmails"))
+                            ));
+                        }
+                        Set<String> monthKeys = buildRoomChargeSyncMonthKeys();
+                        String ownerEmailFinal = ownerEmail;
+                        db.collection("rent_collections")
+                                .whereEqualTo("groupId", currentGroupId)
+                                .get()
+                                .addOnSuccessListener(snapshot -> {
+                                    Map<String, DocumentSnapshot> existingByKey = new LinkedHashMap<>();
+                                    for (DocumentSnapshot doc : snapshot.getDocuments()) {
+                                        String existingMonthKey = doc.getString("monthKey") == null ? "" : doc.getString("monthKey").trim();
+                                        if (!monthKeys.contains(existingMonthKey)) continue;
+                                        if (!"room_charge".equals(safeLowerText(doc.getString("sourceType")))) continue;
+                                        String uniqueKey = doc.getString("uniqueKey") == null ? "" : doc.getString("uniqueKey").trim();
+                                        if (!uniqueKey.isEmpty()) {
+                                            existingByKey.put(uniqueKey, doc);
+                                        }
+                                    }
+
+                                    WriteBatch batch = db.batch();
+                                    Set<String> expectedKeys = new HashSet<>();
+                                    for (String monthKey : monthKeys) {
+                                        Date startAt = roomChargeStartAtForMonth(monthKey);
+                                        String startDateText = DUE_DATE_FORMAT.format(startAt);
+                                        Date dueAt = roomChargeDueAtForMonth(monthKey, startAt);
+                                        String dueDateText = DUE_DATE_FORMAT.format(dueAt);
+                                        for (RoomOption room : rooms) {
+                                            if (room.monthlyCost <= 0.0) continue;
+                                            Map<String, Double> residentAmounts = RoomRentShareCalculator.calculateResidentAmounts(
+                                                    room.monthlyCost,
+                                                    room.memberEmails,
+                                                    room.rentSplitMode,
+                                                    room.rentSplitPercentages
+                                            );
+                                            for (Map.Entry<String, Double> entry : residentAmounts.entrySet()) {
+                                                String tenantEmail = safeLowerText(entry.getKey());
+                                                double amountBase = entry.getValue() == null ? 0.0 : round2(entry.getValue());
+                                                if (tenantEmail.isEmpty() || amountBase <= 0.0) continue;
+                                                String uniqueKey = buildRoomChargeUniqueKey(monthKey, room.id, tenantEmail);
+                                                expectedKeys.add(uniqueKey);
+                                                DocumentSnapshot existing = existingByKey.get(uniqueKey);
+                                                double amountPaid = existing == null ? 0.0 : safeDouble(existing.getDouble("amountPaid"));
+                                                double surcharge = existing == null ? 0.0 : safeDouble(existing.getDouble("surcharge"));
+                                                String status = normalizeRentChargeStatus(
+                                                        existing == null ? "" : existing.getString("status"),
+                                                        amountBase,
+                                                        amountPaid,
+                                                        surcharge,
+                                                        dueAt
+                                                );
+                                                Map<String, Object> data = new LinkedHashMap<>();
+                                                data.put("groupId", currentGroupId);
+                                                data.put("monthKey", monthKey);
+                                                data.put("roomId", room.id);
+                                                data.put("roomName", room.name);
+                                                data.put("tenantEmail", tenantEmail);
+                                                data.put("ownerEmail", ownerEmailFinal);
+                                                data.put("amountBase", amountBase);
+                                                data.put("amountPaid", amountPaid);
+                                                data.put("surcharge", surcharge);
+                                                data.put("status", status);
+                                                data.put("startDateText", startDateText);
+                                                data.put("startAt", startAt);
+                                                data.put("dueDateText", dueDateText);
+                                                data.put("dueAt", dueAt);
+                                                data.put("sourceType", "room_charge");
+                                                data.put("uniqueKey", uniqueKey);
+                                                data.put("updatedAt", FieldValue.serverTimestamp());
+                                                data.put("updatedByUid", FirebaseAuth.getInstance().getCurrentUser().getUid());
+                                                data.put("updatedByEmail", currentUserEmail());
+                                                if (existing == null) {
+                                                    data.put("createdAt", FieldValue.serverTimestamp());
+                                                    data.put("createdByUid", FirebaseAuth.getInstance().getCurrentUser().getUid());
+                                                    data.put("createdByEmail", currentUserEmail());
+                                                    batch.set(db.collection("rent_collections").document(), data);
+                                                } else {
+                                                    batch.update(existing.getReference(), data);
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    for (Map.Entry<String, DocumentSnapshot> entry : existingByKey.entrySet()) {
+                                        if (expectedKeys.contains(entry.getKey())) continue;
+                                        double amountPaid = safeDouble(entry.getValue().getDouble("amountPaid"));
+                                        if (amountPaid > 0.0) continue;
+                                        batch.delete(entry.getValue().getReference());
+                                    }
+
+                                    batch.commit()
+                                            .addOnSuccessListener(done -> onDone.run())
+                                            .addOnFailureListener(e -> onDone.run());
+                                })
+                                .addOnFailureListener(e -> onDone.run());
+                    })
+                    .addOnFailureListener(e -> onDone.run());
+        });
+    }
+
+    @NonNull
+    private Set<String> buildRoomChargeSyncMonthKeys() {
+        LinkedHashSet<String> monthKeys = new LinkedHashSet<>();
+        Calendar cursor = Calendar.getInstance();
+        cursor.set(Calendar.DAY_OF_MONTH, 1);
+        cursor.set(Calendar.HOUR_OF_DAY, 0);
+        cursor.set(Calendar.MINUTE, 0);
+        cursor.set(Calendar.SECOND, 0);
+        cursor.set(Calendar.MILLISECOND, 0);
+        for (int offset = 0; offset <= ROOM_CHARGE_FUTURE_MONTHS_TO_SYNC; offset++) {
+            monthKeys.add(String.format(Locale.ROOT, "%04d-%02d", cursor.get(Calendar.YEAR), cursor.get(Calendar.MONTH) + 1));
+            cursor.add(Calendar.MONTH, 1);
+        }
+        return monthKeys;
+    }
+
+    @NonNull
+    private Date roomChargeStartAtForMonth(@NonNull String monthKey) {
+        Calendar startCalendar = Calendar.getInstance();
+        startCalendar.set(Calendar.HOUR_OF_DAY, 10);
+        startCalendar.set(Calendar.MINUTE, 0);
+        startCalendar.set(Calendar.SECOND, 0);
+        startCalendar.set(Calendar.MILLISECOND, 0);
+        try {
+            String[] parts = monthKey.split("-");
+            int year = Integer.parseInt(parts[0]);
+            int month = Integer.parseInt(parts[1]);
+            Calendar now = Calendar.getInstance();
+            boolean currentMonth = now.get(Calendar.YEAR) == year && (now.get(Calendar.MONTH) + 1) == month;
+            if (currentMonth) {
+                return startCalendar.getTime();
+            }
+            startCalendar.set(Calendar.YEAR, year);
+            startCalendar.set(Calendar.MONTH, Math.max(0, month - 1));
+            startCalendar.set(Calendar.DAY_OF_MONTH, 1);
+        } catch (RuntimeException ignored) {
+            startCalendar.set(Calendar.DAY_OF_MONTH, 1);
+        }
+        return startCalendar.getTime();
+    }
+
+    @NonNull
+    private Date roomChargeDueAtForMonth(@NonNull String monthKey, @NonNull Date startAt) {
+        Calendar dueCalendar = Calendar.getInstance();
+        dueCalendar.setTime(startAt);
+        dueCalendar.add(Calendar.DAY_OF_YEAR, 30);
+        dueCalendar.set(Calendar.HOUR_OF_DAY, 10);
+        dueCalendar.set(Calendar.MINUTE, 0);
+        dueCalendar.set(Calendar.SECOND, 0);
+        dueCalendar.set(Calendar.MILLISECOND, 0);
+        return dueCalendar.getTime();
+    }
+
+    @NonNull
+    private String buildRoomChargeUniqueKey(@NonNull String monthKey, @NonNull String roomId, @NonNull String tenantEmail) {
+        return currentGroupId + "|" + monthKey + "|" + roomId + "|" + tenantEmail + "|room_charge";
+    }
+
+    @NonNull
+    private String currentMonthKey() {
+        Calendar now = Calendar.getInstance();
+        return String.format(Locale.ROOT, "%04d-%02d", now.get(Calendar.YEAR), now.get(Calendar.MONTH) + 1);
     }
 
     private void setupRoomSelector(
@@ -5576,6 +6116,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     private void setupSplitUi(View form, List<String> members, @Nullable String currentCustomSplit) {
         Spinner splitModeSpinner = form.findViewById(R.id.splitModeSpinner);
         Spinner splitTargetScopeSpinner = form.findViewById(R.id.splitTargetScopeSpinner);
+        View splitTargetScopeLabel = form.findViewById(R.id.splitTargetScopeLabelTv);
         LinearLayout splitRowsContainer = form.findViewById(R.id.splitRowsContainer);
         Button addSplitRowBtn = form.findViewById(R.id.addSplitRowBtn);
         Button removeSplitRowBtn = form.findViewById(R.id.removeSplitRowBtn);
@@ -5583,57 +6124,35 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         String[] modes = new String[]{"Reparto personalizado", "Reparto equitativo"};
         ArrayAdapter<String> modeAdapter = buildLightSpinnerAdapter(modes);
         splitModeSpinner.setAdapter(modeAdapter);
-        splitTargetScopeSpinner.setAdapter(buildLightSpinnerAdapter(new String[]{"Personas", "Habitaciones"}));
+        splitTargetScopeSpinner.setAdapter(buildLightSpinnerAdapter(new String[]{"Personas"}));
         splitTargetScopeSpinner.setSelection(0);
         prepareDialogSpinnerTouch(splitModeSpinner);
         prepareDialogSpinnerTouch(splitTargetScopeSpinner);
+        if (splitTargetScopeLabel != null) splitTargetScopeLabel.setVisibility(View.GONE);
+        splitTargetScopeSpinner.setVisibility(View.GONE);
 
         setSplitCandidateMembers(form, members);
         addSplitRow(splitRowsContainer, members, null, null);
         refreshSplitControls(form);
 
         addSplitRowBtn.setOnClickListener(v -> {
-            if (isRoomScopeSelected(form)) {
-                List<RoomOption> roomCandidates = getSplitRoomCandidates(form);
-                List<String> existingRoomLabels = new ArrayList<>();
-                for (int i = 0; i < splitRowsContainer.getChildCount(); i++) {
-                    View row = splitRowsContainer.getChildAt(i);
-                    Spinner sp = row.findViewById(R.id.memberSpinner);
-                    if (sp != null && sp.getSelectedItem() != null) {
-                        existingRoomLabels.add(sp.getSelectedItem().toString());
-                    }
-                }
-                String nextRoom = null;
-                for (RoomOption room : roomCandidates) {
-                    if (!existingRoomLabels.contains(room.name)) {
-                        nextRoom = room.name;
-                        break;
-                    }
-                }
-                if (nextRoom != null) {
-                    List<String> roomLabels = new ArrayList<>();
-                    for (RoomOption room : roomCandidates) roomLabels.add(room.name);
-                    addSplitRow(splitRowsContainer, roomLabels, nextRoom, null);
-                }
-            } else {
-                List<String> candidates = getSplitCandidateMembers(form, members);
-                String nextMember = null;
-                List<String> selectedMembers = new ArrayList<>();
-                for (int i = 0; i < splitRowsContainer.getChildCount(); i++) {
-                    View row = splitRowsContainer.getChildAt(i);
-                    Spinner sp = row.findViewById(R.id.memberSpinner);
-                    if (sp == null || sp.getSelectedItem() == null) continue;
-                    String selected = sp.getSelectedItem().toString().trim().toLowerCase(Locale.ROOT);
-                    if (!selected.isEmpty()) selectedMembers.add(selected);
-                }
-                for (String candidate : candidates) {
-                    if (!selectedMembers.contains(candidate)) {
-                        nextMember = candidate;
-                        break;
-                    }
-                }
-                addSplitRow(splitRowsContainer, candidates, nextMember, null);
+            List<String> candidates = getSplitCandidateMembers(form, members);
+            String nextMember = null;
+            List<String> selectedMembers = new ArrayList<>();
+            for (int i = 0; i < splitRowsContainer.getChildCount(); i++) {
+                View row = splitRowsContainer.getChildAt(i);
+                Spinner sp = row.findViewById(R.id.memberSpinner);
+                if (sp == null || sp.getSelectedItem() == null) continue;
+                String selected = sp.getSelectedItem().toString().trim().toLowerCase(Locale.ROOT);
+                if (!selected.isEmpty()) selectedMembers.add(selected);
             }
+            for (String candidate : candidates) {
+                if (!selectedMembers.contains(candidate)) {
+                    nextMember = candidate;
+                    break;
+                }
+            }
+            addSplitRow(splitRowsContainer, candidates, nextMember, null);
             refreshSplitControls(form);
             bindSplitRowsWatcher(form);
             refreshSplitRemainingIndicator(form);
@@ -5727,8 +6246,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     }
 
     private boolean isRoomScopeSelected(@NonNull View form) {
-        Spinner splitTargetScopeSpinner = form.findViewById(R.id.splitTargetScopeSpinner);
-        return splitTargetScopeSpinner != null && splitTargetScopeSpinner.getSelectedItemPosition() == 1;
+        return false;
     }
 
     private void refreshSplitRowsFromScope(@NonNull View form, @NonNull List<String> allMembers, boolean keepCurrentValues) {
@@ -5743,7 +6261,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 View row = splitRowsContainer.getChildAt(i);
                 Spinner memberSpinner = row.findViewById(R.id.memberSpinner);
                 if (memberSpinner == null || memberSpinner.getSelectedItem() == null) continue;
-                String email = memberSpinner.getSelectedItem().toString().trim().toLowerCase(Locale.ROOT);
+                String email = resolveExpenseSplitEmail(memberSpinner, memberSpinner.getSelectedItem().toString());
                 if (email.isEmpty() || selectedMembers.contains(email)) continue;
                 selectedMembers.add(email);
             }
@@ -5992,17 +6510,20 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         View row = LayoutInflater.from(requireContext()).inflate(R.layout.item_split_row, container, false);
         Spinner memberSpinner = row.findViewById(R.id.memberSpinner);
         EditText memberAmountEt = row.findViewById(R.id.memberAmountEt);
+        List<String> eligibleMembers = filterExpenseSplitMembers(members);
+        if (eligibleMembers.isEmpty()) return;
 
         List<String> memberLabels = new ArrayList<>();
-        for (String member : members) {
+        for (String member : eligibleMembers) {
             memberLabels.add(memberSelectionLabel(member));
         }
         ArrayAdapter<String> memberAdapter = buildLightSpinnerAdapter(memberLabels.toArray(new String[0]));
+        memberSpinner.setTag(new ArrayList<>(eligibleMembers));
         memberSpinner.setAdapter(memberAdapter);
         prepareDialogSpinnerTouch(memberSpinner);
 
         if (selectedMember != null) {
-            int idx = members.indexOf(selectedMember);
+            int idx = eligibleMembers.indexOf(selectedMember);
             if (idx >= 0) memberSpinner.setSelection(idx);
         }
         if (percentText != null) {
@@ -6034,6 +6555,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         LinearLayout splitRowsContainer = form.findViewById(R.id.splitRowsContainer);
         boolean roomScope = isRoomScopeSelected(form);
         boolean equitative = splitModeSpinner.getSelectedItemPosition() == 1 && !roomScope;
+        String payerEmail = currentUserEmail();
 
         LinkedHashMap<String, Double> splitsByEmail = new LinkedHashMap<>();
         for (int i = 0; i < splitRowsContainer.getChildCount(); i++) {
@@ -6041,9 +6563,14 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             Spinner memberSpinner = row.findViewById(R.id.memberSpinner);
             EditText memberAmountEt = row.findViewById(R.id.memberAmountEt);
             String selected = memberSpinner.getSelectedItem().toString();
+            String selectedEmail = resolveExpenseSplitEmail(memberSpinner, selected);
+            if (!payerEmail.isEmpty() && payerEmail.equalsIgnoreCase(selectedEmail)) {
+                NoticeUtils.show(requireContext(), "No puedes crear un gasto dirigido a ti mismo");
+                return null;
+            }
 
             if (equitative) {
-                String email = selected.toLowerCase(Locale.ROOT);
+                String email = selectedEmail;
                 splitsByEmail.put(email, 0.0);
             } else {
                 String amountText = memberAmountEt.getText().toString().trim();
@@ -6089,7 +6616,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                         splitsByEmail.put(resident, splitsByEmail.getOrDefault(resident, 0.0) + amountForResident);
                     }
                 } else {
-                    String email = selected.toLowerCase(Locale.ROOT);
+                    String email = selectedEmail;
                     splitsByEmail.put(email, splitsByEmail.getOrDefault(email, 0.0) + partAmount);
                 }
             }
@@ -6162,6 +6689,85 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             }
         }
         return !hasOtherDebtor;
+    }
+
+    private boolean containsCurrentUserAllocation(@NonNull Map<String, Double> allocations, @NonNull String payerEmail) {
+        if (payerEmail.trim().isEmpty()) return false;
+        for (String email : allocations.keySet()) {
+            if (payerEmail.equalsIgnoreCase(email == null ? "" : email.trim())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @NonNull
+    private List<String> filterExpenseSplitMembers(@NonNull List<String> members) {
+        String payerEmail = currentUserEmail();
+        List<String> eligibleMembers = new ArrayList<>();
+        for (String member : members) {
+            String value = member == null ? "" : member.trim();
+            if (value.isEmpty()) continue;
+            if (!value.contains("@")) {
+                if (!eligibleMembers.contains(value)) {
+                    eligibleMembers.add(value);
+                }
+                continue;
+            }
+            String normalized = safeLowerText(value);
+            if (!payerEmail.isEmpty() && payerEmail.equalsIgnoreCase(normalized)) continue;
+            if (!eligibleMembers.contains(normalized)) {
+                eligibleMembers.add(normalized);
+            }
+        }
+        return eligibleMembers;
+    }
+
+    @NonNull
+    private String resolveCreatedDateText(@Nullable DocumentSnapshot doc) {
+        if (doc == null) return "";
+        Date createdAt = doc.getDate("createdAt");
+        if (createdAt == null) return "";
+        return DateInputUtils.formatDay(createdAt);
+    }
+
+    @NonNull
+    private String formatMonthKeyForDisplay(@Nullable String monthKey) {
+        return DateInputUtils.normalizeMonthKeyToDisplay(monthKey);
+    }
+
+    @NonNull
+    private CharSequence buildWorkspaceMetaText(@Nullable String rawText, int labelColor, int valueColor) {
+        String source = rawText == null ? "" : rawText.trim();
+        if (source.isEmpty()) return "";
+
+        SpannableStringBuilder out = new SpannableStringBuilder();
+        String[] lines = source.split("\\n");
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i] == null ? "" : lines[i].trim();
+            if (line.isEmpty()) continue;
+
+            if (out.length() > 0) out.append('\n');
+
+            int colonIndex = line.indexOf(':');
+            if (colonIndex > 0 && colonIndex < line.length() - 1) {
+                int start = out.length();
+                String label = line.substring(0, colonIndex + 1);
+                out.append(label);
+                out.setSpan(new StyleSpan(Typeface.BOLD), start, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                out.setSpan(new ForegroundColorSpan(labelColor), start, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+                int valueStart = out.length();
+                out.append(' ').append(line.substring(colonIndex + 1).trim());
+                out.setSpan(new ForegroundColorSpan(valueColor), valueStart, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                continue;
+            }
+
+            int start = out.length();
+            out.append(line);
+            out.setSpan(new ForegroundColorSpan(valueColor), start, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        return out;
     }
 
     private void requestExpenseDeletion(WorkspaceRow row) {
@@ -6443,6 +7049,44 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         spinner.setSelection(0);
     }
 
+    private void toggleStatusFilter(@NonNull String bucket) {
+        if (bucket.equals(filterStatusBucket)) {
+            filterStatusBucket = null;
+        } else {
+            filterStatusBucket = bucket;
+        }
+        updateStatusFilterButtons();
+        loadExpenses();
+    }
+
+    private void updateStatusFilterButtons() {
+        applyStatusFilterButtonStyle(filterRequestedBtn, STATUS_FILTER_REQUESTED.equals(filterStatusBucket));
+        applyStatusFilterButtonStyle(filterInReviewBtn, STATUS_FILTER_IN_REVIEW.equals(filterStatusBucket));
+        applyStatusFilterButtonStyle(filterPaidBtn, STATUS_FILTER_PAID.equals(filterStatusBucket));
+    }
+
+    private void applyStatusFilterButtonStyle(@Nullable Button button, boolean selected) {
+        if (button == null) return;
+        button.setBackgroundResource(selected ? R.drawable.bg_tab_selected : R.drawable.bg_tab_default);
+        button.setTextColor(selected
+                ? ContextCompat.getColor(requireContext(), android.R.color.white)
+                : requireContext().getColor(R.color.text_muted));
+    }
+
+    private boolean matchesStatusFilter(@NonNull String normalizedStatus) {
+        if (filterStatusBucket == null || filterStatusBucket.trim().isEmpty()) return true;
+        if (STATUS_FILTER_REQUESTED.equals(filterStatusBucket)) {
+            return STATUS_REQUESTED.equals(normalizedStatus);
+        }
+        if (STATUS_FILTER_IN_REVIEW.equals(filterStatusBucket)) {
+            return STATUS_PENDING.equals(normalizedStatus) || STATUS_SUBMITTED.equals(normalizedStatus);
+        }
+        if (STATUS_FILTER_PAID.equals(filterStatusBucket)) {
+            return STATUS_CONFIRMED.equals(normalizedStatus);
+        }
+        return true;
+    }
+
     private boolean passesFiltersExpense(
             DocumentSnapshot doc,
             @Nullable String payerEmail,
@@ -6450,25 +7094,22 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             @Nullable String concept,
             @Nullable String roomName
     ) {
+        if (!matchesStatusFilter(effectiveExpenseStatus(doc.getId(), doc))) {
+            return false;
+        }
         if (filterPersonEmail != null && (payerEmail == null || !payerEmail.equalsIgnoreCase(filterPersonEmail))) {
             return false;
         }
         if (filterCategory != null && (category == null || !category.toLowerCase(Locale.ROOT).contains(filterCategory))) {
             return false;
         }
-        if (filterSearchQuery != null) {
-            String combined = (concept == null ? "" : concept) + " "
-                    + (payerEmail == null ? "" : payerEmail) + " "
-                    + (category == null ? "" : category) + " "
-                    + (roomName == null ? "" : roomName);
-            if (!combined.toLowerCase(Locale.ROOT).contains(filterSearchQuery)) {
-                return false;
-            }
-        }
         return passesDateFilter(doc);
     }
 
     private boolean passesFiltersPayment(DocumentSnapshot doc, @Nullable String category) {
+        if (!matchesStatusFilter(normalizeFlowStatus(doc.getString("status")))) {
+            return false;
+        }
         if (filterPersonEmail != null) {
             String from = doc.getString("fromEmail");
             String to = doc.getString("toEmail");
@@ -6479,17 +7120,32 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         if (filterCategory != null && (category == null || !category.toLowerCase(Locale.ROOT).contains(filterCategory))) {
             return false;
         }
-        if (filterSearchQuery != null) {
-            String concept = doc.getString("concept");
-            String from = doc.getString("fromEmail");
-            String to = doc.getString("toEmail");
-            String roomName = doc.getString("roomName");
-            String combined = (concept == null ? "" : concept) + " "
-                    + (from == null ? "" : from) + " "
-                    + (to == null ? "" : to) + " "
-                    + (roomName == null ? "" : roomName) + " "
-                    + (category == null ? "" : category);
-            if (!combined.toLowerCase(Locale.ROOT).contains(filterSearchQuery)) {
+        return passesDateFilter(doc);
+    }
+
+    private boolean passesRentChargeFilters(
+            @NonNull DocumentSnapshot doc,
+            @Nullable String tenantEmail,
+            @Nullable String roomName,
+            @Nullable String monthKey
+    ) {
+        String rentStatus = normalizeRentChargeStatus(
+                doc.getString("status"),
+                safeDouble(doc.getDouble("amountBase")),
+                safeDouble(doc.getDouble("amountPaid")),
+                safeDouble(doc.getDouble("surcharge")),
+                doc.getDate("dueAt")
+        );
+        String normalizedStatus = "pagado".equals(rentStatus) ? STATUS_CONFIRMED : STATUS_REQUESTED;
+        if (!matchesStatusFilter(normalizedStatus)) {
+            return false;
+        }
+        if (filterPersonEmail != null && (tenantEmail == null || !tenantEmail.equalsIgnoreCase(filterPersonEmail))) {
+            return false;
+        }
+        if (filterCategory != null) {
+            String combinedCategory = CATEGORY_RENT + " " + CATEGORY_ROOM_EXPENSE;
+            if (!combinedCategory.toLowerCase(Locale.ROOT).contains(filterCategory)) {
                 return false;
             }
         }
@@ -6497,18 +7153,15 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     }
 
     private boolean passesPendingDebtFilters(@NonNull PendingDebtRequest debt) {
+        if (!matchesStatusFilter(normalizeFlowStatus(debt.snapshot.getString("status")))) {
+            return false;
+        }
         if (filterPersonEmail != null) {
             boolean match = debt.creditorEmail.equalsIgnoreCase(filterPersonEmail);
             if (!match) return false;
         }
         if (filterCategory != null) {
             return false;
-        }
-        if (filterSearchQuery != null) {
-            String combined = debt.concept + " " + debt.creditorEmail + " " + debt.dueDateText;
-            if (!combined.toLowerCase(Locale.ROOT).contains(filterSearchQuery)) {
-                return false;
-            }
         }
         return passesDateFilter(debt.snapshot);
     }
@@ -6616,12 +7269,32 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     }
 
     private boolean isExpenseAssignedToCurrentUser(@Nullable DocumentSnapshot expenseDoc) {
+        return isCurrentUserExpenseDebtor(expenseDoc);
+    }
+
+    private boolean isCurrentUserExpensePayer(@Nullable DocumentSnapshot expenseDoc) {
         if (expenseDoc == null) return false;
         String myEmail = currentUserEmail();
         String payerEmail = PaymentAccessPolicy.normalizeEmail(expenseDoc.getString("payerEmail"));
-        if (myEmail.isEmpty() || myEmail.equals(payerEmail)) return false;
+        return !myEmail.isEmpty() && myEmail.equals(payerEmail);
+    }
+
+    private boolean isCurrentUserExpenseDebtor(@Nullable DocumentSnapshot expenseDoc) {
+        if (expenseDoc == null) return false;
+        String myEmail = currentUserEmail();
+        if (myEmail.isEmpty()) return false;
+        String payerEmail = PaymentAccessPolicy.normalizeEmail(expenseDoc.getString("payerEmail"));
+        if (myEmail.equals(payerEmail)) return false;
         Map<String, Double> split = parseCustomSplitPercentages(expenseDoc.getString("customSplit"));
         return split.containsKey(myEmail);
+    }
+
+    @NonNull
+    private String buildExpensePerspectiveLabel(@Nullable DocumentSnapshot expenseDoc) {
+        if (expenseDoc == null) return "Sin datos";
+        if (isCurrentUserExpensePayer(expenseDoc)) return "Te deben";
+        if (isCurrentUserExpenseDebtor(expenseDoc)) return "Debes";
+        return "Sin impacto";
     }
 
     private void openExpensePendingDebtFlow(@NonNull WorkspaceRow row) {
@@ -6634,9 +7307,22 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 .whereEqualTo("debtorEmail", myEmail)
                 .get()
                 .addOnSuccessListener(result -> {
-                    View content = DialogUtils.createInfoRowsView(requireContext(), buildExpenseInfoRows(row));
+                    View content = buildExpenseInfoContent(row);
                     DocumentSnapshot debtDoc = pickBestExpenseDebt(result.getDocuments());
                     if (debtDoc == null) {
+                        if (!isExpenseAssignedToCurrentUser(row.snapshot)) {
+                            DialogUtils.Shell shell = DialogUtils.buildShell(
+                                    requireContext(),
+                                    row.title,
+                                    "Puedes revisar este gasto, pero no está dirigido a tu usuario.",
+                                    content,
+                                    null,
+                                    "Cerrar"
+                            );
+                            AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+                            shell.confirmBtn.setOnClickListener(v -> dialog.dismiss());
+                            return;
+                        }
                         DialogUtils.Shell shell = DialogUtils.buildShell(
                                 requireContext(),
                                 row.title,
@@ -6670,7 +7356,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                             debtDoc
                     );
                     String debtStatus = normalizeFlowStatus(debtDoc.getString("status"));
-                    if (STATUS_PENDING.equals(debtStatus)) {
+                    if (STATUS_PENDING.equals(debtStatus) || STATUS_REQUESTED.equals(debtStatus)) {
                         DialogUtils.Shell shell = DialogUtils.buildShell(
                                 requireContext(),
                                 row.title,
@@ -6733,53 +7419,91 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
     private void createMissingExpenseDebtAndOpen(@NonNull WorkspaceRow row) {
         if (row.snapshot == null || currentGroupId == null) return;
+        if (pendingDebtCreationInProgress) return;
+        pendingDebtCreationInProgress = true;
         String myEmail = currentUserEmail();
-        Map<String, Double> split = parseCustomSplitPercentages(row.snapshot.getString("customSplit"));
-        Double percentage = split.get(myEmail);
-        Double expenseAmount = row.snapshot.getDouble("amount");
-        String payerEmail = PaymentAccessPolicy.normalizeEmail(row.snapshot.getString("payerEmail"));
-        if (percentage == null || expenseAmount == null || expenseAmount <= 0 || payerEmail.isEmpty()) {
-            NoticeUtils.show(requireContext(), "No se pudo preparar tu justificante para este gasto");
-            return;
-        }
-        double debtAmount = round2(expenseAmount * (percentage / 100.0));
-        Map<String, Object> data = new HashMap<>();
-        data.put("groupId", currentGroupId);
-        data.put("groupName", currentGroupName);
-        data.put("sourceType", "expense");
-        data.put("sourceId", row.id);
-        data.put("concept", row.snapshot.getString("concept"));
-        data.put("amount", debtAmount);
-        data.put("debtorEmail", myEmail);
-        data.put("creditorEmail", payerEmail);
-        data.put("dueAt", row.snapshot.getDate("dueAt"));
-        data.put("dueDateText", DateInputUtils.normalizeToDisplay(row.snapshot.getString("dueDateText")));
-        data.put("priority", row.snapshot.getString("priority") == null ? "media" : row.snapshot.getString("priority").toLowerCase(Locale.ROOT));
-        data.put("status", STATUS_PENDING);
-        data.put("createdAt", FieldValue.serverTimestamp());
+        db.collection("payment_deadlines")
+                .whereEqualTo("groupId", currentGroupId)
+                .whereEqualTo("sourceType", "expense")
+                .whereEqualTo("sourceId", row.id)
+                .whereEqualTo("debtorEmail", myEmail)
+                .get()
+                .addOnSuccessListener(result -> {
+                    DocumentSnapshot existing = pickBestExpenseDebt(result.getDocuments());
+                    if (existing != null) {
+                        pendingDebtCreationInProgress = false;
+                        createPaymentDialog(new PendingDebtRequest(
+                                existing.getId(),
+                                pendingDebtFallbackConcept(existing),
+                                existing.getDouble("amount") == null ? 0.0 : existing.getDouble("amount"),
+                                PaymentAccessPolicy.normalizeEmail(existing.getString("creditorEmail")),
+                                DateInputUtils.normalizeToDisplay(existing.getString("dueDateText")),
+                                existing.getDate("dueAt"),
+                                existing.getString("priority") == null ? "media" : existing.getString("priority").toLowerCase(Locale.ROOT),
+                                existing
+                        ));
+                        return;
+                    }
 
-        var debtRef = db.collection("payment_deadlines").document();
-        debtRef.set(data)
-                .addOnSuccessListener(v -> debtRef.get()
-                        .addOnSuccessListener(createdDoc -> {
-                            if (!createdDoc.exists()) {
-                                NoticeUtils.show(requireContext(), "No se pudo abrir tu justificante para este gasto");
-                                return;
-                            }
-                            PendingDebtRequest debt = new PendingDebtRequest(
-                                    createdDoc.getId(),
-                                    pendingDebtFallbackConcept(createdDoc),
-                                    createdDoc.getDouble("amount") == null ? debtAmount : createdDoc.getDouble("amount"),
-                                    payerEmail,
-                                    DateInputUtils.normalizeToDisplay(createdDoc.getString("dueDateText")),
-                                    createdDoc.getDate("dueAt"),
-                                    createdDoc.getString("priority") == null ? "media" : createdDoc.getString("priority").toLowerCase(Locale.ROOT),
-                                    createdDoc
-                            );
-                            createPaymentDialog(debt);
-                        })
-                        .addOnFailureListener(e -> NoticeUtils.show(requireContext(), "No se pudo abrir tu justificante para este gasto")))
-                .addOnFailureListener(e -> NoticeUtils.show(requireContext(), "No se pudo preparar tu justificante para este gasto"));
+                    Map<String, Double> split = parseCustomSplitPercentages(row.snapshot.getString("customSplit"));
+                    Double percentage = split.get(myEmail);
+                    Double expenseAmount = row.snapshot.getDouble("amount");
+                    String payerEmail = PaymentAccessPolicy.normalizeEmail(row.snapshot.getString("payerEmail"));
+                    if (percentage == null || expenseAmount == null || expenseAmount <= 0 || payerEmail.isEmpty()) {
+                        pendingDebtCreationInProgress = false;
+                        NoticeUtils.show(requireContext(), "No se pudo preparar tu justificante para este gasto");
+                        return;
+                    }
+                    double debtAmount = round2(expenseAmount * (percentage / 100.0));
+                    Map<String, Object> data = new HashMap<>();
+                    data.put("groupId", currentGroupId);
+                    data.put("groupName", currentGroupName);
+                    data.put("sourceType", "expense");
+                    data.put("sourceId", row.id);
+                    data.put("concept", row.snapshot.getString("concept"));
+                    data.put("amount", debtAmount);
+                    data.put("debtorEmail", myEmail);
+                    data.put("creditorEmail", payerEmail);
+                    data.put("dueAt", row.snapshot.getDate("dueAt"));
+                    data.put("dueDateText", DateInputUtils.normalizeToDisplay(row.snapshot.getString("dueDateText")));
+                    data.put("priority", row.snapshot.getString("priority") == null ? "media" : row.snapshot.getString("priority").toLowerCase(Locale.ROOT));
+                    data.put("status", STATUS_PENDING);
+                    data.put("createdAt", FieldValue.serverTimestamp());
+
+                    var debtRef = db.collection("payment_deadlines").document();
+                    debtRef.set(data)
+                            .addOnSuccessListener(v -> debtRef.get()
+                                    .addOnSuccessListener(createdDoc -> {
+                                        pendingDebtCreationInProgress = false;
+                                        if (!createdDoc.exists()) {
+                                            NoticeUtils.show(requireContext(), "No se pudo abrir tu justificante para este gasto");
+                                            return;
+                                        }
+                                        PendingDebtRequest debt = new PendingDebtRequest(
+                                                createdDoc.getId(),
+                                                pendingDebtFallbackConcept(createdDoc),
+                                                createdDoc.getDouble("amount") == null ? debtAmount : createdDoc.getDouble("amount"),
+                                                payerEmail,
+                                                DateInputUtils.normalizeToDisplay(createdDoc.getString("dueDateText")),
+                                                createdDoc.getDate("dueAt"),
+                                                createdDoc.getString("priority") == null ? "media" : createdDoc.getString("priority").toLowerCase(Locale.ROOT),
+                                                createdDoc
+                                        );
+                                        createPaymentDialog(debt);
+                                    })
+                                    .addOnFailureListener(e -> {
+                                        pendingDebtCreationInProgress = false;
+                                        NoticeUtils.show(requireContext(), "No se pudo abrir tu justificante para este gasto");
+                                    }))
+                            .addOnFailureListener(e -> {
+                                pendingDebtCreationInProgress = false;
+                                NoticeUtils.show(requireContext(), "No se pudo preparar tu justificante para este gasto");
+                            });
+                })
+                .addOnFailureListener(e -> {
+                    pendingDebtCreationInProgress = false;
+                    NoticeUtils.show(requireContext(), "No se pudo preparar tu justificante para este gasto");
+                });
     }
 
     private boolean canEditOrDeleteExpense(@NonNull DocumentSnapshot expenseDoc) {
@@ -6860,6 +7584,11 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         String lower = value.trim().toLowerCase(Locale.ROOT);
         String normalized = Normalizer.normalize(lower, Normalizer.Form.NFD);
         return normalized.replaceAll("\\p{M}+", "");
+    }
+
+    @NonNull
+    private String safeText(@Nullable String value) {
+        return value == null ? "" : value.trim();
     }
 
     private boolean isExpenseDebt(@Nullable DocumentSnapshot debtDoc) {
@@ -6973,11 +7702,43 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             String[] kv = entry.trim().split(":");
             if (kv.length != 2) continue;
             try {
-                split.put(kv[0].trim().toLowerCase(Locale.ROOT), Double.parseDouble(kv[1].trim()));
+                String key = normalizeExpenseSplitKey(kv[0]);
+                if (key.isEmpty()) continue;
+                split.put(key, Double.parseDouble(kv[1].trim()));
             } catch (NumberFormatException ignored) {
             }
         }
         return split;
+    }
+
+    @NonNull
+    private String resolveExpenseSplitEmail(@NonNull Spinner spinner, @NonNull String fallbackLabel) {
+        Object rawTag = spinner.getTag();
+        if (rawTag instanceof List<?> optionKeys) {
+            int selectedIndex = spinner.getSelectedItemPosition();
+            if (selectedIndex >= 0 && selectedIndex < optionKeys.size()) {
+                Object selected = optionKeys.get(selectedIndex);
+                if (selected != null) {
+                    String email = normalizeExpenseSplitKey(selected.toString());
+                    if (!email.isEmpty()) {
+                        return email;
+                    }
+                }
+            }
+        }
+        return normalizeExpenseSplitKey(fallbackLabel);
+    }
+
+    @NonNull
+    private String normalizeExpenseSplitKey(@Nullable String value) {
+        if (value == null) return "";
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) return "";
+        Matcher matcher = Pattern.compile("([A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,})", Pattern.CASE_INSENSITIVE).matcher(trimmed);
+        if (matcher.find()) {
+            return safeLowerText(matcher.group(1));
+        }
+        return safeLowerText(trimmed);
     }
 
     private void updateExpenseStatusAfterDeadlineChange(@NonNull String deadlineId) {
@@ -7113,8 +7874,10 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     private void scheduleDeadlineNotifications(String concept, String amountLabel, long dueAtMs, String suffix, String sourceType) {
         long now = System.currentTimeMillis();
         long oneDayBefore = dueAtMs - 24L * 60L * 60L * 1000L;
+        long overdueAt = Math.max(dueAtMs + 60_000L, now + 10_000L);
         int reminderA = Math.abs(("due_a_" + suffix).hashCode());
         int reminderB = Math.abs(("due_b_" + suffix).hashCode());
+        int reminderC = Math.abs(("due_c_" + suffix).hashCode());
         boolean expenseDeadline = "expense".equalsIgnoreCase(sourceType);
         String title = concept == null || concept.isEmpty()
                 ? (expenseDeadline ? "Gasto pendiente" : "Pago pendiente")
@@ -7137,6 +7900,15 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                     dueAtMs
             );
         }
+        ReminderScheduler.scheduleOneTime(
+                requireContext(),
+                reminderC,
+                expenseDeadline ? "Tu plazo de gasto ha vencido" : "Tu plazo de pago ha vencido",
+                expenseDeadline
+                        ? "Se venció tu plazo. Habla con la persona que adelantó el gasto para evitar malentendidos."
+                        : "Se venció tu plazo. Habla con la otra persona para resolverlo cuanto antes.",
+                overdueAt
+        );
     }
 
     private View buildPaymentInfoContent(@NonNull WorkspaceRow row) {
@@ -7147,33 +7919,9 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         String proofUri = row.snapshot == null ? "" : row.snapshot.getString("ticketUri");
         boolean hasProof = proofUri != null && !proofUri.trim().isEmpty();
         if (proofUri != null && !proofUri.trim().isEmpty()) {
-            TextView proofTitle = new TextView(requireContext());
-            proofTitle.setText("Justificante subido");
-            proofTitle.setTextColor(requireContext().getColor(R.color.text_light));
-            proofTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-            proofTitle.setTypeface(proofTitle.getTypeface(), android.graphics.Typeface.BOLD);
-            LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-            );
-            titleParams.topMargin = dp(12);
-            proofTitle.setLayoutParams(titleParams);
-            container.addView(proofTitle);
-
-            ImageView proofImage = new ImageView(requireContext());
-            proofImage.setAdjustViewBounds(true);
-            proofImage.setScaleType(ImageView.ScaleType.FIT_CENTER);
-            proofImage.setBackgroundResource(R.drawable.bg_input_dark_round);
-            proofImage.setClipToOutline(true);
-            LinearLayout.LayoutParams imageParams = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    dp(260)
-            );
-            imageParams.topMargin = dp(8);
-            proofImage.setLayoutParams(imageParams);
-            loadProofPreviewAsync(proofImage, proofUri, 1280, 1280);
-            container.addView(proofImage);
+            appendProofSection(container, "Justificante subido", proofUri.trim());
         }
+        bindSourceExpenseTicketPreview(row, container);
 
         ScrollView scrollView = new ScrollView(requireContext());
         scrollView.setFillViewport(true);
@@ -7186,6 +7934,81 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             ));
         }
         return scrollView;
+    }
+
+    private void appendProofSection(@NonNull LinearLayout container, @NonNull String title, @NonNull String proofUri) {
+        TextView proofTitle = new TextView(requireContext());
+        proofTitle.setText(title);
+        proofTitle.setTextColor(requireContext().getColor(R.color.text_light));
+        proofTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        proofTitle.setTypeface(proofTitle.getTypeface(), android.graphics.Typeface.BOLD);
+        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        titleParams.topMargin = dp(12);
+        proofTitle.setLayoutParams(titleParams);
+        container.addView(proofTitle);
+
+        ImageView proofImage = new ImageView(requireContext());
+        proofImage.setAdjustViewBounds(true);
+        proofImage.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        proofImage.setBackgroundResource(R.drawable.bg_input_dark_round);
+        proofImage.setClipToOutline(true);
+        LinearLayout.LayoutParams imageParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        imageParams.topMargin = dp(8);
+        proofImage.setLayoutParams(imageParams);
+        loadProofPreviewAsync(proofImage, proofUri, 1600, 2200);
+        proofImage.setOnClickListener(v -> showProofViewerDialog(proofUri));
+        container.addView(proofImage);
+    }
+
+    private void bindSourceExpenseTicketPreview(@NonNull WorkspaceRow row, @NonNull LinearLayout container) {
+        if (row.snapshot == null) return;
+        String sourceExpenseId = row.snapshot.getString("sourceId");
+        if (sourceExpenseId == null || sourceExpenseId.trim().isEmpty()) return;
+        String currentProofUri = row.snapshot.getString("ticketUri");
+
+        db.collection("expenses").document(sourceExpenseId.trim()).get().addOnSuccessListener(expenseDoc -> {
+            if (!isAdded() || !expenseDoc.exists()) return;
+            String expenseTicketUri = expenseDoc.getString("ticketUri");
+            if (expenseTicketUri == null || expenseTicketUri.trim().isEmpty()) return;
+            if (currentProofUri != null && expenseTicketUri.trim().equals(currentProofUri.trim())) return;
+            container.post(() -> {
+                if (!isAdded()) return;
+                appendProofSection(container, "Ticket del gasto", expenseTicketUri.trim());
+            });
+        });
+    }
+
+    private void showProofViewerDialog(@NonNull String proofUri) {
+        if (!isAdded()) return;
+        ImageView imageView = new ImageView(requireContext());
+        imageView.setAdjustViewBounds(true);
+        imageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        imageView.setBackgroundResource(R.drawable.bg_input_dark_round);
+        loadProofPreviewAsync(imageView, proofUri, 2200, 3200);
+
+        ScrollView scrollView = new ScrollView(requireContext());
+        scrollView.setFillViewport(true);
+        scrollView.addView(imageView, new ScrollView.LayoutParams(
+                ScrollView.LayoutParams.MATCH_PARENT,
+                ScrollView.LayoutParams.WRAP_CONTENT
+        ));
+
+        DialogUtils.Shell shell = DialogUtils.buildShell(
+                requireContext(),
+                "Justificante completo",
+                "Pulsa fuera o cierra cuando termines de revisarlo.",
+                scrollView,
+                null,
+                "Cerrar"
+        );
+        AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+        shell.confirmBtn.setOnClickListener(v -> dialog.dismiss());
     }
 
     private void loadProofPreviewAsync(@NonNull ImageView imageView, @NonNull String proofUri, int maxWidth, int maxHeight) {
@@ -7338,12 +8161,14 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         pendingTicketStatusTv.setText(pendingTicketUri == null || pendingTicketUri.isEmpty()
                 ? "Sin ticket adjunto"
                 : "Ticket adjunto");
+        updateExpenseConfirmButtonState();
         attachBtn.setOnClickListener(v -> ticketPickerLauncher.launch("image/*"));
     }
 
     private void handleTicketSelected(@Nullable Uri uri) {
         if (uri == null || !isAdded()) return;
         pendingTicketUri = uri.toString();
+        updateExpenseConfirmButtonState();
         updatePaymentConfirmButtonState();
         if (pendingTicketStatusTv != null) pendingTicketStatusTv.setText("Ticket adjunto. Procesando OCR...");
         try {
@@ -7364,14 +8189,17 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                         } else if (pendingTicketStatusTv != null) {
                             pendingTicketStatusTv.setText("OCR listo, no se encontró importe claro.");
                         }
+                        updateExpenseConfirmButtonState();
                         updatePaymentConfirmButtonState();
                     })
                     .addOnFailureListener(e -> {
                         if (pendingTicketStatusTv != null) pendingTicketStatusTv.setText("OCR falló.");
+                        updateExpenseConfirmButtonState();
                         updatePaymentConfirmButtonState();
                     });
         } catch (Exception e) {
             if (pendingTicketStatusTv != null) pendingTicketStatusTv.setText("No se pudo leer la imagen.");
+            updateExpenseConfirmButtonState();
             updatePaymentConfirmButtonState();
         }
     }
@@ -7425,47 +8253,47 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             android.graphics.Paint titlePaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
             titlePaint.setColor(Color.WHITE);
             titlePaint.setTextAlign(android.graphics.Paint.Align.CENTER);
-            titlePaint.setTextSize(24f);
+            titlePaint.setTextSize(30f);
             titlePaint.setFakeBoldText(true);
 
             android.graphics.Paint subtitlePaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
             subtitlePaint.setColor(Color.parseColor("#D6E8FF"));
             subtitlePaint.setTextAlign(android.graphics.Paint.Align.CENTER);
-            subtitlePaint.setTextSize(11f);
+            subtitlePaint.setTextSize(14f);
 
             android.graphics.Paint summaryLabelPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
             summaryLabelPaint.setColor(Color.parseColor("#5B708A"));
-            summaryLabelPaint.setTextSize(10f);
+            summaryLabelPaint.setTextSize(12f);
 
             android.graphics.Paint summaryValuePaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
             summaryValuePaint.setColor(Color.parseColor("#10233A"));
-            summaryValuePaint.setTextSize(16f);
+            summaryValuePaint.setTextSize(20f);
             summaryValuePaint.setFakeBoldText(true);
 
             android.graphics.Paint bodyTitlePaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
             bodyTitlePaint.setColor(Color.parseColor("#10233A"));
-            bodyTitlePaint.setTextSize(13f);
+            bodyTitlePaint.setTextSize(16f);
             bodyTitlePaint.setFakeBoldText(true);
 
             android.graphics.Paint bodyTextPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
             bodyTextPaint.setColor(Color.parseColor("#465A72"));
-            bodyTextPaint.setTextSize(10.5f);
+            bodyTextPaint.setTextSize(12.5f);
 
             android.graphics.Paint amountPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
-            amountPaint.setTextSize(13f);
+            amountPaint.setTextSize(16f);
             amountPaint.setFakeBoldText(true);
             amountPaint.setTextAlign(android.graphics.Paint.Align.RIGHT);
 
             android.graphics.Paint chipPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
             android.graphics.Paint chipTextPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
             chipTextPaint.setColor(Color.WHITE);
-            chipTextPaint.setTextSize(9f);
+            chipTextPaint.setTextSize(11f);
             chipTextPaint.setFakeBoldText(true);
             chipTextPaint.setTextAlign(android.graphics.Paint.Align.CENTER);
 
             android.graphics.Paint footerPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
             footerPaint.setColor(Color.parseColor("#7A8CA3"));
-            footerPaint.setTextSize(9f);
+            footerPaint.setTextSize(11f);
             footerPaint.setTextAlign(android.graphics.Paint.Align.CENTER);
 
             int pageNumber = 1;
@@ -7478,11 +8306,11 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 canvas.drawRect(0f, 0f, pageWidth, pageHeight, backgroundPaint);
                 canvas.drawRoundRect(new android.graphics.RectF(margin, margin, pageWidth - margin, 170f), 28f, 28f, headerPaint);
 
-                canvas.drawText("Resumen de Movimientos", pageWidth / 2f, 78f, titlePaint);
-                canvas.drawText(safeGroupName, pageWidth / 2f, 106f, subtitlePaint);
-                canvas.drawText("Documento generado por FlatShare", pageWidth / 2f, 126f, subtitlePaint);
+                canvas.drawText("Resumen de Movimientos", pageWidth / 2f, 82f, titlePaint);
+                canvas.drawText(safeGroupName, pageWidth / 2f, 114f, subtitlePaint);
+                canvas.drawText("Documento generado por FlatShare", pageWidth / 2f, 138f, subtitlePaint);
 
-                float summaryTop = 145f;
+                float summaryTop = 152f;
                 float summaryGap = 14f;
                 float summaryWidth = (contentWidth - summaryGap) / 2f;
                 drawPdfSummaryCard(
@@ -7490,7 +8318,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                         margin,
                         summaryTop,
                         summaryWidth,
-                        74f,
+                        86f,
                         "Movimientos incluidos",
                         String.valueOf(totalRows),
                         Color.parseColor("#DDF4FF"),
@@ -7504,7 +8332,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                         margin + summaryWidth + summaryGap,
                         summaryTop,
                         summaryWidth,
-                        74f,
+                        86f,
                         "Piso",
                         safeGroupName,
                         Color.parseColor("#E6FFF4"),
@@ -7514,12 +8342,12 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                         summaryValuePaint
                 );
 
-                float cursorY = 245f;
+                float cursorY = 264f;
                 while (rowIndex < totalRows) {
                     WorkspaceRow row = expenseRows.get(rowIndex);
                     String status = resolvePdfRowStatus(row);
                     float cardHeight = estimatePdfRowHeight(row, bodyTextPaint, contentWidth - 34f);
-                    if (cursorY + cardHeight > 785f) {
+                    if (cursorY + cardHeight > 780f) {
                         break;
                     }
                     drawPdfMovementCard(
@@ -7536,7 +8364,7 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                             chipPaint,
                             chipTextPaint
                     );
-                    cursorY += cardHeight + 14f;
+                    cursorY += cardHeight + 18f;
                     rowIndex++;
                 }
 
@@ -7607,15 +8435,15 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
         android.graphics.Paint localValuePaint = new android.graphics.Paint(valuePaint);
         localValuePaint.setColor(accentColor);
-        localValuePaint.setTextSize(value.length() > 18 ? 11f : valuePaint.getTextSize());
+        localValuePaint.setTextSize(value.length() > 18 ? 14f : valuePaint.getTextSize());
 
-        canvas.drawText(label, left + 72f, top + 30f, labelPaint);
-        canvas.drawText(value, left + 72f, top + 54f, localValuePaint);
+        canvas.drawText(label, left + 72f, top + 34f, labelPaint);
+        canvas.drawText(value, left + 72f, top + 64f, localValuePaint);
     }
 
     private float estimatePdfRowHeight(@NonNull WorkspaceRow row, @NonNull android.graphics.Paint bodyTextPaint, float maxWidth) {
         int subtitleLines = wrapPdfText(row.subtitle == null ? "" : row.subtitle, bodyTextPaint, maxWidth).size();
-        return 74f + (Math.max(1, subtitleLines) - 1) * 12f;
+        return 92f + (Math.max(1, subtitleLines) - 1) * 16f;
     }
 
     private void drawPdfMovementCard(
@@ -7642,22 +8470,22 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
         android.graphics.Paint localTitlePaint = new android.graphics.Paint(titlePaint);
         localTitlePaint.setColor(Color.parseColor("#11263D"));
-        canvas.drawText(row.title == null ? "Movimiento" : row.title, left + 22f, top + 24f, localTitlePaint);
+        canvas.drawText(row.title == null ? "Movimiento" : row.title, left + 22f, top + 30f, localTitlePaint);
 
         android.graphics.Paint localAmountPaint = new android.graphics.Paint(amountPaint);
         localAmountPaint.setColor(palette[1]);
-        localAmountPaint.setTextSize(row.amount != null && row.amount.length() > 12 ? 11.5f : 13f);
-        canvas.drawText(row.amount == null ? "0.00 EUR" : row.amount, left + width - 18f, top + 24f, localAmountPaint);
+        localAmountPaint.setTextSize(row.amount != null && row.amount.length() > 12 ? 14f : 16f);
+        canvas.drawText(row.amount == null ? "0.00 EUR" : row.amount, left + width - 18f, top + 30f, localAmountPaint);
 
         chipPaint.setColor(palette[1]);
-        android.graphics.RectF chipRect = new android.graphics.RectF(left + 22f, top + 34f, left + 112f, top + 56f);
-        canvas.drawRoundRect(chipRect, 11f, 11f, chipPaint);
-        canvas.drawText(statusLabel(status), chipRect.centerX(), top + 49f, chipTextPaint);
+        android.graphics.RectF chipRect = new android.graphics.RectF(left + 22f, top + 42f, left + 126f, top + 68f);
+        canvas.drawRoundRect(chipRect, 13f, 13f, chipPaint);
+        canvas.drawText(statusLabel(status), chipRect.centerX(), top + 60f, chipTextPaint);
 
-        float textY = top + 71f;
+        float textY = top + 88f;
         for (String line : wrapPdfText(row.subtitle == null ? "" : row.subtitle, bodyTextPaint, width - 34f)) {
             canvas.drawText(line, left + 22f, textY, bodyTextPaint);
-            textY += 12f;
+            textY += 16f;
         }
     }
 
@@ -8077,11 +8905,26 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             WorkspaceRow row = rows.get(position);
             TextView titleTv = view.findViewById(R.id.rowTitleTv);
             TextView subtitleTv = view.findViewById(R.id.rowSubtitleTv);
+            TextView detailTv = view.findViewById(R.id.rowDetailTv);
             TextView amountTv = view.findViewById(R.id.rowAmountTv);
 
             titleTv.setText(row.title);
-            subtitleTv.setText(row.subtitle);
+            int labelColor = requireContext().getColor(R.color.text_light);
+            int subtitleValueColor = requireContext().getColor(R.color.text_muted);
+            int detailValueColor = requireContext().getColor(R.color.text_light);
+            subtitleTv.setText(buildWorkspaceMetaText(buildWorkspaceRowPrimaryText(row), labelColor, subtitleValueColor));
             amountTv.setText(row.amount);
+            boolean emphasizeParties = "expense".equals(row.type) || ROW_TYPE_ROOM_CHARGE.equals(row.type);
+            subtitleTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, emphasizeParties ? 12.5f : 12f);
+            detailTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, emphasizeParties ? 13.5f : 13f);
+            String detail = buildWorkspaceRowDetailText(row).trim();
+            if (detail.isEmpty()) {
+                detailTv.setVisibility(View.GONE);
+                detailTv.setText("");
+            } else {
+                detailTv.setVisibility(View.VISIBLE);
+                detailTv.setText(buildWorkspaceMetaText(detail, labelColor, detailValueColor));
+            }
 
             String flowStatus = STATUS_REQUESTED;
             if (ROW_TYPE_PENDING_DEBT.equals(row.type)) {
@@ -8094,26 +8937,37 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
             if ("reminder".equals(row.type)) {
                 amountTv.setTextColor(requireContext().getColor(R.color.text_light));
-                subtitleTv.setTextColor(requireContext().getColor(R.color.text_light));
+            } else if (ROW_TYPE_ROOM_CHARGE.equals(row.type)) {
+                String rentStatus = normalizeRentChargeStatus(
+                        row.snapshot == null ? null : row.snapshot.getString("status"),
+                        row.snapshot == null ? 0.0 : safeDouble(row.snapshot.getDouble("amountBase")),
+                        row.snapshot == null ? 0.0 : safeDouble(row.snapshot.getDouble("amountPaid")),
+                        row.snapshot == null ? 0.0 : safeDouble(row.snapshot.getDouble("surcharge")),
+                        row.snapshot == null ? null : row.snapshot.getDate("dueAt")
+                );
+                if ("pagado".equals(rentStatus)) {
+                    amountTv.setTextColor(requireContext().getColor(R.color.status_success));
+                } else if ("parcial".equals(rentStatus)) {
+                    amountTv.setTextColor(requireContext().getColor(R.color.status_warning));
+                } else {
+                    amountTv.setTextColor(requireContext().getColor(R.color.status_danger));
+                }
             } else if (STATUS_CONFIRMED.equals(flowStatus)) {
                 amountTv.setTextColor(requireContext().getColor(R.color.status_success));
-                subtitleTv.setTextColor(requireContext().getColor(R.color.status_success));
             } else if (STATUS_PENDING.equals(flowStatus)) {
                 amountTv.setTextColor(requireContext().getColor(R.color.status_warning));
-                subtitleTv.setTextColor(requireContext().getColor(R.color.status_warning));
             } else {
                 amountTv.setTextColor(requireContext().getColor(R.color.status_danger));
-                subtitleTv.setTextColor(requireContext().getColor(R.color.status_danger));
             }
 
             if ("payment".equals(row.type)) {
                 boolean expenseBackedPayment = isExpenseBackedPayment(row.snapshot);
                 if (STATUS_CONFIRMED.equals(flowStatus)) {
-                    titleTv.setText(expenseBackedPayment ? "Confirmación aceptada" : "Pago pagado");
+                    titleTv.setText(expenseBackedPayment ? "Confirmación aceptada" : "Movimiento antiguo");
                 } else if (STATUS_PENDING.equals(flowStatus)) {
-                    titleTv.setText(expenseBackedPayment ? "Confirmación pendiente" : "Pago pendiente");
+                    titleTv.setText(expenseBackedPayment ? "Confirmación pendiente" : "Movimiento antiguo");
                 } else {
-                    titleTv.setText(expenseBackedPayment ? "Confirmación enviada" : "Pago solicitado");
+                    titleTv.setText(expenseBackedPayment ? "Confirmación enviada" : "Movimiento antiguo");
                 }
             } else if ("expense".equals(row.type)) {
                 if (STATUS_CONFIRMED.equals(flowStatus)) {
@@ -8123,8 +8977,30 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
                 } else {
                     titleTv.setText("Gasto solicitado");
                 }
+            } else if (ROW_TYPE_ROOM_CHARGE.equals(row.type)) {
+                String rentStatus = normalizeRentChargeStatus(
+                        row.snapshot == null ? null : row.snapshot.getString("status"),
+                        row.snapshot == null ? 0.0 : safeDouble(row.snapshot.getDouble("amountBase")),
+                        row.snapshot == null ? 0.0 : safeDouble(row.snapshot.getDouble("amountPaid")),
+                        row.snapshot == null ? 0.0 : safeDouble(row.snapshot.getDouble("surcharge")),
+                        row.snapshot == null ? null : row.snapshot.getDate("dueAt")
+                );
+                if ("pagado".equals(rentStatus)) {
+                    titleTv.setText("Gasto habitación pagado");
+                } else if ("parcial".equals(rentStatus)) {
+                    titleTv.setText("Gasto habitación parcial");
+                } else {
+                    titleTv.setText("Gasto habitación pendiente");
+                }
+                if ("pagado".equals(rentStatus)) {
+                    titleTv.setText("Gasto habitación pagado");
+                } else if ("parcial".equals(rentStatus)) {
+                    titleTv.setText("Gasto habitación parcial");
+                } else {
+                    titleTv.setText("Gasto solicitado");
+                }
             } else if (ROW_TYPE_PENDING_DEBT.equals(row.type)) {
-                titleTv.setText(isExpenseDebt(row.snapshot) ? "Gasto por confirmar" : "Pago solicitado");
+                titleTv.setText("Gasto por confirmar");
             }
             return view;
         }

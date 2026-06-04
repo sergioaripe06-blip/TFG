@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">FlatShare</string>
     <string name="nav_groups">Flats</string>
@@ -42,7 +43,7 @@
     <string name="settings_delete_account_password_invalid">Incorrect password.</string>
     <string name="settings_delete_account_credentials_invalid">Incorrect email or password.</string>
     <string name="settings_delete_account_password_cta">Validate and continue</string>
-    <string name="payment_category_fixed_hint">In fixed rent, the category is always rent.</string>
+    <string name="payment_category_fixed_hint">Type the category that best fits this payment.</string>
     <string name="save">Save</string>
     <string name="calendar_title">Calendar</string>
     <string name="due_date_hint">Due date (DD/MM/YYYY)</string>
@@ -50,21 +51,19 @@
     <string name="common_close">Close</string>
     <string name="common_email_label">Email:</string>
     <string name="common_password_label">Password:</string>
-
     <string name="login_title">Log in</string>
     <string name="login_subtitle">Manage your shared flat</string>
     <string name="login_email_hint">Type your email</string>
     <string name="login_password_hint">Type your password</string>
     <string name="login_remember_me">Remember me</string>
-    <string name="login_forgot_password">Forgot your password?</string>
-
+    <string name="login_forgot_password">Forgot your password</string>
     <string name="auth_verify_required">You must verify your email before entering</string>
     <string name="auth_email_missing">Email is required</string>
     <string name="auth_password_missing">Password is required</string>
     <string name="auth_login_unavailable">Could not sign in</string>
     <string name="auth_session_unavailable">Session unavailable</string>
     <string name="auth_verify_pending">Your email is not verified yet</string>
-    <string name="auth_forgot_title">Forgot password?</string>
+    <string name="auth_forgot_title">Forgot password</string>
     <string name="auth_forgot_subtitle">Enter your email and we will send you a reset link.</string>
     <string name="auth_enter_email">Enter your email</string>
     <string name="auth_forgot_email_only">Recovery is only available with email</string>
@@ -76,7 +75,6 @@
     <string name="auth_error_too_many_requests">Too many attempts. Please try again later.</string>
     <string name="auth_error_network">Network error. Check your internet and try again.</string>
     <string name="auth_error_generic">Could not complete the operation. Check your data and try again.</string>
-
     <string name="register_title">Create account</string>
     <string name="register_subtitle">Start sharing expenses</string>
     <string name="register_heading">Sign up</string>
@@ -86,11 +84,11 @@
     <string name="register_phone_hint">Type your number</string>
     <string name="register_birth_date_label">Birth date:</string>
     <string name="register_birth_date_hint">DD/MM/YYYY</string>
-    <string name="register_terms_switch">I accept the terms and conditions</string>
+    <string name="register_terms_switch">I declare that I have read and accepted the terms and conditions of use</string>
     <string name="register_view_terms">View terms and conditions</string>
     <string name="register_complete_all_fields">Complete all registration fields</string>
     <string name="register_adult_required">You must be at least 18 years old</string>
-    <string name="register_terms_required">You must accept the terms and conditions</string>
+    <string name="register_terms_required">You must accept the terms and conditions to complete registration</string>
     <string name="register_create_failed">Could not create the account. Try again.</string>
     <string name="register_verification_sent">We sent you a verification email</string>
     <string name="register_verification_send_failed">Account created, but we could not send the verification email. You can resend it from the next screen.</string>
@@ -98,9 +96,35 @@
     <string name="register_birth_date_invalid">Invalid format. Use DD/MM/YYYY</string>
     <string name="register_error_weak_password">Password is too weak. Use at least 6 characters.</string>
     <string name="register_error_generic">Could not complete registration. Check your data and try again.</string>
-    <string name="register_terms_title">Terms and conditions</string>
-    <string name="register_terms_content">Terms and conditions of use\n\n1. You must use the app legally and respectfully.\n2. You are responsible for the data you enter.\n3. Do not share access to your account.\n4. Expenses, payments, and reminders are the responsibility of users.\n5. You can stop using the app whenever you want.\n6. By signing up, you accept these terms.</string>
+    <string name="register_terms_title">Terms and conditions of use</string>
+    <string name="register_terms_content">Terms and conditions of use for FlatShare
 
+1. Purpose of the service.
+FlatShare is an application intended to help organize shared housing, including the management of users, rooms, expenses, payments, reminders, calendar events, and internal coexistence features.
+
+2. Proper use.
+The user agrees to use the application lawfully, diligently, and respectfully, avoiding any fraudulent, offensive, or otherwise unlawful behavior.
+
+3. Accuracy of information.
+The user is responsible for the accuracy of all data entered into the application, including amounts, recipients, proof of payment, reminders, and any other manually introduced content.
+
+4. Access credentials.
+Each account is personal and non-transferable. The user must keep their credentials secure and must not share access with third parties. Any action performed through the account shall be considered linked to the authenticated session of that user.
+
+5. Responsibility for registered records.
+Expenses, payments, reminders, incidents, rules, and schedules created in the application are managed by the users themselves. FlatShare is a support tool and does not replace the individual responsibility of users regarding the validity, legality, or fulfillment of agreements reached between co-tenants.
+
+6. Attachments and supporting documents.
+Whenever images, documents, or payment proofs are uploaded, the user declares that they have sufficient legitimacy to use such material within the context of the shared household and assumes responsibility for its content.
+
+7. Availability and changes.
+The application may incorporate improvements, functional adjustments, interface changes, or technical fixes in order to maintain service quality. Such changes shall not retroactively affect the acceptance already recorded for these terms.
+
+8. Discontinuation of use.
+The user may stop using the application at any time and may request account deletion from the settings area, according to the behavior implemented in the app.
+
+9. Acceptance.
+By completing the registration process, the user declares that they have read, understood, and fully accepted these terms and conditions of use.</string>
     <string name="verify_email_title">Verify your email</string>
     <string name="verify_email_subtitle">We sent you a link to validate your account</string>
     <string name="verify_email_sent_to">Verification email sent to</string>
@@ -112,11 +136,9 @@
     <string name="verify_email_still_pending">It is not verified yet. Check your email and tap \"I have verified\".</string>
     <string name="verify_email_success">Email verified. Welcome</string>
     <string name="verify_email_unavailable_email">(email unavailable)</string>
-
     <string name="balance_select_group">Select a group to see balances.</string>
     <string name="balance_invalid_group_members">Group has no valid members.</string>
     <string name="balance_they_owe_you">You are owed %1$s €</string>
     <string name="balance_you_owe">You owe %1$s €</string>
     <string name="balance_group_title">Group balance:</string>
 </resources>
-

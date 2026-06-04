@@ -12,6 +12,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.sergio.flatshare.R;
+import com.sergio.flatshare.core.settings.ThemeUtils;
 import com.sergio.flatshare.core.session.SessionStore;
 import com.sergio.flatshare.core.sync.UserSync;
 import com.sergio.flatshare.features.shell.MainActivity;
@@ -34,6 +35,7 @@ public class VerifyEmailActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        ThemeUtils.applyAppTheme(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_verify_email);
 
@@ -121,6 +123,7 @@ public class VerifyEmailActivity extends AppCompatActivity {
                                 finalizeProfileIfNeeded();
                                 UserSync.ensureCurrentUserDocument();
                                 SessionStore.clearPendingRegistrationProfile(this);
+                                SessionStore.clearReauthRequired(this);
                                 NoticeUtils.show(this, getString(R.string.verify_email_success));
                                 openMain();
                             })
@@ -146,6 +149,7 @@ public class VerifyEmailActivity extends AppCompatActivity {
     }
 
     private void returnToLogin() {
+        SessionStore.clearReauthRequired(this);
         FirebaseAuth.getInstance().signOut();
         Intent intent = new Intent(this, LoginActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);

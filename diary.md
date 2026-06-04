@@ -12,11 +12,40 @@ Este diario esta preparado para entrega academica y sigue estas reglas:
 
 ---
 
+- Retocado `Nuevo gasto` para quitar la coletilla `(OCR)` del botón de ticket, ocultar al propio pagador en los selectores de reparto por personas y reforzar la lectura de `Solicitado por` y `Para` en las tarjetas de movimientos.
+- Añadida la `Fecha del gasto` en la tarjeta y en el detalle de cada gasto, y unificado el formato visible de fechas a `DD/MM/AAAA`, incluyendo los meses mostrados en gastos, cobros de habitación y balance temporal.
+- Refinada la tarjeta de `Movimientos` para gastos y cobros de habitación: ahora usa nombres compactos sin correos repetidos en la vista rápida, resalta mejor las etiquetas y deja el color de estado centrado en el importe para evitar una lectura recargada.
+- Sustituido el buscador lateral de `Movimientos` por una banda de filtros rápidos por estado (`Solicitado`, `En revisión`, `Pagados`) en formato de tarjetita discreta, manteniendo el botón `Filtros` independiente.
+- Simplificados los HTML de entrega para darles un aspecto sobrio tipo Word, sin decoracion innecesaria y priorizando la legibilidad del contenido.
+- Actualizadas las portadas de la documentación HTML de entrega con los datos reales del autor y de la titulación.
+- Corregido el comportamiento de `Recordarme`: ahora la sesion solo persiste entre cierres si la opcion esta activada; si esta desactivada, la app cierra sesion al salir a segundo plano.
+- Unificada la aplicacion del tema guardado en `Splash`, `Login`, `Registro`, `Verificacion` y `Main` para evitar cruces esporadicos entre modo claro y oscuro.
+- Ajustado el balance para que el coste mensual de una habitacion se reparta por inquilino segun `rentSplitMode` y `rentSplitPercentages`, en vez de caer completo en una sola persona o quedar fuera del calculo.
+- Corregido `Nuevo gasto` para que no dependa de habitaciones: el reparto se resuelve por personas aunque no exista ninguna habitacion creada, y la edicion reutiliza el mismo criterio.
+- Reforzado el flujo de `Subir justificante` en gastos pendientes para que reconozca correctamente los correos del reparto incluso en datos legacy, evitando el bloqueo de deuda no reconstruible.
+- Corregido el selector de categoria de pagos para que sea libre en todos los modelos de alquiler y muestre sugerencias historicas del mismo piso mientras se escribe.
+- Simplificada la ventana de `Pago pendiente` para ocultar controles que no aplican al caso y evitar dobles envios del justificante.
+- Reutilizada la deuda tecnica existente al abrir un gasto en revision, evitando crear registros duplicados de `payment_deadlines` por pulsaciones repetidas.
+- Ajustado el calculo de `Movimientos` para que los importes de gasto y reparto siempre sumen en el saldo aunque el correo no estuviera ya precreado en el mapa, evitando que un gasto creado por ti acabe viendose como `Debes` en lugar de `Te deben`.
+- Separado el detalle de gastos en `Movimientos` para que muestre `Tu saldo` segun la perspectiva del usuario actual: `Te deben` si ha adelantado el pago y `Debes` si es el destinatario real del gasto.
+- Recalculadas las tarjetas rapidas de `Movimientos` a partir de las filas visibles y del rol real del usuario en cada gasto/pago, para mostrar por separado lo que te deben y lo que debes.
+- Devuelto el resumen rapido de `Movimientos` al saldo neto real para evitar sumar importes historicos ya compensados.
+- Simplificada la vista de `Movimientos` retirando el bloque de resumen `Te deben/Debes` y dejando la pista directa en cada gasto solicitado cuando te toca pagarlo a ti.
+- Añadido el aviso `(Este gasto es para ti)` en la fila del gasto cuando el usuario actual figura como deudor.
+- Ajustada la validacion de horarios para aceptar horas exactas como `19:00` y normalizar siempre a `HH:MM` antes de guardar.
+- Unificado el formato visible de fechas en `RentalManagementFragment` a `DD/MM/AAAA`, manteniendo compatibilidad con datos antiguos `AAAA-MM-DD` al abrir o editar formularios.
+- En `Horarios`, los campos de fecha y sus listados ya muestran formato español `DD/MM/AAAA` en lugar de ISO.
+- Añadido aviso automático de vencimiento para deudas de gasto y pago: al pasar la fecha límite se lanza una notificación local con recordatorio de resolución.
+
 ## 2026-06-03
 - Tipo: Avance reconstruido
 - Corregida la expansion de recordatorios recurrentes en `CalendarFragment` para que la fecha `Hasta` limite de verdad su presencia en calendario.
 - Ajustado el programado local de recordatorios para que un caso de inicio y fin en el mismo dia no se registre como repetitivo infinito.
 - Rehecha la pantalla de balance para dejar solo dos bloques principales con el mismo peso visual: `Balance de gastos` y `Balance por tiempo`.
+- Reconvertida la pestaña de gestión del piso para dejar solo `Incidencias`, `Reglas` y `Horarios`, eliminando de la UI de workspace los módulos de cobros y documentos.
+- Añadidas las colecciones `house_rules` y `group_schedules`, con visualización de horarios recurrentes también en `CalendarFragment` y color propio para diferenciarlos.
+- Corregido el guardado de incidencias para evitar cierres al registrar el histórico interno del ticket.
+- Ajustado el PDF exportado de movimientos para aumentar tipografias, alturas de tarjeta y espaciado, mejorando la legibilidad.
 - Eliminado el tercer bloque secundario del balance y añadido un selector de periodo en la segunda grafica con rangos como trimestre, cuatrimestre, semestre, año completo y 2 años.
 - El detalle de confirmaciones y pagos pasa a enseñar la imagen del justificante cuando ya se ha subido, facilitando la revision visual antes de aceptar.
 - Ajuste visual menor en la informacion del piso: el boton pasa a leerse `Añadir inquilinos` sin alterar la accion interna.
@@ -858,7 +887,7 @@ En cada avance relevante anadir:
 - Tipo: Mejora de reparto en Nuevo cobro/pago
 
 ## 2026-05-27
-- Corregido texto mojibake y caracteres de reemplazo (`?`) en Java y XML de UI.
+- Corregido texto mojibake y caracteres de reemplazo (``) en Java y XML de UI.
 
 ## 2026-05-27
 
@@ -1103,3 +1132,124 @@ ooms_groups para eliminar la auto-salida/cambio directo del inquilino (isSelfRoo
 - Tipo: Guia de validacion final en 10 minutos
 - Se agrega validacion10minutos.md con checklist cronometrado para cierre pre-entrega (union, habitaciones, gastos, pagos, duplicados y smoke final).
 
+
+## 2026-06-04
+- Tipo: Validacion de ticket obligatoria en Nuevo gasto
+- El alta de gastos nuevos exige adjuntar ticket antes de guardar y el boton `Guardar` queda bloqueado hasta que exista justificante.
+- La edicion de gastos ya existentes conserva su ticket previo y no obliga a volver a subirlo si solo se cambian otros campos.
+
+## 2026-06-04
+- Tipo: Horarios solo gestionables por el propietario
+- El modulo `Horarios` queda en modo solo lectura para miembros que no sean propietarios del piso.
+- Solo el propietario puede crear, editar y eliminar horarios, y se añade accion visible de `Eliminar horario` en la gestion.
+- Firestore se alinea para que `group_schedules` permita lectura a miembros, pero escritura y borrado solo al propietario.
+
+## 2026-06-04
+- Tipo: Correccion de deteccion de propietario en Gestion
+- RentalManagementFragment pasa a reconocer tambien el rol `admin` del grupo al decidir si el usuario puede gestionar `Reglas` y `Horarios`.
+- Resultado: el propietario legitimo deja de quedar bloqueado al intentar crear reglas del piso.
+
+## 2026-06-04
+- Tipo: Filtro de habitacion extendido a Recordatorios y Gestion
+- El filtro interno del piso pasa a aplicarse tambien sobre `reminders`, `maintenance_tickets`, `house_rules` y `group_schedules`.
+- Los elementos ligados a otra habitacion dejan de mostrarse cuando se selecciona una distinta, y en objetivos por persona se usa la composicion real de la habitacion filtrada.
+
+## 2026-06-04
+- Tipo: Reparto exacto del coste mensual por habitacion
+- Se centraliza el calculo del alquiler de habitacion por residentes en `RoomRentShareCalculator`.
+- Si la habitacion tiene un unico residente, absorbe el 100 % del coste mensual; si tiene varios, se reparte segun configuracion.
+- El reparto se cierra a centimos y se reutiliza igual en balance, resumen rapido y pagos por habitacion para evitar discrepancias.
+
+## 2026-06-04
+- Tipo: Cobro mensual de habitacion visible en Movimientos
+- El coste mensual por residente de una habitacion se sincroniza en `rent_collections` del mes actual como `room_charge`.
+- `Movimientos` pasa a mostrar esas deudas como una fila mas de tipo `Gasto habitación`.
+- Si cambian residentes o importe de la habitacion, el cobro mensual del mes se recalcula y se actualiza para reflejar la nueva parte de cada persona.
+
+## 2026-06-04
+- Tipo: Resincronizacion de la siguiente mensualidad de habitacion
+- La sincronizacion de `room_charge` se amplía para recalcular no solo el mes actual, sino tambien la siguiente mensualidad pendiente.
+- Si cambia el coste de la habitacion o sus residentes antes del siguiente vencimiento, ese cobro mensual futuro tambien actualiza su importe y sus deudores.
+
+## 2026-06-04
+- Tipo: Solicitud automatica de gasto de habitacion al entrar
+- El balance de habitacion deja de quedar desacoplado de `Movimientos`: al entrar en el piso se genera automaticamente la fila `Gasto habitación` si falta.
+- La solicitud queda marcada como pedida por el propietario, con inicio el mismo dia y vencimiento a 30 dias.
+- La resincronizacion se permite tambien cuando quien entra primero es un inquilino, manteniendo restringidos el resto de `rent_collections`.
+
+## 2026-06-04
+- Tipo: Guardado de coste final en incidencias
+- El formulario de `Incidencias` pasa a aceptar importes con coma decimal ademas de con punto.
+- Esto evita que `Coste final` falle al guardar cuando el usuario escribe valores como `17,66`.
+
+## 2026-06-04
+- Tipo: Scroll en modales de detalle
+- El contenedor base de `DialogUtils` envuelve el contenido en un `ScrollView` con altura maxima cuando el modal no lo trae ya preparado.
+- Asi se puede deslizar arriba y abajo en detalles largos como `Gasto habitación` y otras ventanas con muchos campos.
+
+## 2026-06-04
+- Tipo: Normalizacion de horas en horarios
+- El formulario de `Horarios` normaliza las horas a `HH:MM` para recoger bien casos exactos como `17:00` o `18:00`.
+- Tambien se corrige el calculo de `endAt` para que use la hora de fin real y no repita la hora de inicio.
+
+## 2026-06-04
+- Tipo: Mejora visual de terminos y condiciones
+- El texto legal del registro deja de mostrarse como un bloque plano de sistema y pasa a un dialogo con introduccion, secciones separadas y scroll mas comodo.
+- El cambio es visual y de legibilidad; no modifica la logica de aceptacion.
+
+## 2026-06-04
+- Tipo: Correccion de puntuacion en recuperacion de contraseña
+- Se añaden los signos de cierre que faltaban en `¿Olvidaste tu contraseña?` y `¿Olvidaste la contraseña?`.
+
+## 2026-06-04
+- Tipo: Saneado de textos corruptos en recursos
+- Se rehacen los recursos `values/strings.xml` y `values-es/strings.xml` para eliminar mojibake visible en ajustes, login, registro, verificación y balance.
+
+## 2026-06-04
+- Tipo: Recuperacion del flujo de justificante en gastos dirigidos
+- Los gastos dirigidos a un inquilino vuelven a abrir el flujo de justificante incluso en casos legacy donde la deteccion por `customSplit` no bastaba por si sola.
+- Si el gasto no va realmente dirigido al usuario, el modal vuelve a quedarse en solo lectura y ya no intenta recrear una deuda incorrecta.
+
+## 2026-06-04
+- Tipo: Visor ampliado de justificantes
+- La vista previa del justificante deja de quedarse tan limitada en altura y ahora puede abrirse en un visor ampliado.
+- La carga sigue haciendose con muestreo para evitar picos de memoria en el movil.
+
+## 2026-06-04
+- Tipo: Gasto mensual de habitacion en balance temporal
+- El balance por tiempo incorpora tambien los documentos `room_charge` de `rent_collections` del inquilino actual.
+- Con ello, el gasto mensual de habitacion ya no se pierde en la grafica temporal aunque exista como movimiento generado aparte.
+## 2026-06-04
+- Tipo: Altura adaptativa en dialogos
+- El contenedor base de `DialogUtils` deja de forzar una altura fija para todas las ventanas.
+- Los dialogos pequenos vuelven a ajustarse al contenido y los largos mantienen scroll con una altura maxima razonable.
+
+## 2026-06-04
+- Tipo: Ticket del gasto visible en pagos solicitados
+- El detalle de `Pago solicitado` y confirmaciones enlazadas carga tambien el ticket original del gasto cuando existe un `sourceId`.
+- Se evita duplicar la imagen si el justificante del pago y el ticket del gasto apuntan al mismo archivo.
+
+## 2026-06-04
+- Tipo: Retirada visual del flujo antiguo de pagos
+- `ExpensesFragment` y `CalendarFragment` dejan de mostrar deudas y movimientos de `payment` que no esten respaldados por un gasto (`sourceType = expense`).
+- Se limpia asi la UI de etiquetas heredadas como `Pago pendiente`, manteniendo solo confirmaciones y pendientes del flujo actual de gastos.
+
+## 2026-06-04
+- Tipo: Nuevo gasto por personas y tarjetas mas legibles
+- El formulario de gastos oculta el reparto por habitaciones y mantiene el alta centrada en personas, mostrando la habitacion junto a cada nombre.
+- Las tarjetas de movimientos y gestion se reorganizan para enseñar mejor quien solicita, a quien afecta y las fechas clave sin depender de subtitulos demasiado compactos.
+
+## 2026-06-04
+- Tipo: Reajuste de firestore.rules para gastos
+- Se endurecen las reglas de `expenses` para que solo puedan editarse o borrarse en estado `requested`.
+- La gestion queda restringida al pagador del gasto o al propietario del piso, y en update se preservan `groupId`, `payerId` y `payerEmail`.
+
+## 2026-06-04
+- Tipo: Recuperacion del detalle de gasto dirigido
+- El modal de un gasto solicitado dirigido al deudor vuelve a enseñar el ticket original del gasto con scroll y visor ampliado.
+- El boton `Subir justificante` vuelve a aparecer tambien cuando la deuda enlazada conservaba estado `requested` por compatibilidad con datos anteriores.
+
+## 2026-06-04
+- Tipo: Limpieza final de habitacion y etiquetas legacy
+- El guardado de gastos por personas deja de marcar por defecto `Todas las habitaciones` y deriva las habitaciones desde los deudores reales.
+- La UI de movimientos elimina tambien los ultimos titulos visibles de `Pago solicitado` que no pertenecian al flujo vigente.

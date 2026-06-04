@@ -2,8 +2,8 @@ package com.sergio.flatshare.features.workspace;
 
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
+import android.app.TimePickerDialog;
 import android.database.Cursor;
-import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
@@ -39,6 +39,7 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.sergio.flatshare.R;
+import com.sergio.flatshare.shared.ui.DateInputUtils;
 import com.sergio.flatshare.shared.ui.DialogUtils;
 import com.sergio.flatshare.shared.ui.NoticeUtils;
 import com.sergio.flatshare.features.workspace.services.MemberLabelFormatter;
@@ -64,6 +65,8 @@ import java.util.Map;
 import java.util.Random;
 
 public class RentalManagementFragment extends Fragment {
+    private static final String MODULE_RULES = "house_rules";
+    private static final String MODULE_SCHEDULES = "schedules";
     private static final String MODULE_CONTRACT = "contract";
     private static final String MODULE_RENT = "rent";
     private static final String MODULE_MAINTENANCE = "maintenance";
@@ -85,7 +88,7 @@ public class RentalManagementFragment extends Fragment {
     private final List<String> groupMemberEmails = new ArrayList<>();
     private final Map<String, String> groupMemberNamesByEmail = new HashMap<>();
     private final DecimalFormat moneyFormat = new DecimalFormat("0.00");
-    private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT);
+    private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.ROOT);
     private final Random random = new Random();
 
     private Spinner moduleSpinner;
@@ -96,7 +99,11 @@ public class RentalManagementFragment extends Fragment {
     private RowsAdapter adapter;
 
     private String currentGroupId;
-    private String selectedModuleId = MODULE_RENT;
+    private String selectedModuleId = MODULE_MAINTENANCE;
+    private boolean currentUserIsGroupOwner = false;
+    @Nullable private String currentRoomFilterId;
+    @Nullable private String currentRoomFilterName;
+    private final List<String> currentRoomFilterMembers = new ArrayList<>();
     @Nullable private Uri pendingDocumentFileUri;
     @Nullable private TextView pendingDocumentStatusTv;
     @Nullable private EditText pendingDocumentReferenceEt;
@@ -136,20 +143,22 @@ public class RentalManagementFragment extends Fragment {
         if (currentGroupId == null || currentGroupId.trim().isEmpty()) {
             rows.clear();
             adapter.notifyDataSetChanged();
+            currentUserIsGroupOwner = false;
             primaryActionBtn.setEnabled(false);
             emptyTv.setText("Selecciona un piso para gestionar alquileres.");
             emptyTv.setVisibility(View.VISIBLE);
             return;
         }
         primaryActionBtn.setEnabled(true);
+        primaryActionBtn.setAlpha(1f);
         loadGroupMembersAndThen(this::loadCurrentModuleRows);
     }
 
     private void buildModules() {
         modules.clear();
-        modules.add(new ModuleDef(MODULE_RENT, "Cobros", "Estado mensual: pendiente, parcial, pagado o atrasado + recargos", "Nuevo cobro mensual"));
         modules.add(new ModuleDef(MODULE_MAINTENANCE, "Incidencias", "Averías, responsable, coste, estado e historial", "Nueva incidencia"));
-        modules.add(new ModuleDef(MODULE_DOCUMENTS, "Documentos", "Contrato, facturas, inventario, fotos y actas", "Nuevo documento"));
+        modules.add(new ModuleDef(MODULE_RULES, "Reglas", "Normas del piso para todos, una persona concreta o una habitación", "Nueva regla"));
+        modules.add(new ModuleDef(MODULE_SCHEDULES, "Horarios", "Turnos y usos recurrentes por persona, zona o habitación", "Nuevo horario"));
     }
 
     private void setupModuleSpinner() {
@@ -183,8 +192,7 @@ public class RentalManagementFragment extends Fragment {
                 if (position < 0 || position >= modules.size()) return;
                 ModuleDef module = modules.get(position);
                 selectedModuleId = module.id;
-                moduleHintTv.setText(module.description);
-                primaryActionBtn.setText(module.actionLabel);
+                updateModuleHeaderUi(module);
                 loadCurrentModuleRows();
             }
 
@@ -198,12 +206,32 @@ public class RentalManagementFragment extends Fragment {
         groupMemberEmails.clear();
         groupMemberNamesByEmail.clear();
         db.collection("groups").document(currentGroupId).get().addOnSuccessListener(doc -> {
+            currentUserIsGroupOwner = isCurrentUserGroupOwner(doc);
             List<String> emails = castEmails(doc.get("memberEmails"));
             groupMemberEmails.addAll(emails);
-            resolveGroupMemberNames(emails, done);
+            resolveGroupMemberNames(emails, () -> loadCurrentRoomFilterContext(done));
         }).addOnFailureListener(e -> {
+            currentUserIsGroupOwner = false;
+            clearCurrentRoomFilterContext();
             if (done != null) done.run();
         });
+    }
+
+    private void updateModuleHeaderUi(@NonNull ModuleDef module) {
+        boolean ownerOnlyModule = MODULE_RULES.equals(module.id) || MODULE_SCHEDULES.equals(module.id);
+        boolean canManage = !ownerOnlyModule || currentUserIsGroupOwner;
+        String baseDescription = module.description;
+        if (ownerOnlyModule && !currentUserIsGroupOwner) {
+            moduleHintTv.setText(baseDescription + "\nSolo el propietario puede crear, editar o eliminar.");
+            primaryActionBtn.setText("Solo lectura");
+            primaryActionBtn.setEnabled(false);
+            primaryActionBtn.setAlpha(0.5f);
+            return;
+        }
+        moduleHintTv.setText(baseDescription);
+        primaryActionBtn.setText(module.actionLabel);
+        primaryActionBtn.setEnabled(canManage);
+        primaryActionBtn.setAlpha(1f);
     }
 
     private void resolveGroupMemberNames(List<String> emails, @Nullable Runnable done) {
@@ -248,12 +276,50 @@ public class RentalManagementFragment extends Fragment {
 
     private void loadCurrentModuleRows() {
         if (!isAdded() || currentGroupId == null || currentGroupId.trim().isEmpty()) return;
-        switch (selectedModuleId) {
-            case MODULE_RENT -> loadRentRows();
-            case MODULE_MAINTENANCE -> loadMaintenanceRows();
-            case MODULE_DOCUMENTS -> loadDocumentRows();
-            default -> loadRentRows();
+        ModuleDef selectedModule = findModuleById(selectedModuleId);
+        if (selectedModule != null) {
+            updateModuleHeaderUi(selectedModule);
         }
+        switch (selectedModuleId) {
+            case MODULE_MAINTENANCE -> loadMaintenanceRows();
+            case MODULE_RULES -> loadHouseRuleRows();
+            case MODULE_SCHEDULES -> loadScheduleRows();
+            default -> loadMaintenanceRows();
+        }
+    }
+
+    private void loadCurrentRoomFilterContext(@Nullable Runnable done) {
+        currentRoomFilterId = SessionStore.getCurrentRoomId(requireContext());
+        currentRoomFilterName = SessionStore.getCurrentRoomName(requireContext());
+        currentRoomFilterMembers.clear();
+        if (currentRoomFilterId == null || currentRoomFilterId.trim().isEmpty()) {
+            if (done != null) done.run();
+            return;
+        }
+        db.collection("rooms_groups").document(currentRoomFilterId).get()
+                .addOnSuccessListener(doc -> {
+                    if (!doc.exists()) {
+                        clearCurrentRoomFilterContext();
+                    } else {
+                        currentRoomFilterMembers.clear();
+                        currentRoomFilterMembers.addAll(castEmails(doc.get("memberEmails")));
+                        String roomName = safe(doc.getString("name"));
+                        if (!roomName.isEmpty()) {
+                            currentRoomFilterName = roomName;
+                        }
+                    }
+                    if (done != null) done.run();
+                })
+                .addOnFailureListener(e -> {
+                    clearCurrentRoomFilterContext();
+                    if (done != null) done.run();
+                });
+    }
+
+    private void clearCurrentRoomFilterContext() {
+        currentRoomFilterId = null;
+        currentRoomFilterName = null;
+        currentRoomFilterMembers.clear();
     }
 
     private void handlePrimaryAction() {
@@ -261,28 +327,55 @@ public class RentalManagementFragment extends Fragment {
             NoticeUtils.show(requireContext(), "Selecciona un piso primero");
             return;
         }
+        if ((MODULE_RULES.equals(selectedModuleId) || MODULE_SCHEDULES.equals(selectedModuleId)) && !currentUserIsGroupOwner) {
+            NoticeUtils.show(requireContext(), "Solo el propietario puede gestionar este apartado");
+            return;
+        }
         switch (selectedModuleId) {
-            case MODULE_RENT -> openRentDialog(null);
             case MODULE_MAINTENANCE -> openMaintenanceDialog(null);
-            case MODULE_DOCUMENTS -> openDocumentDialog(null);
-            default -> openRentDialog(null);
+            case MODULE_RULES -> openHouseRuleDialog(null);
+            case MODULE_SCHEDULES -> openScheduleDialog(null);
+            default -> openMaintenanceDialog(null);
         }
     }
 
     private void openRowDetails(ManagementRow row) {
-        if (MODULE_RENT.equals(row.moduleId)) {
-            openRentDialog(row.snapshot);
-        } else if (MODULE_MAINTENANCE.equals(row.moduleId)) {
+        if (MODULE_MAINTENANCE.equals(row.moduleId)) {
             openMaintenanceDialog(row.snapshot);
-        } else if (MODULE_DOCUMENTS.equals(row.moduleId)) {
-            openDocumentDialog(row.snapshot);
+        } else if (MODULE_RULES.equals(row.moduleId)) {
+            if (currentUserIsGroupOwner) {
+                openHouseRuleDialog(row.snapshot);
+            } else {
+                showReadOnlyDetails(row);
+            }
+        } else if (MODULE_SCHEDULES.equals(row.moduleId)) {
+            if (currentUserIsGroupOwner) {
+                showScheduleActions(row);
+            } else {
+                showReadOnlyDetails(row);
+            }
         } else {
             showReadOnlyDetails(row);
         }
     }
 
     private void showReadOnlyDetails(ManagementRow row) {
-        View content = DialogUtils.createMessageView(requireContext(), row.detail == null ? "Sin detalle." : row.detail);
+        StringBuilder detailBuilder = new StringBuilder();
+        if (row.subtitle != null && !row.subtitle.trim().isEmpty()) {
+            detailBuilder.append(row.subtitle.trim());
+        }
+        if (row.amount != null && !row.amount.trim().isEmpty()) {
+            if (detailBuilder.length() > 0) detailBuilder.append("\n\n");
+            detailBuilder.append(row.amount.trim());
+        }
+        if (row.detail != null && !row.detail.trim().isEmpty()) {
+            if (detailBuilder.length() > 0) detailBuilder.append("\n\n");
+            detailBuilder.append(row.detail.trim());
+        }
+        if (detailBuilder.length() == 0) {
+            detailBuilder.append("Sin detalle.");
+        }
+        View content = DialogUtils.createMessageView(requireContext(), detailBuilder.toString());
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 row.title,
@@ -295,6 +388,70 @@ public class RentalManagementFragment extends Fragment {
         shell.confirmBtn.setOnClickListener(v -> dialog.dismiss());
     }
 
+    private void showScheduleActions(@NonNull ManagementRow row) {
+        LinearLayout content = DialogUtils.createVerticalActions(requireContext());
+        Button infoBtn = DialogUtils.createActionButton(requireContext(), "Ver detalle", true);
+        Button editBtn = DialogUtils.createActionButton(requireContext(), "Editar horario", false);
+        Button deleteBtn = DialogUtils.createActionButton(requireContext(), "Eliminar horario", false);
+        content.addView(infoBtn);
+        content.addView(editBtn);
+        content.addView(deleteBtn);
+
+        DialogUtils.Shell shell = DialogUtils.buildShell(
+                requireContext(),
+                row.title,
+                "Gestiona este horario del piso.",
+                content,
+                "Cerrar",
+                null
+        );
+        AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+        shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+        infoBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            showReadOnlyDetails(row);
+        });
+        editBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            openScheduleDialog(row.snapshot);
+        });
+        deleteBtn.setOnClickListener(v -> {
+            dialog.dismiss();
+            requestScheduleDeletion(row);
+        });
+    }
+
+    private void requestScheduleDeletion(@NonNull ManagementRow row) {
+        if (!currentUserIsGroupOwner) {
+            NoticeUtils.show(requireContext(), "Solo el propietario puede eliminar horarios");
+            return;
+        }
+        View content = DialogUtils.createMessageView(
+                requireContext(),
+                "Se eliminará el horario \"" + row.title + "\". Esta acción no se puede deshacer."
+        );
+        DialogUtils.Shell shell = DialogUtils.buildShell(
+                requireContext(),
+                "Eliminar horario",
+                "Confirma la eliminación del horario.",
+                content,
+                "Cancelar",
+                "Eliminar"
+        );
+        AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+        shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+        shell.confirmBtn.setOnClickListener(v -> {
+            db.collection("group_schedules").document(row.id)
+                    .delete()
+                    .addOnSuccessListener(done -> {
+                        writeAudit("Horarios", "eliminar", row.title, row.id);
+                        dialog.dismiss();
+                        loadScheduleRows();
+                    })
+                    .addOnFailureListener(e -> Toast.makeText(requireContext(), "No se pudo eliminar el horario", Toast.LENGTH_SHORT).show());
+        });
+    }
+
     private void loadContractRows() {
         contractsService.loadContractsByGroup(
                 currentGroupId,
@@ -302,8 +459,8 @@ public class RentalManagementFragment extends Fragment {
                     rows.clear();
                     docs.sort((a, b) -> compareByTimestampDesc(a, b, "updatedAt", "createdAt"));
                     for (DocumentSnapshot doc : docs) {
-                        String start = safe(doc.getString("startDate"));
-                        String end = safe(doc.getString("endDate"));
+                        String start = normalizeDateText(doc.getString("startDate"));
+                        String end = normalizeDateText(doc.getString("endDate"));
                         double deposit = safeDouble(doc.getDouble("depositAmount"));
                         long extMonths = safeLong(doc.getLong("extensionMonths"));
                         String signersSummary = buildContractSignersSummary(doc);
@@ -339,12 +496,12 @@ public class RentalManagementFragment extends Fragment {
                         double amountPaid = safeDouble(doc.getDouble("amountPaid"));
                         double total = amountBase + surcharge;
                         String tenantLabel = tenant.isEmpty() ? "Sin inquilino" : formatMemberTwoLines(tenant);
-                        String subtitle = "Mes " + (monthKey.isEmpty() ? "-" : monthKey)
+                        String subtitle = "Mes " + (monthKey.isEmpty() ? "-" : DateInputUtils.normalizeMonthKeyToDisplay(monthKey))
                                 + " - " + (room.isEmpty() ? "Sin habitación" : room)
                                 + "\nInquilino:\n" + tenantLabel;
                         String amount = moneyFormat.format(amountPaid) + " / " + moneyFormat.format(total) + " EUR";
                         String detail = "Estado: " + (status.isEmpty() ? "pendiente" : status)
-                                + "\nVence: " + safe(doc.getString("dueDateText"))
+                                + "\nVence: " + normalizeDateText(doc.getString("dueDateText"))
                                 + "\nRecargo: " + moneyFormat.format(surcharge) + " EUR";
                         rows.add(new ManagementRow(MODULE_RENT, doc.getId(), subtitle, detail, amount, doc, "Cobro"));
                     }
@@ -369,6 +526,7 @@ public class RentalManagementFragment extends Fragment {
                         String status = safe(doc.getString("status"));
                         double cost = safeDouble(doc.getDouble("finalCost"));
                         if (cost <= 0) cost = safeDouble(doc.getDouble("estimatedCost"));
+                        if (!matchesManagementRoomFilter(doc, room, responsible, "")) continue;
                         String subtitle = (room.isEmpty() ? "Sin habitación" : room)
                                 + "\nResponsable:\n" + (responsible.isEmpty() ? "Sin asignar" : formatMemberTwoLines(responsible));
                         String detail = "Estado: " + (status.isEmpty() ? "abierta" : status)
@@ -378,6 +536,81 @@ public class RentalManagementFragment extends Fragment {
                     onRowsReady("No hay incidencias registradas.");
                 })
                 .addOnFailureListener(e -> onLoadError("No se pudieron cargar incidencias"));
+    }
+
+    private void loadHouseRuleRows() {
+        db.collection("house_rules")
+                .whereEqualTo("groupId", currentGroupId)
+                .get()
+                .addOnSuccessListener(snapshot -> {
+                    rows.clear();
+                    List<DocumentSnapshot> docs = new ArrayList<>(snapshot.getDocuments());
+                    docs.sort((a, b) -> compareByTimestampDesc(a, b, "updatedAt", "createdAt"));
+                    for (DocumentSnapshot doc : docs) {
+                        String title = safe(doc.getString("title"));
+                        String scopeSummary = buildRuleScopeSummary(doc);
+                        String description = safe(doc.getString("description"));
+                        if (!matchesManagementRoomFilter(
+                                doc,
+                                safe(doc.getString("roomName")),
+                                safe(doc.getString("targetMemberEmail")),
+                                safe(doc.getString("scopeType"))
+                        )) continue;
+                        String ruleDetail = description.isEmpty()
+                                ? "Descripción: Sin detalle adicional"
+                                : "Descripción: " + description;
+                        rows.add(new ManagementRow(
+                                MODULE_RULES,
+                                doc.getId(),
+                                title.isEmpty() ? "Regla del piso" : title,
+                                "Aplica a: " + scopeSummary,
+                                ruleDetail,
+                                doc,
+                                "Regla"
+                        ));
+                    }
+                    onRowsReady("No hay reglas creadas para este piso.");
+                })
+                .addOnFailureListener(e -> onLoadError("No se pudieron cargar las reglas"));
+    }
+
+    private void loadScheduleRows() {
+        db.collection("group_schedules")
+                .whereEqualTo("groupId", currentGroupId)
+                .get()
+                .addOnSuccessListener(snapshot -> {
+                    rows.clear();
+                    List<DocumentSnapshot> docs = new ArrayList<>(snapshot.getDocuments());
+                    docs.sort((a, b) -> compareByTimestampDesc(a, b, "updatedAt", "createdAt"));
+                    for (DocumentSnapshot doc : docs) {
+                        String title = safe(doc.getString("title"));
+                        String frequency = safe(doc.getString("frequency"));
+                        String startTime = safe(doc.getString("startTimeText"));
+                        String endTime = safe(doc.getString("endTimeText"));
+                        if (!matchesManagementRoomFilter(
+                                doc,
+                                safe(doc.getString("roomName")),
+                                safe(doc.getString("targetMemberEmail")),
+                                safe(doc.getString("scopeType"))
+                        )) continue;
+                        String subtitle = "Aplica a: " + buildRuleScopeSummary(doc);
+                        String amount = (startTime.isEmpty() ? "--:--" : startTime)
+                                + " - "
+                                + (endTime.isEmpty() ? "--:--" : endTime);
+                        String scheduleDetail = buildScheduleSummary(doc);
+                    rows.add(new ManagementRow(
+                            MODULE_SCHEDULES,
+                            doc.getId(),
+                            title.isEmpty() ? "Horario" : title,
+                            subtitle,
+                            amount,
+                            doc,
+                            scheduleDetail
+                    ));
+                    }
+                    onRowsReady("No hay horarios definidos para este piso.");
+                })
+                .addOnFailureListener(e -> onLoadError("No se pudieron cargar los horarios"));
     }
 
     private void loadDocumentRows() {
@@ -391,7 +624,7 @@ public class RentalManagementFragment extends Fragment {
                     for (DocumentSnapshot doc : docs) {
                         String type = safe(doc.getString("type"));
                         String title = safe(doc.getString("title"));
-                        String date = safe(doc.getString("documentDate"));
+                        String date = normalizeDateText(doc.getString("documentDate"));
                         String ref = safe(doc.getString("referenceUri"));
                         String notes = safe(doc.getString("notes"));
                         String subtitle = "Tipo: " + normalizeDocumentType(type) + " · Fecha: " + (date.isEmpty() ? "-" : date);
@@ -445,8 +678,8 @@ public class RentalManagementFragment extends Fragment {
                         String tenant = safe(doc.getString("tenantEmail"));
                         double amount = safeDouble(doc.getDouble("monthlyRent"));
                         long day = safeLong(doc.getLong("billingDay"));
-                        String start = safe(doc.getString("startDate"));
-                        String end = safe(doc.getString("endDate"));
+                        String start = normalizeDateText(doc.getString("startDate"));
+                        String end = normalizeDateText(doc.getString("endDate"));
                         String subtitle = (room.isEmpty() ? "Sin habitación" : room)
                                 + "\nInquilino:\n" + (tenant.isEmpty() ? "Sin inquilino" : formatMemberTwoLines(tenant));
                         String detail = "Cobro día " + day + " · " + moneyFormat.format(amount) + " EUR/mes";
@@ -491,8 +724,8 @@ public class RentalManagementFragment extends Fragment {
 
     private void openContractDialog(@Nullable DocumentSnapshot existingDoc) {
         LinearLayout form = buildVerticalForm();
-        EditText startEt = addLabeledEditText(form, "Fecha inicio (YYYY-MM-DD)", "2026-01-01", InputType.TYPE_CLASS_TEXT);
-        EditText endEt = addLabeledEditText(form, "Fecha fin (YYYY-MM-DD)", "2026-12-31", InputType.TYPE_CLASS_TEXT);
+        EditText startEt = addLabeledEditText(form, "Fecha inicio (DD/MM/AAAA)", "01/01/2026", InputType.TYPE_CLASS_TEXT);
+        EditText endEt = addLabeledEditText(form, "Fecha fin (DD/MM/AAAA)", "31/12/2026", InputType.TYPE_CLASS_TEXT);
         EditText depositEt = addLabeledEditText(form, "Fianza (EUR)", "1000", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
         EditText extensionEt = addLabeledEditText(form, "Prórrogas (meses)", "0", InputType.TYPE_CLASS_NUMBER);
         EditText clausesEt = addLabeledEditText(form, "Cláusulas", "Normas y condiciones del alquiler", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
@@ -531,8 +764,8 @@ public class RentalManagementFragment extends Fragment {
         });
 
         if (existingDoc != null) {
-            startEt.setText(safe(existingDoc.getString("startDate")));
-            endEt.setText(safe(existingDoc.getString("endDate")));
+            startEt.setText(normalizeDateText(existingDoc.getString("startDate")));
+            endEt.setText(normalizeDateText(existingDoc.getString("endDate")));
             depositEt.setText(String.valueOf(safeDouble(existingDoc.getDouble("depositAmount"))));
             extensionEt.setText(String.valueOf(safeLong(existingDoc.getLong("extensionMonths"))));
             clausesEt.setText(safe(existingDoc.getString("clauses")));
@@ -572,10 +805,10 @@ public class RentalManagementFragment extends Fragment {
         AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
         shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
         shell.confirmBtn.setOnClickListener(v -> {
-            String start = startEt.getText().toString().trim();
-            String end = endEt.getText().toString().trim();
+            String start = normalizeDateText(startEt.getText().toString().trim());
+            String end = normalizeDateText(endEt.getText().toString().trim());
             if (!isValidDate(start) || !isValidDate(end)) {
-                NoticeUtils.show(requireContext(), "Revisa formato de fechas (YYYY-MM-DD)");
+                NoticeUtils.show(requireContext(), "Revisa formato de fechas (DD/MM/AAAA)");
                 return;
             }
             double deposit = parseDouble(depositEt.getText().toString().trim(), -1);
@@ -668,7 +901,7 @@ public class RentalManagementFragment extends Fragment {
             EditText paidEt = addLabeledEditText(form, "Pagado hasta ahora (EUR)", "0", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
             EditText surchargeEt = addLabeledEditText(form, "Recargo (EUR)", "0", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
             Spinner statusSpinner = addLabeledSpinner(form, "Estado", new String[]{"pendiente", "parcial", "pagado", "atrasado"});
-            EditText dueDateEt = addLabeledEditText(form, "Vencimiento (YYYY-MM-DD)", "2026-05-05", InputType.TYPE_CLASS_TEXT);
+            EditText dueDateEt = addLabeledEditText(form, "Vencimiento (DD/MM/AAAA)", "05/05/2026", InputType.TYPE_CLASS_TEXT);
             setupDatePicker(dueDateEt);
 
             if (existingDoc != null) {
@@ -679,7 +912,7 @@ public class RentalManagementFragment extends Fragment {
                 paidEt.setText(String.valueOf(safeDouble(existingDoc.getDouble("amountPaid"))));
                 surchargeEt.setText(String.valueOf(safeDouble(existingDoc.getDouble("surcharge"))));
                 selectSpinnerValue(statusSpinner, safe(existingDoc.getString("status")));
-                dueDateEt.setText(safe(existingDoc.getString("dueDateText")));
+                dueDateEt.setText(normalizeDateText(existingDoc.getString("dueDateText")));
             }
 
             DialogUtils.Shell shell = DialogUtils.buildShell(
@@ -698,7 +931,7 @@ public class RentalManagementFragment extends Fragment {
                     NoticeUtils.show(requireContext(), "Mes inválido. Usa YYYY-MM");
                     return;
                 }
-                String dueDate = dueDateEt.getText().toString().trim();
+            String dueDate = normalizeDateText(dueDateEt.getText().toString().trim());
                 if (!isValidDate(dueDate)) {
                     NoticeUtils.show(requireContext(), "Fecha de vencimiento inválida");
                     return;
@@ -820,7 +1053,7 @@ public class RentalManagementFragment extends Fragment {
                     ? new ArrayList<>()
                     : castMapList(existingDoc.get("history"));
             Map<String, Object> event = new HashMap<>();
-            event.put("at", FieldValue.serverTimestamp());
+            event.put("at", new Timestamp(new Date()));
             event.put("actorUid", authUid());
             event.put("actorEmail", authEmail());
             event.put("action", existingDoc == null ? "crear" : "editar");
@@ -860,11 +1093,246 @@ public class RentalManagementFragment extends Fragment {
         });
     }
 
+    private void openHouseRuleDialog(@Nullable DocumentSnapshot existingDoc) {
+        if (!currentUserIsGroupOwner) {
+            NoticeUtils.show(requireContext(), "Solo el propietario puede crear o editar reglas");
+            return;
+        }
+        loadGroupRoomLabels(roomLabels -> {
+            if (!isAdded()) return;
+            LinearLayout form = buildVerticalForm();
+            EditText titleEt = addLabeledEditText(form, "Título", "Ejemplo: Silencio por la noche", InputType.TYPE_CLASS_TEXT);
+            EditText detailEt = addLabeledEditText(form, "Detalle", "Explica la norma de la casa", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+            Spinner scopeSpinner = addLabeledSpinner(form, "Aplicar a", new String[]{"Todos", "Persona", "Habitación"});
+            Spinner memberSpinner = addLabeledMemberInlineSpinner(form, "Persona");
+            Spinner roomSpinner = addLabeledSpinner(form, "Habitación", buildRoomOptions(roomLabels));
+
+            updateScopeInputs(scopeSpinner, memberSpinner, roomSpinner);
+            scopeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                    updateScopeInputs(scopeSpinner, memberSpinner, roomSpinner);
+                }
+
+                @Override
+                public void onNothingSelected(AdapterView<?> parent) {
+                }
+            });
+
+            if (existingDoc != null) {
+                titleEt.setText(safe(existingDoc.getString("title")));
+                detailEt.setText(safe(existingDoc.getString("description")));
+                selectScopeFromDoc(scopeSpinner, existingDoc);
+                selectMemberSpinnerEmail(memberSpinner, safe(existingDoc.getString("targetMemberEmail")));
+                selectSpinnerValue(roomSpinner, safe(existingDoc.getString("roomName")));
+                updateScopeInputs(scopeSpinner, memberSpinner, roomSpinner);
+            }
+
+            DialogUtils.Shell shell = DialogUtils.buildShell(
+                    requireContext(),
+                    existingDoc == null ? "Nueva regla" : "Editar regla",
+                    "Define normas generales, por persona o por habitación.",
+                    form,
+                    "Cancelar",
+                    "Guardar"
+            );
+            AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+            shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+            shell.confirmBtn.setOnClickListener(v -> {
+                String title = titleEt.getText().toString().trim();
+                String detail = detailEt.getText().toString().trim();
+                if (title.isEmpty() || detail.isEmpty()) {
+                    NoticeUtils.show(requireContext(), "Completa título y detalle de la regla");
+                    return;
+                }
+
+                ScopeSelection scope = resolveScopeSelection(scopeSpinner, memberSpinner, roomSpinner);
+                if (!scope.valid) {
+                    NoticeUtils.show(requireContext(), scope.errorMessage);
+                    return;
+                }
+
+                Map<String, Object> data = new HashMap<>();
+                data.put("groupId", currentGroupId);
+                data.put("title", title);
+                data.put("description", detail);
+                data.put("scopeType", scope.scopeType);
+                data.put("targetMemberEmail", scope.memberEmail);
+                data.put("targetEmails", scope.memberEmail.isEmpty() ? new ArrayList<>() : Collections.singletonList(scope.memberEmail));
+                data.put("roomName", scope.roomName);
+                data.put("updatedAt", FieldValue.serverTimestamp());
+                data.put("updatedByUid", authUid());
+                data.put("updatedByEmail", authEmail());
+                if (existingDoc == null) {
+                    data.put("createdAt", FieldValue.serverTimestamp());
+                    data.put("createdByUid", authUid());
+                    data.put("createdByEmail", authEmail());
+                }
+
+                Task<?> saveTask = existingDoc == null
+                        ? db.collection("house_rules").add(data)
+                        : db.collection("house_rules").document(existingDoc.getId()).update(data);
+                saveTask.addOnSuccessListener(done -> {
+                    writeAudit("Reglas", existingDoc == null ? "crear" : "editar", title + " · " + scope.summary, existingDoc == null ? "" : existingDoc.getId());
+                    dialog.dismiss();
+                    loadHouseRuleRows();
+                }).addOnFailureListener(e -> Toast.makeText(requireContext(), "No se pudo guardar la regla", Toast.LENGTH_SHORT).show());
+            });
+        });
+    }
+
+    private void openScheduleDialog(@Nullable DocumentSnapshot existingDoc) {
+        if (!currentUserIsGroupOwner) {
+            NoticeUtils.show(requireContext(), "Solo el propietario puede crear o editar horarios");
+            return;
+        }
+        loadGroupRoomLabels(roomLabels -> {
+            if (!isAdded()) return;
+            LinearLayout form = buildVerticalForm();
+            EditText titleEt = addLabeledEditText(form, "Título o zona", "Ejemplo: Baño principal", InputType.TYPE_CLASS_TEXT);
+            EditText detailEt = addLabeledEditText(form, "Qué ocurre", "Ejemplo: Uso exclusivo de Sergio", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+            Spinner scopeSpinner = addLabeledSpinner(form, "Aplicar a", new String[]{"Todos", "Persona", "Habitación"});
+            Spinner memberSpinner = addLabeledMemberInlineSpinner(form, "Persona");
+            Spinner roomSpinner = addLabeledSpinner(form, "Habitación", buildRoomOptions(roomLabels));
+            Spinner frequencySpinner = addLabeledSpinner(form, "Frecuencia", new String[]{"diario", "semanal", "mensual"});
+            EditText startDateEt = addLabeledEditText(form, "Empieza (DD/MM/AAAA)", "04/06/2026", InputType.TYPE_CLASS_TEXT);
+            EditText endDateEt = addLabeledEditText(form, "Termina (opcional) (DD/MM/AAAA)", "", InputType.TYPE_CLASS_TEXT);
+            EditText startTimeEt = addLabeledEditText(form, "Hora inicio (HH:MM)", "17:00", InputType.TYPE_CLASS_TEXT);
+            EditText endTimeEt = addLabeledEditText(form, "Hora fin (HH:MM)", "19:00", InputType.TYPE_CLASS_TEXT);
+            setupDatePicker(startDateEt);
+            setupDatePicker(endDateEt);
+            setupTimePicker(startTimeEt);
+            setupTimePicker(endTimeEt);
+            startTimeEt.setText("17:00");
+            endTimeEt.setText("19:00");
+
+            updateScopeInputs(scopeSpinner, memberSpinner, roomSpinner);
+            scopeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                    updateScopeInputs(scopeSpinner, memberSpinner, roomSpinner);
+                }
+
+                @Override
+                public void onNothingSelected(AdapterView<?> parent) {
+                }
+            });
+
+            if (existingDoc != null) {
+                titleEt.setText(safe(existingDoc.getString("title")));
+                detailEt.setText(safe(existingDoc.getString("description")));
+                selectScopeFromDoc(scopeSpinner, existingDoc);
+                selectMemberSpinnerEmail(memberSpinner, safe(existingDoc.getString("targetMemberEmail")));
+                selectSpinnerValue(roomSpinner, safe(existingDoc.getString("roomName")));
+                selectSpinnerValue(frequencySpinner, safe(existingDoc.getString("frequency")));
+                startDateEt.setText(normalizeDateText(existingDoc.getString("startDateText")));
+                endDateEt.setText(normalizeDateText(existingDoc.getString("endDateText")));
+                startTimeEt.setText(safe(existingDoc.getString("startTimeText")));
+                endTimeEt.setText(safe(existingDoc.getString("endTimeText")));
+                updateScopeInputs(scopeSpinner, memberSpinner, roomSpinner);
+            }
+
+            DialogUtils.Shell shell = DialogUtils.buildShell(
+                    requireContext(),
+                    existingDoc == null ? "Nuevo horario" : "Editar horario",
+                    "Reserva zonas y turnos recurrentes del piso.",
+                    form,
+                    "Cancelar",
+                    "Guardar"
+            );
+            AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
+            shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
+            shell.confirmBtn.setOnClickListener(v -> {
+                String title = titleEt.getText().toString().trim();
+                String detail = detailEt.getText().toString().trim();
+                String startDateText = normalizeDateText(startDateEt.getText().toString().trim());
+                String endDateText = normalizeDateText(endDateEt.getText().toString().trim());
+                String startTimeText = normalizeTimeText(startTimeEt.getText().toString().trim());
+                String endTimeText = normalizeTimeText(endTimeEt.getText().toString().trim());
+                if (title.isEmpty() || detail.isEmpty()) {
+                    NoticeUtils.show(requireContext(), "Completa el título y la descripción del horario");
+                    return;
+                }
+                if (!isValidDate(startDateText)) {
+                    NoticeUtils.show(requireContext(), "La fecha de inicio no es válida");
+                    return;
+                }
+                if (!endDateText.isEmpty() && !isValidDate(endDateText)) {
+                    NoticeUtils.show(requireContext(), "La fecha de fin no es válida");
+                    return;
+                }
+                if (!isValidTime(startTimeText) || !isValidTime(endTimeText)) {
+                    NoticeUtils.show(requireContext(), "Las horas deben tener formato HH:MM");
+                    return;
+                }
+                int startMinutes = parseTimeToMinutes(startTimeText);
+                int endMinutes = parseTimeToMinutes(endTimeText);
+                if (endMinutes <= startMinutes) {
+                    NoticeUtils.show(requireContext(), "La hora de fin debe ser posterior a la de inicio");
+                    return;
+                }
+                startTimeEt.setText(startTimeText);
+                endTimeEt.setText(endTimeText);
+
+                Date startAt = combineDateAndTime(startDateText, startTimeText);
+                Date endAt = endDateText.isEmpty() ? null : combineDateAndTime(endDateText, endTimeText);
+                if (startAt == null || (!endDateText.isEmpty() && endAt == null)) {
+                    NoticeUtils.show(requireContext(), "No se pudo interpretar la fecha del horario");
+                    return;
+                }
+                if (endAt != null && endAt.before(startAt)) {
+                    NoticeUtils.show(requireContext(), "La fecha de fin no puede ser anterior al inicio");
+                    return;
+                }
+
+                ScopeSelection scope = resolveScopeSelection(scopeSpinner, memberSpinner, roomSpinner);
+                if (!scope.valid) {
+                    NoticeUtils.show(requireContext(), scope.errorMessage);
+                    return;
+                }
+
+                String frequency = selectedSpinnerValue(frequencySpinner).toLowerCase(Locale.ROOT);
+                Map<String, Object> data = new HashMap<>();
+                data.put("groupId", currentGroupId);
+                data.put("title", title);
+                data.put("description", detail);
+                data.put("scopeType", scope.scopeType);
+                data.put("targetMemberEmail", scope.memberEmail);
+                data.put("targetEmails", scope.memberEmail.isEmpty() ? new ArrayList<>() : Collections.singletonList(scope.memberEmail));
+                data.put("roomName", scope.roomName);
+                data.put("frequency", frequency);
+                data.put("startAt", startAt);
+                data.put("startDateText", startDateText);
+                data.put("endAt", endAt);
+                data.put("endDateText", endDateText);
+                data.put("startTimeText", startTimeText);
+                data.put("endTimeText", endTimeText);
+                data.put("updatedAt", FieldValue.serverTimestamp());
+                data.put("updatedByUid", authUid());
+                data.put("updatedByEmail", authEmail());
+                if (existingDoc == null) {
+                    data.put("createdAt", FieldValue.serverTimestamp());
+                    data.put("createdByUid", authUid());
+                    data.put("createdByEmail", authEmail());
+                }
+
+                Task<?> saveTask = existingDoc == null
+                        ? db.collection("group_schedules").add(data)
+                        : db.collection("group_schedules").document(existingDoc.getId()).update(data);
+                saveTask.addOnSuccessListener(done -> {
+                    writeAudit("Horarios", existingDoc == null ? "crear" : "editar", title + " · " + startTimeText + "-" + endTimeText, existingDoc == null ? "" : existingDoc.getId());
+                    dialog.dismiss();
+                    loadScheduleRows();
+                }).addOnFailureListener(e -> Toast.makeText(requireContext(), "No se pudo guardar el horario", Toast.LENGTH_SHORT).show());
+            });
+        });
+    }
+
     private void openDocumentDialog(@Nullable DocumentSnapshot existingDoc) {
         LinearLayout form = buildVerticalForm();
         Spinner typeSpinner = addLabeledSpinner(form, "Tipo", new String[]{"contrato", "factura", "inventario", "foto", "acta"});
         EditText titleEt = addLabeledEditText(form, "Título", "Ejemplo: Contrato alquiler 2026", InputType.TYPE_CLASS_TEXT);
-        EditText dateEt = addLabeledEditText(form, "Fecha (YYYY-MM-DD)", "2026-05-13", InputType.TYPE_CLASS_TEXT);
+        EditText dateEt = addLabeledEditText(form, "Fecha (DD/MM/AAAA)", "13/05/2026", InputType.TYPE_CLASS_TEXT);
         EditText refEt = addLabeledEditText(form, "Referencia/URL (opcional)", "https://...", InputType.TYPE_CLASS_TEXT);
         EditText notesEt = addLabeledEditText(form, "Notas", "Detalle opcional", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
 
@@ -892,7 +1360,7 @@ public class RentalManagementFragment extends Fragment {
         if (existingDoc != null) {
             selectSpinnerValue(typeSpinner, safe(existingDoc.getString("type")));
             titleEt.setText(safe(existingDoc.getString("title")));
-            dateEt.setText(safe(existingDoc.getString("documentDate")));
+            dateEt.setText(normalizeDateText(existingDoc.getString("documentDate")));
             refEt.setText(safe(existingDoc.getString("referenceUri")));
             notesEt.setText(safe(existingDoc.getString("notes")));
             if (!safe(existingDoc.getString("referenceUri")).isEmpty()) {
@@ -917,9 +1385,9 @@ public class RentalManagementFragment extends Fragment {
             dialog.dismiss();
         });
         shell.confirmBtn.setOnClickListener(v -> {
-            String date = dateEt.getText().toString().trim();
+            String date = normalizeDateText(dateEt.getText().toString().trim());
             if (!date.isEmpty() && !isValidDate(date)) {
-                NoticeUtils.show(requireContext(), "Fecha inválida. Usa YYYY-MM-DD");
+                NoticeUtils.show(requireContext(), "Fecha inválida. Usa DD/MM/AAAA");
                 return;
             }
             String title = titleEt.getText().toString().trim();
@@ -1082,8 +1550,8 @@ public class RentalManagementFragment extends Fragment {
         Spinner tenantSpinner = addLabeledMemberSpinner(form, "Inquilino");
         EditText rentEt = addLabeledEditText(form, "Renta mensual (EUR)", "450", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
         EditText billingDayEt = addLabeledEditText(form, "Día de cobro (1-28)", "5", InputType.TYPE_CLASS_NUMBER);
-        EditText startEt = addLabeledEditText(form, "Inicio ocupación (YYYY-MM-DD)", "2026-05-01", InputType.TYPE_CLASS_TEXT);
-        EditText endEt = addLabeledEditText(form, "Fin ocupación (opcional)", "", InputType.TYPE_CLASS_TEXT);
+        EditText startEt = addLabeledEditText(form, "Inicio ocupación (DD/MM/AAAA)", "01/05/2026", InputType.TYPE_CLASS_TEXT);
+        EditText endEt = addLabeledEditText(form, "Fin ocupación (opcional, DD/MM/AAAA)", "", InputType.TYPE_CLASS_TEXT);
         setupDatePicker(startEt);
         setupDatePicker(endEt);
 
@@ -1092,8 +1560,8 @@ public class RentalManagementFragment extends Fragment {
             selectMemberSpinnerEmail(tenantSpinner, safe(existingDoc.getString("tenantEmail")));
             rentEt.setText(String.valueOf(safeDouble(existingDoc.getDouble("monthlyRent"))));
             billingDayEt.setText(String.valueOf(safeLong(existingDoc.getLong("billingDay"))));
-            startEt.setText(safe(existingDoc.getString("startDate")));
-            endEt.setText(safe(existingDoc.getString("endDate")));
+            startEt.setText(normalizeDateText(existingDoc.getString("startDate")));
+            endEt.setText(normalizeDateText(existingDoc.getString("endDate")));
         }
 
         DialogUtils.Shell shell = DialogUtils.buildShell(
@@ -1107,8 +1575,8 @@ public class RentalManagementFragment extends Fragment {
         AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
         shell.cancelBtn.setOnClickListener(v -> dialog.dismiss());
         shell.confirmBtn.setOnClickListener(v -> {
-            String startDate = startEt.getText().toString().trim();
-            String endDate = endEt.getText().toString().trim();
+            String startDate = normalizeDateText(startEt.getText().toString().trim());
+            String endDate = normalizeDateText(endEt.getText().toString().trim());
             if (!isValidDate(startDate) || (!endDate.isEmpty() && !isValidDate(endDate))) {
                 NoticeUtils.show(requireContext(), "Revisa fechas de ocupación");
                 return;
@@ -1408,6 +1876,46 @@ public class RentalManagementFragment extends Fragment {
         emptyTv.setVisibility(View.VISIBLE);
     }
 
+    private boolean hasRoomFilterContext() {
+        return currentRoomFilterId != null && !currentRoomFilterId.trim().isEmpty();
+    }
+
+    private boolean matchesManagementRoomFilter(
+            @NonNull DocumentSnapshot doc,
+            @Nullable String roomName,
+            @Nullable String memberEmail,
+            @Nullable String scopeType
+    ) {
+        if (!hasRoomFilterContext()) return true;
+        String normalizedScope = safe(scopeType).trim().toLowerCase(Locale.ROOT);
+        if ("room".equals(normalizedScope)) {
+            return sameRoomName(roomName, currentRoomFilterName);
+        }
+        if ("member".equals(normalizedScope)) {
+            String normalizedMember = normalizeEmail(memberEmail);
+            return !normalizedMember.isEmpty() && currentRoomFilterMembers.contains(normalizedMember);
+        }
+        String directRoomId = safe(doc.getString("roomId"));
+        if (!directRoomId.isEmpty() && directRoomId.equals(currentRoomFilterId)) {
+            return true;
+        }
+        if (!safe(roomName).isEmpty()) {
+            return sameRoomName(roomName, currentRoomFilterName);
+        }
+        if (memberEmail != null && !memberEmail.trim().isEmpty()) {
+            String normalizedMember = normalizeEmail(memberEmail);
+            return !normalizedMember.isEmpty() && currentRoomFilterMembers.contains(normalizedMember);
+        }
+        return "everyone".equals(normalizedScope) || normalizedScope.isEmpty();
+    }
+
+    private boolean sameRoomName(@Nullable String left, @Nullable String right) {
+        String safeLeft = safe(left).trim();
+        String safeRight = safe(right).trim();
+        if (safeLeft.isEmpty() || safeRight.isEmpty()) return false;
+        return safeLeft.equalsIgnoreCase(safeRight);
+    }
+
     private int compareByTimestampDesc(DocumentSnapshot a, DocumentSnapshot b, String primary, String secondary) {
         Timestamp ta = a.getTimestamp(primary);
         if (ta == null) ta = a.getTimestamp(secondary);
@@ -1546,6 +2054,80 @@ public class RentalManagementFragment extends Fragment {
         return addLabeledSpinner(parent, label, labels);
     }
 
+    private String[] buildRoomOptions(@NonNull List<String> roomLabels) {
+        if (roomLabels.isEmpty()) {
+            return new String[]{"Sin habitaciones"};
+        }
+        return roomLabels.toArray(new String[0]);
+    }
+
+    private void updateScopeInputs(@NonNull Spinner scopeSpinner, @NonNull Spinner memberSpinner, @NonNull Spinner roomSpinner) {
+        String scope = selectedSpinnerValue(scopeSpinner).toLowerCase(Locale.ROOT);
+        memberSpinner.setVisibility("persona".equals(scope) ? View.VISIBLE : View.GONE);
+        roomSpinner.setVisibility("habitación".equals(scope) || "habitacion".equals(scope) ? View.VISIBLE : View.GONE);
+    }
+
+    private void selectScopeFromDoc(@NonNull Spinner scopeSpinner, @NonNull DocumentSnapshot doc) {
+        String scopeType = safe(doc.getString("scopeType")).toLowerCase(Locale.ROOT);
+        if ("member".equals(scopeType)) {
+            selectSpinnerValue(scopeSpinner, "Persona");
+            return;
+        }
+        if ("room".equals(scopeType)) {
+            selectSpinnerValue(scopeSpinner, "Habitación");
+            return;
+        }
+        selectSpinnerValue(scopeSpinner, "Todos");
+    }
+
+    @NonNull
+    private ScopeSelection resolveScopeSelection(@NonNull Spinner scopeSpinner, @NonNull Spinner memberSpinner, @NonNull Spinner roomSpinner) {
+        String scope = selectedSpinnerValue(scopeSpinner).toLowerCase(Locale.ROOT);
+        if ("persona".equals(scope)) {
+            String memberEmail = selectedMemberEmail(memberSpinner);
+            if (memberEmail.isEmpty()) {
+                return ScopeSelection.invalid("Selecciona una persona válida");
+            }
+            return ScopeSelection.member(memberEmail, formatMemberInline(memberEmail));
+        }
+        if ("habitación".equals(scope) || "habitacion".equals(scope)) {
+            String roomName = selectedSpinnerValue(roomSpinner);
+            if (roomName.isEmpty() || "Sin habitaciones".equalsIgnoreCase(roomName)) {
+                return ScopeSelection.invalid("Selecciona una habitación válida");
+            }
+            return ScopeSelection.room(roomName);
+        }
+        return ScopeSelection.everyone();
+    }
+
+    private String buildRuleScopeSummary(@NonNull DocumentSnapshot doc) {
+        String scopeType = safe(doc.getString("scopeType")).toLowerCase(Locale.ROOT);
+        if ("member".equals(scopeType)) {
+            String email = safe(doc.getString("targetMemberEmail"));
+            return "Para: " + (email.isEmpty() ? "Persona" : formatMemberInline(email));
+        }
+        if ("room".equals(scopeType)) {
+            String roomName = safe(doc.getString("roomName"));
+            return "Habitación: " + (roomName.isEmpty() ? "Sin definir" : roomName);
+        }
+        return "Para todo el piso";
+    }
+
+    private String buildScheduleSummary(@NonNull DocumentSnapshot doc) {
+        String scopeSummary = buildRuleScopeSummary(doc);
+        String frequency = capitalizeLabel(safe(doc.getString("frequency")));
+        String startDate = normalizeDateText(doc.getString("startDateText"));
+        String endDate = normalizeDateText(doc.getString("endDateText"));
+        String dateSummary = startDate.isEmpty() ? "" : (" · Desde " + startDate + (endDate.isEmpty() ? "" : " hasta " + endDate));
+        return scopeSummary + " · " + frequency + dateSummary;
+    }
+
+    private String capitalizeLabel(@Nullable String value) {
+        String safeValue = safe(value);
+        if (safeValue.isEmpty()) return "";
+        return Character.toUpperCase(safeValue.charAt(0)) + safeValue.substring(1);
+    }
+
     private void loadGroupRoomLabels(@NonNull StringListCallback callback) {
         if (currentGroupId == null || currentGroupId.trim().isEmpty()) {
             callback.onLoaded(new ArrayList<>());
@@ -1593,7 +2175,7 @@ public class RentalManagementFragment extends Fragment {
             }
             DatePickerDialog picker = new DatePickerDialog(
                     requireContext(),
-                    (view, year, month, day) -> target.setText(String.format(Locale.ROOT, "%04d-%02d-%02d", year, month + 1, day)),
+                    (view, year, month, day) -> target.setText(String.format(Locale.ROOT, "%02d/%02d/%04d", day, month + 1, year)),
                     calendar.get(Calendar.YEAR),
                     calendar.get(Calendar.MONTH),
                     calendar.get(Calendar.DAY_OF_MONTH)
@@ -1602,15 +2184,31 @@ public class RentalManagementFragment extends Fragment {
         });
     }
 
+    private void setupTimePicker(EditText target) {
+        target.setFocusable(false);
+        target.setClickable(true);
+        target.setOnClickListener(v -> {
+            int hour = 17;
+            int minute = 0;
+            String current = target.getText() == null ? "" : target.getText().toString().trim();
+            int parsedMinutes = parseTimeToMinutes(current);
+            if (parsedMinutes >= 0) {
+                hour = parsedMinutes / 60;
+                minute = parsedMinutes % 60;
+            }
+            TimePickerDialog picker = new TimePickerDialog(
+                    requireContext(),
+                    (view, selectedHour, selectedMinute) -> target.setText(String.format(Locale.ROOT, "%02d:%02d", selectedHour, selectedMinute)),
+                    hour,
+                    minute,
+                    true
+            );
+            picker.show();
+        });
+    }
+
     private boolean isValidDate(String isoDate) {
-        if (isoDate == null || isoDate.trim().isEmpty()) return false;
-        try {
-            dateFormat.setLenient(false);
-            dateFormat.parse(isoDate.trim());
-            return true;
-        } catch (ParseException e) {
-            return false;
-        }
+        return parseDate(isoDate) != null;
     }
 
     private boolean isValidMonth(String month) {
@@ -1620,15 +2218,58 @@ public class RentalManagementFragment extends Fragment {
         return mm >= 1 && mm <= 12;
     }
 
+    private boolean isValidTime(String value) {
+        return parseTimeToMinutes(value) >= 0;
+    }
+
+    @NonNull
+    private String normalizeTimeText(@Nullable String value) {
+        if (value == null) return "";
+        String normalized = value.trim()
+                .replace('：', ':')
+                .replace('.', ':')
+                .replace('·', ':')
+                .replace('∙', ':')
+                .replaceAll("\\s+", "");
+        normalized = normalized.replaceAll("[^0-9:]", "");
+        if (normalized.matches("^\\d{1,2}$")) {
+            int hour = (int) parseLong(normalized, -1);
+            if (hour >= 0 && hour <= 23) {
+                return String.format(Locale.ROOT, "%02d:00", hour);
+            }
+        }
+        if (normalized.matches("^\\d{3,4}$")) {
+            int split = normalized.length() - 2;
+            int hour = (int) parseLong(normalized.substring(0, split), -1);
+            int minute = (int) parseLong(normalized.substring(split), -1);
+            if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+                return String.format(Locale.ROOT, "%02d:%02d", hour, minute);
+            }
+        }
+        if (normalized.matches("^\\d{1,2}:\\d{1,2}$")) {
+            String[] parts = normalized.split(":");
+            int hour = (int) parseLong(parts[0], -1);
+            int minute = (int) parseLong(parts[1], -1);
+            if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+                return String.format(Locale.ROOT, "%02d:%02d", hour, minute);
+            }
+        }
+        return normalized;
+    }
+
+    private int parseTimeToMinutes(@Nullable String value) {
+        String normalized = normalizeTimeText(value);
+        if (!normalized.matches("^\\d{2}:\\d{2}$")) return -1;
+        String[] parts = normalized.split(":");
+        int hour = (int) parseLong(parts[0], -1);
+        int minute = (int) parseLong(parts[1], -1);
+        if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return -1;
+        return (hour * 60) + minute;
+    }
+
     @Nullable
     private Date parseDate(String value) {
-        if (value == null || value.trim().isEmpty()) return null;
-        try {
-            dateFormat.setLenient(false);
-            return dateFormat.parse(value.trim());
-        } catch (ParseException e) {
-            return null;
-        }
+        return DateInputUtils.parseDayOrNull(value);
     }
 
     @Nullable
@@ -1637,9 +2278,28 @@ public class RentalManagementFragment extends Fragment {
         return parsed == null ? null : new Timestamp(parsed);
     }
 
+    @Nullable
+    private Date combineDateAndTime(@Nullable String isoDate, @Nullable String timeText) {
+        Date date = parseDate(isoDate == null ? "" : isoDate.trim());
+        int minutes = parseTimeToMinutes(timeText);
+        if (date == null || minutes < 0) return null;
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(date);
+        calendar.set(Calendar.HOUR_OF_DAY, minutes / 60);
+        calendar.set(Calendar.MINUTE, minutes % 60);
+        calendar.set(Calendar.SECOND, 0);
+        calendar.set(Calendar.MILLISECOND, 0);
+        return calendar.getTime();
+    }
+
     private String timestampToDateText(@Nullable Timestamp timestamp) {
         if (timestamp == null) return "-";
         return dateFormat.format(timestamp.toDate());
+    }
+
+    @NonNull
+    private String normalizeDateText(@Nullable String value) {
+        return DateInputUtils.normalizeToDisplay(value);
     }
 
     private String authUid() {
@@ -1652,6 +2312,23 @@ public class RentalManagementFragment extends Fragment {
             return "";
         }
         return FirebaseAuth.getInstance().getCurrentUser().getEmail().toLowerCase(Locale.ROOT).trim();
+    }
+
+    private boolean isCurrentUserGroupOwner(@Nullable DocumentSnapshot groupDoc) {
+        if (groupDoc == null) return false;
+        String ownerId = safe(groupDoc.getString("ownerId"));
+        if (!ownerId.isEmpty() && ownerId.equals(authUid())) {
+            return true;
+        }
+        Object rolesRaw = groupDoc.get("roles");
+        if (rolesRaw instanceof Map<?, ?> roles) {
+            Object role = roles.get(authUid());
+            if (role != null && "admin".equalsIgnoreCase(role.toString().trim())) {
+                return true;
+            }
+        }
+        String ownerEmail = normalizeEmail(groupDoc.getString("ownerEmail"));
+        return !ownerEmail.isEmpty() && ownerEmail.equals(authEmail());
     }
 
     private int dp(int value) {
@@ -1715,7 +2392,8 @@ public class RentalManagementFragment extends Fragment {
     private double parseDouble(String value, double fallback) {
         if (value == null || value.trim().isEmpty()) return fallback;
         try {
-            return Double.parseDouble(value.trim());
+            String normalized = value.trim().replace(',', '.');
+            return Double.parseDouble(normalized);
         } catch (NumberFormatException e) {
             return fallback;
         }
@@ -1798,6 +2476,15 @@ public class RentalManagementFragment extends Fragment {
         return Math.round(value * 100.0d) / 100.0d;
     }
 
+    @Nullable
+    private ModuleDef findModuleById(@Nullable String moduleId) {
+        if (moduleId == null) return null;
+        for (ModuleDef module : modules) {
+            if (moduleId.equals(module.id)) return module;
+        }
+        return null;
+    }
+
     private ProrationResult calculateProration(Date occupancyStart, @Nullable Date occupancyEnd, int year, int month) {
         Calendar monthStart = Calendar.getInstance();
         monthStart.set(year, month, 1, 0, 0, 0);
@@ -1871,6 +2558,40 @@ public class RentalManagementFragment extends Fragment {
         }
     }
 
+    private static class ScopeSelection {
+        final boolean valid;
+        final String errorMessage;
+        final String scopeType;
+        final String memberEmail;
+        final String roomName;
+        final String summary;
+
+        ScopeSelection(boolean valid, String errorMessage, String scopeType, String memberEmail, String roomName, String summary) {
+            this.valid = valid;
+            this.errorMessage = errorMessage;
+            this.scopeType = scopeType;
+            this.memberEmail = memberEmail;
+            this.roomName = roomName;
+            this.summary = summary;
+        }
+
+        static ScopeSelection invalid(String message) {
+            return new ScopeSelection(false, message, "", "", "", "");
+        }
+
+        static ScopeSelection everyone() {
+            return new ScopeSelection(true, "", "everyone", "", "", "Todo el piso");
+        }
+
+        static ScopeSelection member(String email, String summary) {
+            return new ScopeSelection(true, "", "member", email, "", summary);
+        }
+
+        static ScopeSelection room(String roomName) {
+            return new ScopeSelection(true, "", "room", "", roomName, roomName);
+        }
+    }
+
     private interface StringListCallback {
         void onLoaded(@NonNull List<String> values);
     }
@@ -1900,12 +2621,27 @@ public class RentalManagementFragment extends Fragment {
             ManagementRow row = rows.get(position);
             TextView titleTv = view.findViewById(R.id.rowTitleTv);
             TextView subtitleTv = view.findViewById(R.id.rowSubtitleTv);
+            TextView detailTv = view.findViewById(R.id.rowDetailTv);
             TextView amountTv = view.findViewById(R.id.rowAmountTv);
             titleTv.setText(row.title);
             subtitleTv.setText(row.subtitle);
-            amountTv.setText(row.amount == null ? "" : row.amount);
-            int color = Color.parseColor("#0F172A");
-            amountTv.setTextColor(color);
+            String detail = row.detail == null ? "" : row.detail.trim();
+            if (detail.isEmpty()) {
+                detailTv.setVisibility(View.GONE);
+                detailTv.setText("");
+            } else {
+                detailTv.setVisibility(View.VISIBLE);
+                detailTv.setText(detail);
+            }
+
+            String amount = row.amount == null ? "" : row.amount.trim();
+            if (amount.isEmpty()) {
+                amountTv.setVisibility(View.GONE);
+                amountTv.setText("");
+            } else {
+                amountTv.setVisibility(View.VISIBLE);
+                amountTv.setText(amount);
+            }
             return view;
         }
     }

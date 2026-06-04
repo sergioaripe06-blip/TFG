@@ -9,22 +9,19 @@ import android.os.Build;
 import android.os.Bundle;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import androidx.core.os.LocaleListCompat;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.sergio.flatshare.core.settings.SettingsStore;
+import com.sergio.flatshare.core.settings.ThemeUtils;
+import com.sergio.flatshare.core.session.SessionStore;
 import com.sergio.flatshare.features.auth.LoginActivity;
 
 public class SplashActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        AppCompatDelegate.setApplicationLocales(
-                LocaleListCompat.forLanguageTags(SettingsStore.getLanguage(this))
-        );
+        ThemeUtils.applyAppTheme(this);
         super.onCreate(savedInstanceState);
         createNotificationChannel();
         requestNotificationPermission();
@@ -32,6 +29,20 @@ public class SplashActivity extends AppCompatActivity {
     }
 
     private void routeBySession() {
+        if (!SessionStore.isRememberMeEnabled(this)) {
+            SessionStore.clearReauthRequired(this);
+            FirebaseAuth.getInstance().signOut();
+            openLogin();
+            return;
+        }
+
+        if (SessionStore.isReauthRequired(this) && !SessionStore.isRememberMeEnabled(this)) {
+            SessionStore.clearReauthRequired(this);
+            FirebaseAuth.getInstance().signOut();
+            openLogin();
+            return;
+        }
+
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
         if (currentUser == null) {
             openLogin();

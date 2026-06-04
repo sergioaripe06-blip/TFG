@@ -4,5 +4,5 @@
         android:angle="135"
         android:startColor="@color/bg_deep_green_3"
         android:centerColor="@color/bg_deep_green"
-        android:endColor="@color/surface_dark" />
+        android:endColor="#07110A" />
 </shape>

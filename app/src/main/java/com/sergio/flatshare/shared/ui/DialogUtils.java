@@ -4,13 +4,16 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
+import android.util.AttributeSet;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -45,7 +48,27 @@ public final class DialogUtils {
 
         if (content != null) {
             contentContainer.removeAllViews();
-            contentContainer.addView(content);
+            if (content instanceof ScrollView) {
+                contentContainer.addView(content);
+            } else {
+                AdaptiveMaxHeightScrollView scrollView = new AdaptiveMaxHeightScrollView(context);
+                scrollView.setFillViewport(true);
+                scrollView.setVerticalScrollBarEnabled(false);
+                scrollView.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
+                scrollView.setMaxHeightPx(Math.round(context.getResources().getDisplayMetrics().heightPixels * 0.58f));
+                scrollView.setLayoutParams(new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.WRAP_CONTENT
+                ));
+                if (content.getParent() instanceof ViewGroup parent) {
+                    parent.removeView(content);
+                }
+                scrollView.addView(content, new ScrollView.LayoutParams(
+                        ScrollView.LayoutParams.MATCH_PARENT,
+                        ScrollView.LayoutParams.WRAP_CONTENT
+                ));
+                contentContainer.addView(scrollView);
+            }
             contentContainer.setVisibility(View.VISIBLE);
         } else {
             contentContainer.setVisibility(View.GONE);
@@ -286,6 +309,40 @@ public final class DialogUtils {
             this.cancelBtn = cancelBtn;
             this.confirmBtn = confirmBtn;
             this.closeXBtn = closeXBtn;
+        }
+    }
+
+    private static final class AdaptiveMaxHeightScrollView extends ScrollView {
+        private int maxHeightPx = Integer.MAX_VALUE;
+
+        AdaptiveMaxHeightScrollView(@NonNull Context context) {
+            super(context);
+        }
+
+        AdaptiveMaxHeightScrollView(@NonNull Context context, @Nullable AttributeSet attrs) {
+            super(context, attrs);
+        }
+
+        void setMaxHeightPx(int maxHeightPx) {
+            this.maxHeightPx = Math.max(0, maxHeightPx);
+            requestLayout();
+        }
+
+        @Override
+        protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+            int constrainedHeightSpec = heightMeasureSpec;
+            if (maxHeightPx < Integer.MAX_VALUE) {
+                int capSpec = MeasureSpec.makeMeasureSpec(maxHeightPx, MeasureSpec.AT_MOST);
+                int originalMode = MeasureSpec.getMode(heightMeasureSpec);
+                if (originalMode == MeasureSpec.UNSPECIFIED) {
+                    constrainedHeightSpec = capSpec;
+                } else {
+                    int originalSize = MeasureSpec.getSize(heightMeasureSpec);
+                    int boundedSize = Math.min(originalSize, maxHeightPx);
+                    constrainedHeightSpec = MeasureSpec.makeMeasureSpec(boundedSize, MeasureSpec.AT_MOST);
+                }
+            }
+            super.onMeasure(widthMeasureSpec, constrainedHeightSpec);
         }
     }
 }

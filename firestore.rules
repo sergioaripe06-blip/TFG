@@ -114,6 +114,28 @@ service cloud.firestore {
         && resource.data.status == 'requested';
     }
 
+    function canManageExpense() {
+      return signedInAndVerified()
+        && (
+          isGroupOwner(resource.data.groupId)
+          || resource.data.payerId == authUid()
+          || resource.data.payerEmail == authEmail()
+        );
+    }
+
+    function isExpenseEditableByManager() {
+      return canManageExpense()
+        && resource.data.status == 'requested'
+        && request.resource.data.groupId == resource.data.groupId
+        && request.resource.data.payerId == resource.data.payerId
+        && request.resource.data.payerEmail == resource.data.payerEmail;
+    }
+
+    function isExpenseDeletableByManager() {
+      return canManageExpense()
+        && resource.data.status == 'requested';
+    }
+
     match /users/{userId} {
       allow read: if signedInAndVerified();
       allow write: if signedInAndVerified() && authUid() == userId;
@@ -171,8 +193,12 @@ service cloud.firestore {
         && request.resource.data.payerId == authUid()
         && isGroupMember(request.resource.data.groupId);
 
-      allow read, update, delete: if signedInAndVerified()
+      allow read: if signedInAndVerified()
         && isGroupMember(resource.data.groupId);
+
+      allow update: if isExpenseEditableByManager();
+
+      allow delete: if isExpenseDeletableByManager();
     }
 
     match /payments/{paymentId} {
@@ -247,13 +273,56 @@ service cloud.firestore {
       allow read: if signedInAndVerified()
         && isGroupMember(resource.data.groupId);
 
-      allow update, delete: if signedInAndVerified()
-        && isGroupOwner(resource.data.groupId);
+      allow update: if signedInAndVerified()
+        && (
+          isGroupOwner(resource.data.groupId)
+          || (
+            isGroupMember(resource.data.groupId)
+            && resource.data.sourceType == "room_charge"
+            && request.resource.data.sourceType == "room_charge"
+            && request.resource.data.groupId == resource.data.groupId
+            && request.resource.data.roomId == resource.data.roomId
+            && request.resource.data.tenantEmail == resource.data.tenantEmail
+            && request.resource.data.monthKey == resource.data.monthKey
+            && request.resource.data.uniqueKey == resource.data.uniqueKey
+          )
+        );
+
+      allow delete: if signedInAndVerified()
+        && (
+          isGroupOwner(resource.data.groupId)
+          || (
+            isGroupMember(resource.data.groupId)
+            && resource.data.sourceType == "room_charge"
+          )
+        );
     }
 
     match /maintenance_tickets/{ticketId} {
       allow create: if signedInAndVerified()
         && isGroupMember(request.resource.data.groupId);
+
+      allow read: if signedInAndVerified()
+        && isGroupMember(resource.data.groupId);
+
+      allow update, delete: if signedInAndVerified()
+        && isGroupMember(resource.data.groupId);
+    }
+
+    match /house_rules/{ruleId} {
+      allow create: if signedInAndVerified()
+        && isGroupOwner(request.resource.data.groupId);
+
+      allow read: if signedInAndVerified()
+        && isGroupMember(resource.data.groupId);
+
+      allow update, delete: if signedInAndVerified()
+        && isGroupOwner(resource.data.groupId);
+    }
+
+    match /group_schedules/{scheduleId} {
+      allow create: if signedInAndVerified()
+        && isGroupOwner(request.resource.data.groupId);
 
       allow read: if signedInAndVerified()
         && isGroupMember(resource.data.groupId);

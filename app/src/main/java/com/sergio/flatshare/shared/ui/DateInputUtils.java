@@ -11,6 +11,7 @@ import java.util.Locale;
 public final class DateInputUtils {
     private static final String DISPLAY_PATTERN = "dd/MM/yyyy";
     private static final String LEGACY_PATTERN = "yyyy-MM-dd";
+    private static final String MONTH_KEY_PATTERN = "yyyy-MM";
 
     private DateInputUtils() {
     }
@@ -36,6 +37,20 @@ public final class DateInputUtils {
         if (raw == null) return "";
         Date parsed = parseDayOrNull(raw);
         return parsed == null ? raw.trim() : formatDay(parsed);
+    }
+
+    @NonNull
+    public static String normalizeMonthKeyToDisplay(@Nullable String raw) {
+        if (raw == null) return "";
+        String value = raw.trim();
+        if (value.isEmpty()) return "";
+
+        Date parsedMonth = parseWithPattern(value, MONTH_KEY_PATTERN);
+        if (parsedMonth == null) {
+            return normalizeToDisplay(value);
+        }
+
+        return formatDay(parsedMonth);
     }
 
     @Nullable
