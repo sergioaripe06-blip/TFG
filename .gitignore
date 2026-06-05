@@ -1,6 +1,7 @@
 ﻿# Android / Gradle
 .gradle/
 .gradle-home/
+.gradle-home-clean/
 build/
 **/build/
 captures/

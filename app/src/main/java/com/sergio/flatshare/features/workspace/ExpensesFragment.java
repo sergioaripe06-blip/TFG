@@ -125,7 +125,6 @@ public class ExpensesFragment extends Fragment {
     private static final String ROOM_SPLIT_EQUAL = "equal";
     private static final String ROOM_SPLIT_PERCENTAGE = "percentage";
     private static final String ROOM_ALL_LABEL = "Todas las habitaciones";
-    private static final String FILTER_MODE_CATEGORY = "category";
     private static final String FILTER_MODE_PERSON = "person";
     private static final String FILTER_MODE_DATE = "date";
     private static final String CATEGORY_RENT = "alquiler";
@@ -207,7 +206,6 @@ public class ExpensesFragment extends Fragment {
     private List<String> currentRoomMembers = new ArrayList<>();
     private List<String> currentGroupMemberEmails = new ArrayList<>();
     private String filterPersonEmail;
-    private String filterCategory;
     private String filterStatusBucket;
     private Long filterFromMs;
     private Long filterToMs;
@@ -6854,40 +6852,13 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     private void showFiltersDialog() {
         View form = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_filters, null, false);
         Spinner modeSpinner = form.findViewById(R.id.filterModeSpinner);
-        View categoryRow = form.findViewById(R.id.filterCategoryRow);
-        Spinner categorySpinner = form.findViewById(R.id.filterCategorySpinner);
         View personRow = form.findViewById(R.id.filterPersonRow);
         Spinner personSpinner = form.findViewById(R.id.filterPersonSpinner);
         View dateRow = form.findViewById(R.id.filterDateRow);
         EditText dateEt = form.findViewById(R.id.filterDateEt);
 
-        String[] modeLabels = new String[]{"Categoría", "Persona", "Fecha"};
+        String[] modeLabels = new String[]{"Persona", "Fecha"};
         modeSpinner.setAdapter(buildLightSpinnerAdapter(modeLabels));
-
-        List<String> categoryValues = new ArrayList<>();
-        List<String> categoryLabels = new ArrayList<>();
-        categoryValues.add("");
-        categoryLabels.add("Selecciona categoría");
-        if (BILLING_FIXED.equals(currentBillingModel)) {
-            categoryValues.add(CATEGORY_RENT);
-            categoryLabels.add(capitalizeTypeLabel(CATEGORY_RENT));
-        } else {
-            loadGroupCategorySuggestions(false, categories -> {
-                if (!isAdded()) return;
-                categoryValues.clear();
-                categoryLabels.clear();
-                categoryValues.add("");
-                categoryLabels.add("Selecciona categoría");
-                for (String category : categories) {
-                    if (category == null || category.trim().isEmpty()) continue;
-                    categoryValues.add(category);
-                    categoryLabels.add(capitalizeTypeLabel(category));
-                }
-                categorySpinner.setAdapter(buildLightSpinnerAdapter(categoryLabels.toArray(new String[0])));
-                selectSpinnerValue(categorySpinner, categoryValues, filterCategory);
-            });
-        }
-        categorySpinner.setAdapter(buildLightSpinnerAdapter(categoryLabels.toArray(new String[0])));
 
         List<String> personValues = new ArrayList<>();
         List<String> personLabels = new ArrayList<>();
@@ -6913,14 +6884,13 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
 
         String activeMode = resolveActiveFilterMode();
         modeSpinner.setSelection(filterModeToIndex(activeMode));
-        selectSpinnerValue(categorySpinner, categoryValues, filterCategory);
         selectSpinnerValue(personSpinner, personValues, filterPersonEmail);
-        updateFilterModeRows(activeMode, categoryRow, personRow, dateRow);
+        updateFilterModeRows(activeMode, personRow, dateRow);
         modeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 String mode = filterModeFromIndex(position);
-                updateFilterModeRows(mode, categoryRow, personRow, dateRow);
+                updateFilterModeRows(mode, personRow, dateRow);
             }
 
             @Override
@@ -6931,14 +6901,13 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         DialogUtils.Shell shell = DialogUtils.buildShell(
                 requireContext(),
                 "Filtros",
-                "Aplica un solo filtro: categoría, persona o fecha.",
+                "Aplica un solo filtro: persona o fecha.",
                 form,
                 "Limpiar",
                 "Aplicar"
         );
         AlertDialog dialog = DialogUtils.show(requireContext(), shell.root);
         shell.cancelBtn.setOnClickListener(v -> {
-            filterCategory = null;
             filterPersonEmail = null;
             filterFromMs = null;
             filterToMs = null;
@@ -6948,23 +6917,12 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         });
         shell.confirmBtn.setOnClickListener(v -> {
             String selectedMode = filterModeFromIndex(modeSpinner.getSelectedItemPosition());
-            filterCategory = null;
             filterPersonEmail = null;
             filterFromMs = null;
             filterToMs = null;
             filterDateIso = null;
 
-            if (FILTER_MODE_CATEGORY.equals(selectedMode)) {
-                int selectedIndex = categorySpinner.getSelectedItemPosition();
-                String selectedCategory = selectedIndex >= 0 && selectedIndex < categoryValues.size()
-                        ? categoryValues.get(selectedIndex)
-                        : "";
-                if (selectedCategory == null || selectedCategory.trim().isEmpty()) {
-                    NoticeUtils.show(requireContext(), "Selecciona una categoría");
-                    return;
-                }
-                filterCategory = selectedCategory.trim().toLowerCase(Locale.ROOT);
-            } else if (FILTER_MODE_PERSON.equals(selectedMode)) {
+            if (FILTER_MODE_PERSON.equals(selectedMode)) {
                 int selectedIndex = personSpinner.getSelectedItemPosition();
                 String selectedPerson = selectedIndex >= 0 && selectedIndex < personValues.size()
                         ? personValues.get(selectedIndex)
@@ -7009,26 +6967,22 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
     }
 
     private String resolveActiveFilterMode() {
-        if (filterCategory != null && !filterCategory.trim().isEmpty()) return FILTER_MODE_CATEGORY;
         if (filterPersonEmail != null && !filterPersonEmail.trim().isEmpty()) return FILTER_MODE_PERSON;
         if (filterFromMs != null || filterToMs != null) return FILTER_MODE_DATE;
-        return FILTER_MODE_CATEGORY;
+        return FILTER_MODE_PERSON;
     }
 
     private int filterModeToIndex(String mode) {
-        if (FILTER_MODE_PERSON.equals(mode)) return 1;
-        if (FILTER_MODE_DATE.equals(mode)) return 2;
+        if (FILTER_MODE_DATE.equals(mode)) return 1;
         return 0;
     }
 
     private String filterModeFromIndex(int index) {
-        if (index == 1) return FILTER_MODE_PERSON;
-        if (index == 2) return FILTER_MODE_DATE;
-        return FILTER_MODE_CATEGORY;
+        if (index == 1) return FILTER_MODE_DATE;
+        return FILTER_MODE_PERSON;
     }
 
-    private void updateFilterModeRows(String mode, View categoryRow, View personRow, View dateRow) {
-        categoryRow.setVisibility(FILTER_MODE_CATEGORY.equals(mode) ? View.VISIBLE : View.GONE);
+    private void updateFilterModeRows(String mode, View personRow, View dateRow) {
         personRow.setVisibility(FILTER_MODE_PERSON.equals(mode) ? View.VISIBLE : View.GONE);
         dateRow.setVisibility(FILTER_MODE_DATE.equals(mode) ? View.VISIBLE : View.GONE);
     }
@@ -7116,9 +7070,6 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         if (filterPersonEmail != null && (payerEmail == null || !payerEmail.equalsIgnoreCase(filterPersonEmail))) {
             return false;
         }
-        if (filterCategory != null && (category == null || !category.toLowerCase(Locale.ROOT).contains(filterCategory))) {
-            return false;
-        }
         return passesDateFilter(doc);
     }
 
@@ -7132,9 +7083,6 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
             boolean match = (from != null && from.equalsIgnoreCase(filterPersonEmail))
                     || (to != null && to.equalsIgnoreCase(filterPersonEmail));
             if (!match) return false;
-        }
-        if (filterCategory != null && (category == null || !category.toLowerCase(Locale.ROOT).contains(filterCategory))) {
-            return false;
         }
         return passesDateFilter(doc);
     }
@@ -7159,12 +7107,6 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         if (filterPersonEmail != null && (tenantEmail == null || !tenantEmail.equalsIgnoreCase(filterPersonEmail))) {
             return false;
         }
-        if (filterCategory != null) {
-            String combinedCategory = CATEGORY_RENT + " " + CATEGORY_ROOM_EXPENSE;
-            if (!combinedCategory.toLowerCase(Locale.ROOT).contains(filterCategory)) {
-                return false;
-            }
-        }
         return passesDateFilter(doc);
     }
 
@@ -7175,9 +7117,6 @@ private void loadRoomRowById(@Nullable String roomId, @NonNull RoomRowCallback c
         if (filterPersonEmail != null) {
             boolean match = debt.creditorEmail.equalsIgnoreCase(filterPersonEmail);
             if (!match) return false;
-        }
-        if (filterCategory != null) {
-            return false;
         }
         return passesDateFilter(debt.snapshot);
     }

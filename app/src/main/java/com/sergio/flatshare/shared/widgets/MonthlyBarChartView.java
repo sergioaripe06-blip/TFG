@@ -15,8 +15,12 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MonthlyBarChartView extends View {
+    private static final Pattern DAY_MONTH_YEAR_PATTERN = Pattern.compile("^(\\d{2})/(\\d{2})/(\\d{4})$");
+
     public static class Bar {
         public final String label;
         public final float value;
@@ -88,7 +92,7 @@ public class MonthlyBarChartView extends View {
         float leftPad = dp(16f);
         float rightPad = dp(12f);
         float topPad = dp(16f);
-        float bottomPad = dp(58f);
+        float bottomPad = dp(64f);
         float yAxisWidth = dp(78f);
 
         float plotLeft = leftPad + yAxisWidth;
@@ -124,6 +128,16 @@ public class MonthlyBarChartView extends View {
         if (label == null) return;
         String normalized = label.trim();
         if (normalized.isEmpty()) return;
+
+        Matcher dateMatcher = DAY_MONTH_YEAR_PATTERN.matcher(normalized);
+        if (dateMatcher.matches()) {
+            String monthLine = dateMatcher.group(2);
+            String yearLine = dateMatcher.group(3);
+            float baseY = getHeight() - dp(30f);
+            drawCenteredAxisText(canvas, monthLine, centerX, baseY);
+            drawCenteredAxisText(canvas, yearLine, centerX, baseY + dp(14f));
+            return;
+        }
 
         String[] parts = normalized.split(" ", 2);
         float baseY = getHeight() - dp(28f);
@@ -166,7 +180,7 @@ public class MonthlyBarChartView extends View {
         float leftPad = dp(16f);
         float rightPad = dp(12f);
         float yAxisWidth = dp(78f);
-        float slotWidth = dp(36f);
+        float slotWidth = dp(44f);
         return leftPad + rightPad + yAxisWidth + (slotWidth * count);
     }
 
